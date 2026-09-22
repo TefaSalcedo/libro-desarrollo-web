@@ -3,74 +3,235 @@ title: "4. Necesitamos confiar en lo que entra (o no confiar)"
 subtitle: "El cliente manda basura; la validación es la muralla"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
-
 ## El problema
 
-El cliente envía `{ "title": 42, "priority": "mucho" }`. Sin validación, eso llega intacto a la lógica de negocio.
+El Cap. 3 terminó con una mentira piadosa: dijimos que `400` era "body
+inválido", pero lo único que validamos fue `title` a mano. Mira lo que el
+cliente puede mandar de verdad:
+
+```json
+{
+  "title": 42,
+  "priority": "mucho",
+  "due_date": "ayer",
+  "evil": "<script>alert(1)</script>",
+  "unexpected_field": "¿y esto qué?"
+}
+```
+
+Tu handler recibe bytes. `JSON.parse` los convierte en un objeto — **pero
+nadie garantiza que ese objeto tenga la forma que tu lógica espera**. En
+frontend, un dato malo rompe la UI del usuario que lo mandó. En backend, un
+dato malo entra a la base de datos y corrompe el sistema para todos.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+La regla profesional es simple y brutal:
+
+> **Nada que venga del cliente se usa sin pasar por validación.**
+
+Y la forma moderna de hacerlo es *declarativa*: en vez de veinte `if`
+sueltos en el handler, describes **la forma válida** una sola vez — un
+schema — y dejas que una capa anterior rechace lo que no cumple. El handler
+solo se ejecuta si el dato ya es válido. En el diagrama del Cap. 1, la
+validación es el muro que está *antes* de la lógica de negocio:
+
+```text
+Request → Router → [VALIDACIÓN] → Handler → …
+                     ↑ si falla: 400/422 y el handler ni se entera
+```
 
 ## Conceptos nuevos
 
-- <span class="tag tag-u">U</span> El body crudo: `req.body` / `await request.json()` / `json.NewDecoder` — el problema antes de la solución
-- <span class="tag tag-u">U</span> Validación declarativa: mismo patrón, tres mecanismos
-- <span class="tag tag-ts">TS</span> Zod: schemas que generan tipos
-- <span class="tag tag-py">Py</span> Type hints + Pydantic: la validación *es* la firma
-- <span class="tag tag-go">Go</span> Struct tags + validator (o manual): tipado estático ≠ validación de runtime
-- <span class="tag tag-u">U</span> El error de validación (400/422) como contrato con el frontend
+- <span class="tag tag-u">U</span> **Schema de validación**: la declaración
+  de la forma válida — campos, tipos, reglas (`min`, `max`, formato email).
+- <span class="tag tag-u">U</span> **Parse, don't validate**: no "revisar y
+  seguir", sino *transformar* el JSON crudo en un objeto de tu dominio — si
+  no puede transformarse, se rechaza ahí.
+- <span class="tag tag-ts">TS</span> **Zod**: el schema define y *genera* el
+  tipo TypeScript — `z.infer` conecta validación de runtime con tipos de
+  compilación.
+- <span class="tag tag-py">Py</span> **Pydantic + type hints**: `class
+  TaskCreate(BaseModel)` — el type hint *es* la validación; FastAPI la
+  aplica antes del handler y devuelve `422` solo.
+- <span class="tag tag-go">Go</span> **Validación manual o struct tags**:
+  Go no tiene runtime reflexivo mágico cómodo — se valida explícito o con
+  `go-playground/validator` sobre struct tags.
+- <span class="tag tag-u">U</span> **400 vs 422**: `400` = JSON roto o
+  semántica general inválida; `422` = JSON bien formado que no cumple el
+  schema (convención popularizada por FastAPI). Elige una y sé consistente.
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart TB
+  Raw["Body crudo<br/>{ title: 42, due: 'ayer' }"] --> S{"Schema<br/>TaskCreate"}
+  S -->|"title: string ✗"| R["Rechazo<br/>422 + lista de errores"]
+  S -->|"todo válido ✓"| T["Objeto de dominio<br/>TaskCreate validado"] --> H["Handler<br/>(nunca ve basura)"]
+```
+
+El punto clave: **el handler vive aguas abajo de la validación**. Si tu
+código de negocio está chequeando tipos, el muro está en el lugar equivocado.
 
 ## Implementación
+
+Agregamos el schema `TaskCreate` real: `title` requerido (1–200 chars),
+`priority` opcional 1–5, `due_date` opcional en formato ISO.
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+import { z } from "zod";
+
+const createTaskSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  priority: z.number().int().min(1).max(5).optional(),
+  due_date: z.string().date().optional(),  // "2026-10-01"
+});
+
+// el tipo TS sale del schema — no se escribe dos veces
+type TaskCreate = z.infer<typeof createTaskSchema>;
+
+app.post("/tasks", (req, res) => {
+  const parsed = createTaskSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(422).json({
+      error: "validation failed",
+      details: parsed.error.issues.map((i) => ({
+        field: i.path.join("."),
+        message: i.message,
+      })),
+    });
+  }
+  const data: TaskCreate = parsed.data;   // ya es del tipo correcto
+  // … crear tarea con data
+});
 ```
 
 ### Python
+
 ```python
-# TODO
+from datetime import date
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
+
+class TaskCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    priority: int | None = Field(default=None, ge=1, le=5)
+    due_date: date | None = None   # Pydantic parsea "2026-10-01" a date
+
+@app.post("/tasks", status_code=201)
+def create_task(payload: TaskCreate):
+    # si llegas aquí, payload YA es válido — el 422 ocurrió antes
+    ...
+```
+
+Si el cliente manda `{"title": 42}`, FastAPI responde automáticamente:
+
+```json
+{
+  "detail": [{
+    "loc": ["body", "title"],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+  }]
+}
 ```
 
 ### Go
+
 ```go
-// TODO
+type CreateTaskInput struct {
+	Title    string  `json:"title"    validate:"required,min=1,max=200"`
+	Priority *int    `json:"priority" validate:"omitempty,min=1,max=5"`
+	DueDate  *string `json:"due_date" validate:"omitempty,datetime=2006-01-02"`
+}
+
+func createTask(w http.ResponseWriter, r *http.Request) {
+	var in CreateTaskInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, `{"error":"invalid json"}`, http.StatusBadRequest)
+		return
+	}
+	if err := validate.Struct(in); err != nil { // go-playground/validator
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error":   "validation failed",
+			"details": err.Error(),
+		})
+		return
+	}
+	// in es válido — el handler sigue
+}
 ```
 
 :::
 
-<!-- proyecto: schema de entrada para tareas (título requerido, prioridad 1-5, fecha válida) -->
-
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+Aquí hay una diferencia **profunda**, no de sintaxis:
+
+- **TypeScript**: los tipos (`interface Task`) *no existen en runtime* — se
+  evaporan al compilar. Por eso necesitas Zod: es el puente entre "lo que
+  TS cree" y "lo que realmente llegó". Si declaras el tipo sin schema,
+  tienes una ilusión de seguridad.
+- **Python**: los type hints normalmente también son solo para el editor —
+  pero Pydantic los lee *en runtime* y los convierte en validación. Es el
+  truco que hace a FastAPI tan cómodo: escribes el tipo una vez y sirve
+  para autocompletar, validar y documentar.
+- **Go**: el tipado estático *sí* existe en runtime (es compilado), así que
+  un `int` nunca será un string — pero Go no puede validar "min 1, max 5"
+  en el tipo; por eso las struct tags o el chequeo manual. Menos mágico,
+  más honesto.
+
+La lección universal: **el contrato de entrada debe existir fuera del
+handler**, expresado una sola vez, y rechazar antes de ejecutar lógica.
+Zod, Pydantic y validator son tres implementaciones del mismo muro.
 
 ## Errores comunes
 
-<!-- TODO -->
+- **Validar dentro del handler con `if` sueltos**: se desordena, se olvida,
+  y cada endpoint termina con reglas distintas.
+- **Creer que el tipo TypeScript valida**: `interface` no existe en
+  runtime — `req.body` es `any` disfrazado.
+- **Devolver errores crudos del validador**: el frontend necesita
+  `{ field, message }` estructurado, no el volcado interno de la librería.
+- **Validar solo en el frontend**: el formulario valida para UX; el
+  servidor valida porque es *la última línea de defensa* — cualquiera puede
+  hacer `curl` saltándose tu React.
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Schema por operación**: `TaskCreate` (sin `id`), `TaskUpdate` (todo
+  opcional), `TaskPublic` (salida). Un solo schema para todo es deuda.
+- **Rechazar campos desconocidos** cuando el contrato es estricto
+  (`z.object().strict()`, `model_config = ConfigDict(extra="forbid")`).
+- **Errores de validación con forma estable**: el frontend mostrará
+  "priority: debe ser ≤ 5" junto al campo — dale la estructura para hacerlo.
+- **La validación también es seguridad**: strings con límite de longitud,
+  enums cerrados y formatos estrictos cortan inyecciones antes de nacer.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Agrega a Taskflow el schema `TaskCreate` de arriba en tu stack y prueba
+   mandar: sin `title`, `priority: 9`, `due_date: "mañana"`. Verifica que
+   ninguna llegue al handler.
+2. Diseña `TaskUpdate` (todo opcional, pero al menos un campo presente) —
+   ¿cómo expresas "al menos uno" en tu validador?
 
 ## Mini reto
 
-Hacer que un email malformado nunca llegue al handler — en los tres lenguajes.
+Haz que un email malformado **nunca** llegue al handler de un futuro
+`POST /users` — en tu lenguaje. Pregunta extra: ¿aceptarías `"a@b"` como
+email válido? Investiga qué decide cada librería y por qué la validación de
+emails es más tramposa de lo que parece.
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Explicar por qué validar en el servidor aunque el frontend ya valide
+- [ ] Definir un schema de entrada declarativo en tu stack
+- [ ] Elegir entre 400 y 422 y devolver errores estructurados por campo
+- [ ] Explicar por qué los tipos TypeScript no protegen en runtime — y qué
+      sí lo hace en cada lenguaje

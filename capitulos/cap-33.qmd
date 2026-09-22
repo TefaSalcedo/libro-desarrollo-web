@@ -3,6 +3,8 @@ title: "33. Necesitamos servir esto a usuarios reales"
 subtitle: "uvicorn --reload es para tu máquina"
 ---
 
+![Parte 8 — Deployment](../imagenes/parte-08.png)
+
 > **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
 > Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
 > `docs/guia-de-estilo.md`.

@@ -3,6 +3,8 @@ title: "14. Necesitamos guardar contraseñas sin traicionar a nadie"
 subtitle: "Texto plano nunca; cifrado tampoco. ¿Entonces qué?"
 ---
 
+![Parte 3 — Usuarios, autenticación y permisos](../imagenes/parte-03.png)
+
 > **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
 > Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
 > `docs/guia-de-estilo.md`.

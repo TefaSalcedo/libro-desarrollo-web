@@ -2,6 +2,7 @@ _book/
 .quarto/
 *_cache/
 *_files/
+.env
 .DS_Store
 Thumbs.db
 

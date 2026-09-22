@@ -9,6 +9,7 @@ book:
   subtitle: "Un concepto, tres lenguajes: TypeScript, Python y Go"
   author: "Stefa"
   date: today
+  cover-image: imagenes/cover.png
   search: true
   downloads: [pdf, epub]
   repo-url: ""

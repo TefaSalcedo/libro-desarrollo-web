@@ -3,74 +3,307 @@ title: "3. Necesitamos responder a URLs y verbos"
 subtitle: "Qué es exactamente un endpoint y qué promete"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
-
 ## El problema
 
-El cliente llamará `GET /tasks/42?expand=owner`. Necesitamos rutas, parámetros y verbos con intención — y saber qué pasa cuando los usamos mal.
+Taskflow necesita su primera funcionalidad real: **gestionar tareas**. El
+frontend (que ya sabes escribir) va a hacer esto:
+
+```ts
+await fetch("/api/tasks");                        // listar
+await fetch("/api/tasks", { method: "POST", … }); // crear
+await fetch("/api/tasks/42");                     // ver una
+await fetch("/api/tasks/42", { method: "DELETE" });// borrar
+```
+
+Cada una de esas llamadas es una promesa que tu servidor debe cumplir:
+qué ruta atiende, qué verbo significa qué, qué código de estado devuelve.
+Diseñar eso **es** diseñar la API — y es una conversación de equipo antes
+que de código.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Antes de escribir handlers, un equipo se sienta sobre una tabla así:
+
+| Verbo + ruta | Significado | Éxito | Error esperado |
+|---|---|---|---|
+| `GET /tasks` | listar todas | `200` + array | — |
+| `POST /tasks` | crear | `201` + tarea creada | `400` body inválido |
+| `GET /tasks/{id}` | una tarea | `200` + tarea | `404` no existe |
+| `PATCH /tasks/{id}` | modificar parcial | `200` + tarea | `404`, `400` |
+| `DELETE /tasks/{id}` | borrar | `204` sin body | `404` |
+
+Dos decisiones de diseño ya están tomadas en esa tabla — fíjate:
+
+- **Sustantivos plurales, no verbos en la URL**: `/tasks`, no
+  `/getTasks` ni `/createTask`. El verbo ya lo pone el método HTTP.
+- **Los códigos de estado son parte del contrato**: `201` dice "se creó",
+  `204` dice "salió bien y no hay nada que devolver", `404` dice "eso no
+  existe". Devolver `200` con `{"error": "not found"}` es mentirle al
+  cliente.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-u">U</span> Routing: paths, path params, query params
-- <span class="tag tag-u">U</span> Métodos HTTP con semántica: GET lee, POST crea, PUT reemplaza, PATCH modifica, DELETE borra
-- <span class="tag tag-u">U</span> Status codes como parte del contrato: 200, 201, 400, 404, 422, 500
-- <span class="tag tag-ts">TS</span> `app.get("/tasks/:id")` — params por convención de string
-- <span class="tag tag-py">Py</span> `@app.get("/tasks/{id}")` — params inyectados en la firma
-- <span class="tag tag-go">Go</span> `mux.HandleFunc("GET /tasks/{id}", h)` — método en el patrón (Go 1.22+)
+- <span class="tag tag-u">U</span> **Endpoint**: la pareja (verbo + ruta)
+  que atiende un handler. `GET /tasks` y `POST /tasks` son dos endpoints
+  distintos aunque compartan ruta.
+- <span class="tag tag-u">U</span> **Path params** (`/tasks/{id}`) vs
+  **query params** (`/tasks?status=done`): el path identifica *qué recurso*;
+  el query modifica *cómo* se devuelve (filtros, orden, paginación).
+- <span class="tag tag-u">U</span> **Idempotencia** (primera aparición):
+  `GET`, `PUT`, `DELETE` repetidos dan el mismo resultado; `POST` no — cada
+  llamada crea otra tarea. Esto importa cuando el frontend reintenta.
+- <span class="tag tag-ts">TS</span> <span class="tag tag-py">Py</span>
+  <span class="tag tag-go">Go</span> Tres sintaxis de routing: cadena con
+  `:id` (Express), decorator + firma (FastAPI), patrón `"GET /tasks/{id}"`
+  en `ServeMux` (Go 1.22+).
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  Req["POST /api/tasks<br/>{ title: 'x' }"] --> M{"Mux / Router<br/>¿existe ruta+verbo?"}
+  M -->|"no"| R404["404 Not Found"]
+  M -->|"sí"| H["handler createTask"]
+  H -->|"éxito"| R201["201 Created + tarea"]
+  H -->|"body malo"| R400["400 Bad Request"]
+```
+
+El router es un **despachador**: compara `(método, path)` contra la tabla de
+rutas registradas y entrega el request al handler correspondiente — o
+responde 404 él mismo si nadie reclamó la ruta.
 
 ## Implementación
+
+CRUD completo en memoria. El "modelo" es intencionalmente una lista — la
+base de datos llega en la Parte 2; hoy nos importa el *contrato HTTP*.
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+// src/index.ts
+import express from "express";
+
+const app = express();
+app.use(express.json());
+
+interface Task {
+  id: number;
+  title: string;
+  done: boolean;
+}
+
+const tasks: Task[] = [];
+let nextId = 1;
+
+app.get("/tasks", (_req, res) => {
+  res.json(tasks);
+});
+
+app.post("/tasks", (req, res) => {
+  const { title } = req.body ?? {};
+  if (typeof title !== "string" || !title.trim()) {
+    return res.status(400).json({ error: "title is required" });
+  }
+  const task: Task = { id: nextId++, title, done: false };
+  tasks.push(task);
+  res.status(201).json(task);
+});
+
+app.get("/tasks/:id", (req, res) => {
+  const task = tasks.find((t) => t.id === Number(req.params.id));
+  if (!task) return res.status(404).json({ error: "task not found" });
+  res.json(task);
+});
+
+app.delete("/tasks/:id", (req, res) => {
+  const i = tasks.findIndex((t) => t.id === Number(req.params.id));
+  if (i === -1) return res.status(404).json({ error: "task not found" });
+  tasks.splice(i, 1);
+  res.status(204).send();
+});
+
+app.listen(8000);
 ```
 
 ### Python
+
 ```python
-# TODO
+# app/main.py
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class Task(BaseModel):
+    id: int
+    title: str
+    done: bool = False
+
+class TaskCreate(BaseModel):
+    title: str
+
+tasks: list[Task] = []
+next_id = 1
+
+@app.get("/tasks")
+def list_tasks() -> list[Task]:
+    return tasks
+
+@app.post("/tasks", status_code=201)
+def create_task(payload: TaskCreate) -> Task:
+    global next_id
+    task = Task(id=next_id, title=payload.title)
+    next_id += 1
+    tasks.append(task)
+    return task
+
+@app.get("/tasks/{task_id}")
+def get_task(task_id: int) -> Task:
+    for t in tasks:
+        if t.id == task_id:
+            return t
+    raise HTTPException(status_code=404, detail="task not found")
+
+@app.delete("/tasks/{task_id}", status_code=204)
+def delete_task(task_id: int):
+    for i, t in enumerate(tasks):
+        if t.id == task_id:
+            tasks.pop(i)
+            return
+    raise HTTPException(status_code=404, detail="task not found")
 ```
 
 ### Go
+
 ```go
-// TODO
+// main.go
+package main
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+)
+
+type Task struct {
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+	Done  bool   `json:"done"`
+}
+
+var tasks []Task
+var nextID = 1
+
+func listTasks(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(tasks)
+}
+
+func createTask(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Title string `json:"title"` }
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Title == "" {
+		http.Error(w, `{"error":"title is required"}`, http.StatusBadRequest)
+		return
+	}
+	t := Task{ID: nextID, Title: in.Title}
+	nextID++
+	tasks = append(tasks, t)
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(t)
+}
+
+func getTask(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	for _, t := range tasks {
+		if t.ID == id {
+			json.NewEncoder(w).Encode(t)
+			return
+		}
+	}
+	http.Error(w, `{"error":"task not found"}`, http.StatusNotFound)
+}
+
+func deleteTask(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	for i, t := range tasks {
+		if t.ID == id {
+			tasks = append(tasks[:i], tasks[i+1:]...)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+	}
+	http.Error(w, `{"error":"task not found"}`, http.StatusNotFound)
+}
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /tasks", listTasks)
+	mux.HandleFunc("POST /tasks", createTask)
+	mux.HandleFunc("GET /tasks/{id}", getTask)
+	mux.HandleFunc("DELETE /tasks/{id}", deleteTask)
+	http.ListenAndServe(":8000", mux)
+}
 ```
 
 :::
 
-<!-- proyecto: CRUD de tareas en memoria con códigos de estado correctos -->
-
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+- **Express** es "Imperativo minimalista": tú parseas el body
+  (`express.json()`), tú conviertes `req.params.id` de string a número, tú
+  eliges `res.status(201)`. Libertad total = responsabilidad total.
+- **FastAPI** hace lo contrario: declaras `task_id: int` en la firma y el
+  framework *convierte y valida* — si llega `/tasks/abc`, responde `422`
+  antes de tocar tu función. Menos código, más "magia" (que el Cap. 16
+  desmontará).
+- **Go stdlib** es explícito al máximo: `r.PathValue("id")` devuelve string
+  y tú la conviertes; `http.Error` escribe la respuesta de error a mano.
+  Cero magia, cero sorpresas, más líneas.
+
+Nótese lo que es **idéntico** en los tres: la forma de las rutas, los
+verbos, los status codes. Eso es el protocolo HTTP — el lenguaje solo cambia
+*cómo* lo expresas.
 
 ## Errores comunes
 
-<!-- TODO -->
+- **Responder siempre 200.** `200 {"error":"not found"}` obliga al cliente
+  a parsear el body para saber si falló. El status code existe para eso.
+- **Verbos en la URL** (`/getTask/42`, `/deleteTask/42`): duplica lo que el
+  método ya dice y rompe las convenciones que caches y herramientas asumen.
+- **Olvidar `express.json()`** (o equivalente): `req.body` llega `undefined`
+  y pasas 20 minutos creyendo que el cliente manda mal.
+- **Asumir que `{id}` es número**: en Express y Go llega string —
+  `Number("abc")` es `NaN`, `Atoi("abc")` es error. FastAPI lo resuelve
+  por ti; en los otros es tu trabajo (hasta el capítulo de validación).
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Tabla de rutas antes que código**: la tabla de arriba *es* el diseño.
+- **`201` + el recurso creado** en el body — el frontend no necesita un
+  segundo `GET` para pintar la tarea.
+- **`204` para DELETE exitoso**: "salió bien, no hay contenido" es más
+  honesto que devolver `{}`.
+- **Query params para filtros** (`/tasks?done=false`), path params para
+  identidad (`/tasks/42`). Mezclarlos confunde el contrato.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Implementa el CRUD en tu stack y pruébalo con `curl` o Thunder Client:
+   crear dos tareas, listar, obtener una, borrar otra, verificar el 404.
+2. Agrega `PATCH /tasks/{id}` que solo permita cambiar `done`.
+3. Agrega `GET /tasks?done=true` que filtre por query param.
 
 ## Mini reto
 
-Diseñar las rutas de una API de "likes" sin que nada sea ambiguo.
+Diseña las rutas de una API de "likes" sobre tareas: un usuario puede dar
+like a una tarea, quitarlo, y ver quiénes dieron like. Sin verbos en la URL
+y sin ambigüedad — escribe la tabla antes de pensar en código.
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Diseñar una tabla verbo+ruta+status antes de escribir handlers
+- [ ] Explicar la diferencia entre path param y query param y cuándo usar
+      cada uno
+- [ ] Implementar un CRUD en memoria con status codes correctos en tu stack
+- [ ] Decir qué hace el router cuando nadie reclama `(método, path)`

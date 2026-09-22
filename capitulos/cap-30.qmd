@@ -3,6 +3,8 @@ title: "30. Necesitamos que cualquier máquina ejecute esto igual"
 subtitle: "«En mi máquina funciona» deja de ser una excusa"
 ---
 
+![Parte 7 — Docker](../imagenes/parte-07.png)
+
 > **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
 > Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
 > `docs/guia-de-estilo.md`.

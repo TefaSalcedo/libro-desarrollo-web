@@ -3,6 +3,8 @@ title: "1. Dejas de consumir APIs. Ahora las construyes."
 subtitle: "Todo lo que fetch oculta, alguien tuvo que construirlo"
 ---
 
+![Parte 0 — El cambio de mentalidad](../imagenes/parte-00.png)
+
 ## El problema
 
 Llevas tiempo escribiendo código así:

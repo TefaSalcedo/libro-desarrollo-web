@@ -3,6 +3,8 @@ title: "8. Necesitamos que los datos sobrevivan al reinicio"
 subtitle: "La memoria no es un plan"
 ---
 
+![Parte 2 — PostgreSQL](../imagenes/parte-02.png)
+
 > **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
 > Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
 > `docs/guia-de-estilo.md`.

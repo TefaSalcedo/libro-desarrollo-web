@@ -3,74 +3,234 @@ title: "5. Necesitamos controlar lo que sale"
 subtitle: "Si devuelves el objeto tal cual, filtras datos"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
-
 ## El problema
 
-Tu objeto interno tiene `internal_notes` y `owner_id`. El cliente no debe verlos. Necesitamos contratos de salida.
+La tarea en memoria ahora tiene más campos de los que el cliente debe ver:
+
+```text
+Task interno = {
+  id, title, done,
+  owner_id,          // quién la creó — el cliente no necesita saberlo
+  internal_notes,    // notas del equipo
+  created_at, updated_at,
+  deleted_at,        // soft-delete interno
+}
+```
+
+La tentación universal del que viene de frontend: `res.json(task)` y ya —
+total, "es mi objeto". El problema: **todo lo que devuelves queda grabado
+en el contrato**. Si hoy sale `owner_id`, mañana alguien escribe frontend
+contra ese campo, y cuando quieras quitarlo rompes clientes. Peor: si el
+objeto interno contiene `password_hash` (Cap. 14), acabas de publicar tu
+base de datos.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+La regla es el espejo del capítulo anterior:
+
+> **Nada sale del servidor sin pasar por el contrato de salida.**
+
+El equipo define explícitamente **qué campos son públicos** — el
+`TaskPublic` — y el serializador filtra todo lo demás. Así, aunque el
+servicio devuelva el objeto interno completo (con campos privados), la capa
+de salida actúa como aduana: solo sale lo declarado.
+
+Hay una consecuencia arquitectónica importante: llegamos a **tres formas
+distintas del mismo concepto**:
+
+| Forma | Rol | Vive en |
+|---|---|---|
+| `TaskCreate` | lo que entra | schema de validación (Cap. 4) |
+| `Task` (interno) | lo que se guarda | modelo de datos (Cap. 10) |
+| `TaskPublic` | lo que sale | contrato de respuesta |
+
+Un junior mezcla las tres en una sola clase "Task" — y paga el precio cada
+vez que el contrato debe cambiar sin tocar la base de datos (o viceversa).
 
 ## Conceptos nuevos
 
-- <span class="tag tag-u">U</span> Serialización: de estructura interna a JSON de respuesta
-- <span class="tag tag-u">U</span> El patrón DTO: entrada ≠ salida ≠ almacenamiento
-- <span class="tag tag-py">Py</span> `response_model`: el contrato de salida declarativo de FastAPI
-- <span class="tag tag-ts">TS</span> Mapeo manual o `zod` para la forma pública
-- <span class="tag tag-go">Go</span> Structs con tags `json:"-"` — el filtro vive en el tipo
-- <span class="tag tag-u">U</span> Qué se serializa solo y qué no (fechas, UUID, enums)
+- <span class="tag tag-u">U</span> **Serialización**: convertir el objeto
+  interno a JSON de respuesta — y decidir qué campos cruzan la frontera.
+- <span class="tag tag-u">U</span> **DTO/contrato de salida**: `TaskPublic`
+  declara la forma pública; el filtrado no es un `delete obj.secret` manual
+  sino una *whitelist* declarada.
+- <span class="tag tag-py">Py</span> `response_model`: FastAPI filtra el
+  objeto ORM/dominio contra el schema declarado — `password_hash` nunca
+  sale aunque el servicio lo devuelva.
+- <span class="tag tag-ts">TS</span> Mapeo explícito o schema de salida con
+  Zod: la forma pública se construye a mano (`pick`, función `toPublic`).
+- <span class="tag tag-go">Go</span> Structs públicos con tags `json:` —
+  el filtro *es* el tipo: una struct `TaskPublic` distinta, convertida
+  explícitamente.
+- <span class="tag tag-u">U</span> **Serialización no trivial**: fechas,
+  UUIDs, enums, `Decimal` — qué se convierte solo a JSON y qué necesita
+  ayuda en cada lenguaje.
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  S["Servicio devuelve<br/>Task interno<br/>(todos los campos)"] --> F{"Contrato de salida<br/>TaskPublic"}
+  F -->|"campos públicos"| J["JSON 200<br/>{ id, title, done, created_at }"]
+  F -->|"campos privados"| X["Descartados:<br/>owner_id, internal_notes, deleted_at"]
+```
+
+La dirección importa: es **whitelist** ("sale solo lo declarado"), no
+blacklist ("quito lo que sé que es secreto"). La blacklist falla el día que
+alguien agrega un campo nuevo y olvida filtrarlo; la whitelist no filtra
+nada que no se haya declarado público.
 
 ## Implementación
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+// La forma pública se construye explícitamente — función o pick de zod
+interface Task {
+  id: number;
+  title: string;
+  done: boolean;
+  owner_id: number;        // interno
+  internal_notes: string;  // interno
+  created_at: string;
+}
+
+interface TaskPublic {
+  id: number;
+  title: string;
+  done: boolean;
+  created_at: string;
+}
+
+function toPublic(t: Task): TaskPublic {
+  return {
+    id: t.id,
+    title: t.title,
+    done: t.done,
+    created_at: t.created_at,
+  };
+}
+
+app.get("/tasks/:id", (req, res) => {
+  const task = findTask(Number(req.params.id));
+  if (!task) return res.status(404).json({ error: "task not found" });
+  res.json(toPublic(task));   // la aduana, antes de salir
+});
 ```
 
 ### Python
+
 ```python
-# TODO
+class TaskPublic(BaseModel):
+    id: int
+    title: str
+    done: bool
+    created_at: datetime
+
+@app.get("/tasks/{task_id}", response_model=TaskPublic)
+def get_task(task_id: int):
+    task = find_task(task_id)   # devuelve el objeto interno completo
+    if not task:
+        raise HTTPException(404, "task not found")
+    return task   # FastAPI lo filtra contra TaskPublic antes de responder
 ```
 
+`response_model` es la aduana: aunque `task` tenga `owner_id` y
+`internal_notes`, el JSON de salida solo lleva los campos declarados.
+
 ### Go
+
 ```go
-// TODO
+// Dos structs: la interna y la pública. El filtro ES el tipo.
+type Task struct {
+	ID            int    `json:"id"`
+	Title         string `json:"title"`
+	Done          bool   `json:"done"`
+	OwnerID       int    `json:"-"`          // nunca se serializa
+	InternalNotes string `json:"-"`
+	CreatedAt     string `json:"created_at"`
+}
+
+// Alternativa explícita cuando las formas divergen de verdad:
+type TaskPublic struct {
+	ID        int    `json:"id"`
+	Title     string `json:"title"`
+	Done      bool   `json:"done"`
+	CreatedAt string `json:"created_at"`
+}
+
+func toPublic(t Task) TaskPublic {
+	return TaskPublic{ID: t.ID, Title: t.Title, Done: t.Done, CreatedAt: t.CreatedAt}
+}
 ```
+
+`json:"-"` es el caso simple ("este campo jamás sale"); una struct separada
+es el caso general ("la forma pública difiere de la interna").
 
 :::
 
-<!-- proyecto: TaskPublic que oculta campos internos -->
-
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+- **FastAPI** hace la frontera *declarativa y automática*: `response_model`
+  es tan visible en la firma del endpoint que es difícil olvidarlo — y de
+  regalo genera el schema en OpenAPI (la documentación).
+- **Express/Node** no tiene esa capa: la disciplina es 100% tuya. La
+  función `toPublic` es el patrón estándar; algunos equipos usan `class-
+  transformer` o Zod `.pick()` para lo mismo.
+- **Go** hace la frontera *estructural*: como los tags `json` son parte del
+  tipo, "qué sale" lo decide el compilador — pero por eso mismo necesitas
+  una struct distinta por forma pública. Verborrea a cambio de que sea
+  imposible filtrar por accidente.
+
+La lección universal: **entrada, almacenamiento y salida son tres contratos
+distintos**. Cualquier atajo que los fusione ("devuelvo el objeto de BD
+directo") es un agujero de seguridad esperando un campo nuevo.
 
 ## Errores comunes
 
-<!-- TODO -->
+- **`res.json(row)` directo del ORM/driver**: publicas el esquema interno —
+  incluyendo campos que aún no existen pero existirán (el futuro
+  `password_hash`).
+- **Blacklist en vez de whitelist**: `delete task.internal_notes` funciona
+  hasta que llega `internal_secret_2`.
+- **Un solo modelo para todo**: `Task` usado como entrada, fila de BD y
+  respuesta — imposible de evolucionar sin romper clientes.
+- **Olvidar los endpoints de lista**: `GET /tasks` también debe pasar por
+  la aduana — filtrar mil objetos es el mismo contrato, solo en plural.
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Nombra la frontera**: `TaskPublic`, `toPublic()`, `response_model` —
+  que sea visible en el código que hay una frontera.
+- **El contrato de salida define la documentación**: si usas FastAPI, tu
+  `response_model` *es* el OpenAPI; si no, mantén la docu alineada a mano.
+- **Campos internos prefijados o segregados** (`internal_*`) — que el
+  nombre mismo avise.
+- **Versionar la forma, no el campo**: si la salida cambia de forma, es
+  una decisión de contrato (¿`v2`? ¿campo nuevo opcional?), no un refactor
+  invisible.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Agrega a tu `Task` interno los campos `owner_id`, `internal_notes`,
+   `deleted_at`; crea `TaskPublic` y verifica que `GET /tasks/{id}` no los
+   filtra.
+2. Haz que `GET /tasks` (lista) devuelva una forma *resumida*
+   (`TaskSummary`: solo `id`, `title`, `done`) y `GET /tasks/{id}` la
+   completa. Dos contratos de salida, un mismo recurso.
 
 ## Mini reto
 
-Devolver la misma tarea en dos formas: resumen para lista, detalle completo.
+Devuelve la misma tarea en dos formas según *quién pregunta*: el owner ve
+`internal_notes`, los demás no. ¿Dónde debería vivir esa decisión — en el
+serializador o antes? Diseña la solución; la implementamos en el capítulo
+de autorización.
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Explicar por qué entrada, almacenamiento y salida son tres contratos
+- [ ] Implementar una frontera de salida (whitelist) en tu stack
+- [ ] Decir qué riesgo concreto evita `response_model`/equivalente
+- [ ] Diseñar formas de salida distintas para lista vs detalle

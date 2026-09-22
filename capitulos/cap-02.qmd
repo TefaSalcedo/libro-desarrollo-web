@@ -3,74 +3,215 @@ title: "2. Necesitamos que alguien escuche el puerto 8000"
 subtitle: "En backend, tú eres el navegador de alguien más"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+![Parte 1 — Taskflow en memoria](../imagenes/parte-01.png)
 
 ## El problema
 
-En frontend el navegador ejecuta tu código; en backend algo tiene que correr **siempre**. Necesitamos un proceso que escuche el puerto 8000 y nunca termine.
+El servidor del capítulo anterior era un juguete: un archivo, una librería,
+un comando. Pero ahora imagina que **otra persona clona tu repositorio**.
+¿Qué instala? ¿Qué versión del runtime? ¿Qué comando arranca el proyecto?
+
+En frontend esto lo resolviste mil veces sin pensar: `package.json`,
+`npm install`, `npm run dev`. Backend tiene exactamente el mismo problema —
+con una diferencia: ahora hay **tres** formas de resolverlo, y cada
+ecosistema decidió distinto.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo real exige tres cosas antes de escribir la primera línea de lógica:
+
+1. **Reproducibilidad**: cualquier máquina (tu laptop, CI, producción)
+   instala *exactamente* las mismas dependencias.
+2. **Aislamiento**: las librerías del proyecto A no contaminan al proyecto B.
+3. **Un solo comando para arrancar**: si el README dice "paso 1, paso 2…
+   paso 9", ya perdiste.
+
+Nuestro proyecto — **Taskflow** — nace aquí: la API de tareas que acompañará
+todo el libro. Empezamos por su esqueleto de entorno, no por sus endpoints.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-ts">TS</span> `npm`, `package.json`, `tsx`/`node` — el entorno Node
-- <span class="tag tag-py">Py</span> `venv` + `pip` + `pyproject.toml` — el `node_modules` por proyecto de Python
-- <span class="tag tag-go">Go</span> `go mod` — dependencias con toolchain integrado
-- <span class="tag tag-u">U</span> App vs servidor: quién escucha el socket en cada stack
-- <span class="tag tag-u">U</span> `--reload` / watch mode: el `nodemon` de cada ecosistema
-- <span class="tag tag-u">U</span> `/health`: el endpoint más aburrido y más importante
+- <span class="tag tag-u">U</span> **Runtime**: el programa que ejecuta tu
+  código (Node, el intérprete Python, el binario compilado de Go). En frontend
+  era el navegador; aquí es un proceso del sistema operativo.
+- <span class="tag tag-ts">TS</span> `package.json` + lockfile: manifiesto de
+  dependencias + resolución exacta.
+- <span class="tag tag-py">Py</span> `venv` + `requirements.txt`/`pyproject.toml`:
+  el "node_modules por proyecto" de Python — pero como *entorno*, no carpeta.
+- <span class="tag tag-go">Go</span> `go.mod`: dependencias versionadas por el
+  propio toolchain; no hay "gestor" separado, `go` *es* el gestor.
+- <span class="tag tag-u">U</span> **Watch mode**: reiniciar el servidor al
+  guardar — `tsx --watch`, `uvicorn --reload`, `air` (o rebuild manual).
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart TB
+  subgraph TS["Node / TypeScript"]
+    N1["package.json<br/>+ package-lock.json"] --> N2["npm install<br/>(node_modules)"]
+    N2 --> N3["tsx --watch src/index.ts"]
+  end
+  subgraph PY["Python"]
+    P1["pyproject.toml<br/>+ requirements.txt"] --> P2["python -m venv .venv<br/>pip install -r"]
+    P2 --> P3["uvicorn app.main:app --reload"]
+  end
+  subgraph GO["Go"]
+    G1["go.mod + go.sum"] --> G2["go mod download<br/>(module cache)"]
+    G2 --> G3["go run . / go build"]
+  end
+```
+
+Los tres responden a la misma pregunta — *"¿de qué depende este proyecto y
+cómo lo instalo igual en cualquier lado?"* — con mecánicas distintas.
 
 ## Implementación
+
+Inicializamos el proyecto Taskflow en los tres stacks. Fíjate en qué archivo
+es el "contrato de dependencias" de cada uno:
 
 ::: {.panel-tabset}
 
 ### TypeScript
-```ts
-// TODO
+
+```bash
+mkdir taskflow && cd taskflow
+npm init -y
+npm install express
+npm install -D typescript tsx @types/express
+npx tsc --init
+```
+
+`package.json` queda como manifiesto; `package-lock.json` fija las versiones
+exactas que se instalaron (ese archivo **sí** se commitea).
+
+```text
+taskflow/
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+└── src/
+    └── index.ts
+```
+
+```bash
+npx tsx watch src/index.ts   # arranca y reinicia al guardar
 ```
 
 ### Python
-```python
-# TODO
+
+```bash
+mkdir taskflow && cd taskflow
+python -m venv .venv          # el entorno aislado — tu "node_modules" conceptual
+source .venv/bin/activate     # en Windows: .venv\Scripts\activate
+pip install fastapi uvicorn
+pip freeze > requirements.txt # el lockfile honesto: versiones exactas
 ```
 
-### Go
-```go
-// TODO
+```text
+taskflow/
+├── .venv/                # NO se commitea (va en .gitignore)
+├── requirements.txt
+└── app/
+    ├── __init__.py
+    └── main.py
 ```
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+`app.main:app` significa: "dentro del paquete `app`, módulo `main`, objeto
+`app`". Uvicorn importa tu código y le sirve HTTP — recuerda del Cap. 1:
+**uvicorn es el servidor, FastAPI es la aplicación**.
+
+### Go
+
+```bash
+mkdir taskflow && cd taskflow
+go mod init taskflow          # crea go.mod — ya tienes gestor de dependencias
+```
+
+```text
+taskflow/
+├── go.mod
+└── main.go
+```
+
+```bash
+go run .                      # compila y ejecuta
+# o mejor, con rebuild automático:
+go install github.com/air-verse/air@latest && air
+```
+
+Go no tiene carpeta de dependencias local: los módulos van a un caché global
+(`~/go/pkg/mod`) y `go.sum` registra los hashes exactos — el lockfile
+criptográfico viene incluido.
 
 :::
 
-<!-- proyecto: la app mínima corriendo en localhost:8000 -->
-
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+| | npm (TS) | pip+venv (Py) | go mod (Go) |
+|---|---|---|---|
+| Dependencias viven en | `node_modules/` del proyecto | `.venv/` del proyecto | caché global con hashes |
+| Manifiesto | `package.json` | `requirements.txt`/`pyproject.toml` | `go.mod` |
+| Lockfile | `package-lock.json` | `pip freeze` (manual) | `go.sum` (automático) |
+| Aislamiento | por carpeta | por entorno activado | por hashes en caché |
+
+La diferencia conceptual que importa: **npm y pip instalan dependencias
+"locales"** (el proyecto carga lo que está en su carpeta/entorno), mientras
+**Go compila un único binario** — las dependencias terminan fundidas en el
+ejecutable y desaparecen como concepto en producción. Por eso el deployment
+de Go (Cap. 30) será ridículamente simple: copias un archivo y listo.
+
+Y una nota honesta: si en Express escribir `package.json` te pareció natural,
+el `venv` de Python te parecerá un paso extra torpe (hay que *activarlo*) —
+es el precio de que Python no tuviera `node_modules` por diseño durante años.
+Hoy existen herramientas modernas (`uv`, `poetry`) que lo hacen más cómodo;
+el libro usa `venv`+`pip` porque es lo que entenderás en cualquier equipo.
 
 ## Errores comunes
 
-<!-- TODO -->
+- **Instalar librerías globalmente** (`pip install` sin venv): funciona hoy,
+  rompe mañana cuando otro proyecto necesita otra versión. En Python, el
+  `venv` no es opcional — es la norma.
+- **Commitear `node_modules/` o `.venv/`**: son artefactos locales; lo que se
+  versiona es el *manifiesto* (`package.json`, `requirements.txt`, `go.mod`).
+- **No fijar versiones**: "funciona con la última versión" es una bomba de
+  tiempo. Lockfile siempre.
+- **Olvidar activar el venv** en una terminal nueva: el síntoma es
+  `ModuleNotFoundError` aunque "lo instalaste ayer" — lo instalaste *dentro*
+  del entorno, no en el Python global.
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **README con un comando de arranque** desde el día 1 (`npm run dev`,
+  `uvicorn … --reload`, `go run .`).
+- **`.gitignore` desde el primer commit**: `node_modules/`, `.venv/`,
+  `.env`, `__pycache__/`, binarios compilados.
+- **Versiones explícitas** en `requirements.txt` / `package.json` — nada de
+  `install` a ciegas en producción.
+- **El proyecto arranca limpio en una máquina virgen** como definición de
+  "setup terminado": clona → instala → corre.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Inicializa Taskflow en tu lenguaje elegido con la estructura de arriba.
+2. Añade a `.gitignore` lo que corresponda a tu stack.
+3. Escribe en el README los tres comandos: instalar, arrancar, probar
+   `/health`.
 
 ## Mini reto
 
-Explicar qué pasa exactamente entre el comando que arranca el servidor y el primer request.
+Sin mirar documentación: explica qué información lleva un lockfile que el
+manifiesto no tiene, y por qué un equipo *exige* commitearlo. Pista: ¿qué
+pasa si Express publica mañana una versión con un bug y tu compañero instala
+después que tú?
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Crear un entorno aislado y reproducible en tu stack
+- [ ] Explicar la diferencia entre manifiesto de dependencias y lockfile
+- [ ] Arrancar el servidor en watch mode y saber qué proceso lo reinicia
+- [ ] Decir por qué `.venv`/`node_modules` no se commitean pero
+      `requirements.txt`/`package-lock.json` sí

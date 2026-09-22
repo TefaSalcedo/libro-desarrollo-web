@@ -3,73 +3,236 @@ title: "6. Necesitamos fallar correctamente"
 subtitle: "Tres lenguajes, tres filosofías de error"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
-
 ## El problema
 
-La tarea no existe. ¿Devuelves `null`? ¿Un `{error: ...}`? ¿Explota el servidor? Cada lenguaje responde distinto.
+`GET /tasks/99` cuando solo existen 5 tareas. ¿Qué devuelves?
+
+- ¿`null`? — el frontend hace `task.title` y explota.
+- ¿`200 {"error": "not found"}`? — el `res.ok` de `fetch` dice *true* y tu
+  React pinta una tarea fantasma.
+- ¿Dejar que `tasks[99]` reviente con un stack trace? — el cliente ve las
+  tripas de tu servidor (y un atacante también).
+
+Fallar es inevitable. **Fallar bien es diseño**: el error es parte del
+contrato, igual que la respuesta exitosa. Y aquí nos encontramos con la
+primera divergencia filosófica real entre los tres lenguajes.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo maduro decide tres cosas sobre los errores:
+
+1. **La forma**: un formato único para todos los errores — el frontend
+   escribe *una* función `handleError(res)` y funciona para siempre:
+
+   ```json
+   { "error": { "code": "TASK_NOT_FOUND", "message": "Task 99 does not exist" } }
+   ```
+
+2. **La frontera**: los errores de negocio ("la tarea no existe") viajan
+   como valores normales hasta la capa de transporte, que los convierte en
+   HTTP. El servicio no sabe de status codes; el router no sabe de negocio.
+
+3. **Los códigos estables**: `TASK_NOT_FOUND` es contrato — el mensaje
+   puede cambiar, el código no. El frontend programa contra el código.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-u">U</span> Excepciones vs valores: "excepciones para lo excepcional"
-- <span class="tag tag-ts">TS</span> `throw`/`catch` + middleware de errores de Express
-- <span class="tag tag-py">Py</span> `try/except` + `HTTPException` + exception handlers
-- <span class="tag tag-go">Go</span> `error` como valor de retorno + `errors.Is/As` — el modelo que enseña
-- <span class="tag tag-u">U</span> Formato de error consistente: algo contra lo que el frontend pueda programar
+- <span class="tag tag-u">U</span> **Error de dominio vs error de sistema**:
+  "tarea no existe" (esperado, 404) vs "se cayó la BD" (inesperado, 500).
+  Se manejan distinto y se reportan distinto.
+- <span class="tag tag-ts">TS</span> **Excepciones**: `throw`/`catch`, más el
+  *error middleware* de Express como frontera HTTP.
+- <span class="tag tag-py">Py</span> **Excepciones**: `raise`/`except`,
+  `HTTPException` y los exception handlers globales.
+- <span class="tag tag-go">Go</span> **Error como valor**: no hay excepciones
+  — las funciones devuelven `(result, error)` y tú decides. El modelo más
+  explícito, y el que mejor enseña el concepto.
+- <span class="tag tag-u">U</span> **Jerarquía de errores**: `DomainError →
+  NotFoundError → TaskNotFoundError` — clasificar para responder.
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart TB
+  subgraph Domain["Capa de negocio (no sabe de HTTP)"]
+    Svc["service.getTask(99)"] -->|"no existe"| Err["Err: TaskNotFound"]
+  end
+  subgraph Edge["Frontera HTTP (no sabe de negocio)"]
+    Err --> Map{"Error mapper"}
+    Map -->|"TaskNotFound"| R404["404 + { error.code }"]
+    Map -->|"ValidationError"| R422["422 + detalles"]
+    Map -->|"cualquier otro"| R500["500 + log interno"]
+  end
+```
+
+La línea divisoria es la regla de oro: **los errores nacen en el dominio
+como datos del dominio, y se traducen a HTTP en el borde**. Si tu servicio
+devuelve `HTTPException` o `res.status()`, acabas de acoplar la lógica al
+transporte — y mañana no podrás reusarla desde un WebSocket o un test.
 
 ## Implementación
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+// errores de dominio
+class DomainError extends Error {}
+class NotFoundError extends DomainError {
+  constructor(public code: string, msg: string) { super(msg); }
+}
+
+// servicio: lanza errores de dominio, no sabe de HTTP
+function getTask(id: number): Task {
+  const t = tasks.find((t) => t.id === id);
+  if (!t) throw new NotFoundError("TASK_NOT_FOUND", `Task ${id} does not exist`);
+  return t;
+}
+
+// handler: delgado — la traducción a HTTP vive en el middleware de error
+app.get("/tasks/:id", (req, res, next) => {
+  try {
+    res.json(toPublic(getTask(Number(req.params.id))));
+  } catch (e) { next(e); }
+});
+
+// la frontera: un solo lugar que traduce errores → HTTP
+app.use((err: Error, _req, res, _next) => {
+  if (err instanceof NotFoundError) {
+    return res.status(404).json({ error: { code: err.code, message: err.message } });
+  }
+  console.error(err); // el 500 se loguea completo, se devuelve poco
+  res.status(500).json({ error: { code: "INTERNAL", message: "unexpected error" } });
+});
 ```
 
 ### Python
+
 ```python
-# TODO
+# errores de dominio
+class DomainError(Exception): ...
+class NotFoundError(DomainError):
+    def __init__(self, code: str, message: str):
+        self.code, self.message = code, message
+
+# servicio: lanza errores de dominio
+def get_task(task_id: int) -> Task:
+    for t in tasks:
+        if t.id == task_id:
+            return t
+    raise NotFoundError("TASK_NOT_FOUND", f"Task {task_id} does not exist")
+
+# la frontera: exception handler global — el handler ni try/except necesita
+@app.exception_handler(NotFoundError)
+def not_found_handler(_req, exc: NotFoundError):
+    return JSONResponse(
+        status_code=404,
+        content={"error": {"code": exc.code, "message": exc.message}},
+    )
+
+@app.get("/tasks/{task_id}", response_model=TaskPublic)
+def get_task_endpoint(task_id: int):
+    return get_task(task_id)   # si falla, el handler global traduce
 ```
 
 ### Go
+
 ```go
-// TODO
+// errores de dominio como valores — no hay excepciones
+var ErrTaskNotFound = errors.New("task not found")
+
+// servicio: devuelve (resultado, error) — explícito siempre
+func getTask(id int) (Task, error) {
+	for _, t := range tasks {
+		if t.ID == id {
+			return t, nil
+		}
+	}
+	return Task{}, fmt.Errorf("%w: %d", ErrTaskNotFound, id)
+}
+
+// handler: la traducción es visible en cada endpoint (o un helper writeError)
+func getTaskHandler(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	t, err := getTask(id)
+	if err != nil {
+		if errors.Is(err, ErrTaskNotFound) {
+			writeError(w, 404, "TASK_NOT_FOUND", err.Error())
+			return
+		}
+		log.Println("internal:", err)
+		writeError(w, 500, "INTERNAL", "unexpected error")
+		return
+	}
+	json.NewEncoder(w).Encode(toPublic(t))
+}
 ```
 
 :::
 
-<!-- proyecto: 404 real, 409 en conflicto, formato uniforme -->
-
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+- **TypeScript y Python** comparten el modelo de excepciones: el error
+  *salta* de la capa profunda a la frontera sin que los niveles intermedios
+  lo mencionen. Cómodo — pero la firma de `get_task()` **no dice** que
+  puede fallar; tienes que saberlo.
+- **Go** rechaza las excepciones a propósito: `getTask(id)` devuelve
+  `(Task, error)` y la firma *grita* que puede fallar. Cada llamada exige
+  `if err != nil` — verborrea real, pero también **cero errores invisibles
+  viajando por capas**. Es la diferencia filosófica más honesta del libro:
+  ¿prefieres errores que emergen solos o errores que declaras a mano?
+
+`errors.Is`/`errors.As` merece una mirada: envolver con `%w` crea una
+cadena (`"task not found: 99"`) que el borde puede interrogar sin parsear
+strings — el equivalente Go a la jerarquía de clases de error.
 
 ## Errores comunes
 
-<!-- TODO -->
+- **El `200` mentiroso**: devolver `{"error": ...}` con status 200 (ya
+  sabes por qué `res.ok` lo empeora).
+- **`HTTPException` dentro del servicio** (Py) o `res.status()` en la
+  lógica (TS): acoplas dominio a transporte — el mismo error no sirve para
+  un CLI, un test o un WebSocket.
+- **`try/except` que traga todo**: `except Exception: pass` convierte un
+  bug en un misterio. Captura lo que esperas; deja escapar lo demás.
+- **Devolver el stack trace al cliente**: el 500 se loguea entero en el
+  servidor y se devuelve como `{ "code": "INTERNAL" }` — nunca las tripas.
+- **En Go, ignorar el error**: `t, _ := getTask(id)` compila y es una bomba.
+  `errcheck` en CI lo caza.
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Un formato de error, para siempre**: `{ error: { code, message,
+  details? } }` desde el Cap. 6 — y nunca cambiarlo.
+- **Códigos estables en SCREAMING_SNAKE**: el frontend los switchea.
+- **Los errores esperados no se loguean como ERROR**: un 404 por id
+  inexistente es INFO/WARN — el log de ERROR es para lo que requiere
+  despertar a alguien.
+- **El middleware/handler de errores se registra una vez** y cubre todos
+  los endpoints — consistente por construcción.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Implementa la jerarquía `DomainError → NotFoundError` en tu stack y el
+   mapper de la frontera.
+2. Agrega `ConflictError` (409) para "no se puede borrar una tarea con
+   subtareas pendientes" — y su mapeo.
+3. Provoca un 500 a propósito y verifica: el cliente ve solo
+   `{ code: "INTERNAL" }` y el log tiene el stack completo.
 
 ## Mini reto
 
-Simular un error inesperado y verificar que el cliente nunca ve un stack trace.
+Simula un error *inesperado* en plena creación de tarea (por ejemplo, la
+"BD" en memoria lanzando una excepción rara). Verifica que el cliente nunca
+ve el stack trace y que el log del servidor sí lo tiene. Bonus: ¿cómo harías
+que el error devuelva un `request_id` que el usuario pueda reportar? (El
+Cap. 23 lo implementa de verdad.)
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Separar errores de dominio de errores de transporte — y explicar por qué
+- [ ] Implementar un mapper de errores→HTTP en un solo lugar
+- [ ] Explicar la diferencia filosófica entre excepciones y errores como
+      valor — y dar un argumento a favor de cada modelo
+- [ ] Garantizar que un 500 nunca filtra el stack trace al cliente

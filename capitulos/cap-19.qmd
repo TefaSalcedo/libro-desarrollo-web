@@ -3,6 +3,8 @@ title: "19. Necesitamos llamar a otra API desde el servidor"
 subtitle: "Tu backend ahora es cliente de otro backend"
 ---
 
+![Parte 4 — Integraciones y concurrencia](../imagenes/parte-04.png)
+
 > **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
 > Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
 > `docs/guia-de-estilo.md`.

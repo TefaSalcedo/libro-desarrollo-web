@@ -3,6 +3,8 @@ title: "27. Necesitamos confiar en el código que no estamos mirando"
 subtitle: "Sin tests, el miedo es la arquitectura"
 ---
 
+![Parte 6 — Testing](../imagenes/parte-06.png)
+
 > **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
 > Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
 > `docs/guia-de-estilo.md`.

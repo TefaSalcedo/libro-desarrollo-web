@@ -3,6 +3,8 @@ title: "23. Necesitamos ver qué está pasando sin estar mirando"
 subtitle: "Sin logs, «algo falla a veces» es todo lo que sabrás jamás"
 ---
 
+![Parte 5 — Robustez](../imagenes/parte-05.png)
+
 > **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
 > Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
 > `docs/guia-de-estilo.md`.

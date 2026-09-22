@@ -3,6 +3,8 @@ title: "36. Diseñar antes de construir: la arquitectura de Nexus"
 subtitle: "Te contratan para el backend de un Figma-lite. ¿Por dónde empiezas?"
 ---
 
+![Parte 9 — Proyecto final: Nexus](../imagenes/parte-09.png)
+
 > **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
 > Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
 > `docs/guia-de-estilo.md`.

@@ -3,74 +3,270 @@ title: "7. Necesitamos que esto quepa en la cabeza de otra persona"
 subtitle: "Un archivo de 800 líneas con 30 endpoints no es un proyecto"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
-
 ## El problema
 
-La API crece. Necesitamos módulos, capas y una estructura que un equipo reconozca.
+Taskflow ya tiene 12 endpoints, schemas, errores de dominio, la lista en
+memoria… todo en un archivo que empieza a dar miedo. Cuando llegue la base
+de datos (Parte 2), la autenticación (Parte 3) y los tests (Parte 6), ese
+archivo será inmantenible.
+
+Pero el problema real no es el tamaño — es la **mezcla**: en la misma
+función convive "leer el path param" (HTTP), "la tarea no existe" (negocio)
+y "meterla en la lista" (datos). Si mañana el storage cambia de lista a
+Postgres, tocas *cada* handler. Si quieres testear la lógica sin levantar el
+servidor, no puedes — la lógica está pegada a HTTP.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+La decisión arquitectónica más común y más útil del backend: **capas**. Cada
+capa tiene *un* trabajo y solo habla con su vecina:
+
+```text
+┌─────────────────────────────────────────────────┐
+│ routes/handlers   →  HTTP ↔ lenguaje: verbos,    │
+│                      params, status codes        │
+├─────────────────────────────────────────────────┤
+│ services          →  negocio: reglas, errores    │
+│                      de dominio                  │
+├─────────────────────────────────────────────────┤
+│ storage/models    →  datos: queries, persistencia│
+├─────────────────────────────────────────────────┤
+│ schemas/contracts →  contratos: lo que entra     │
+│                      y lo que sale (Cap. 4 y 5)  │
+└─────────────────────────────────────────────────┘
+```
+
+La regla de oro que hace funcionar todo: **los handlers son tontos**.
+`createTask` en la ruta solo traduce HTTP → llamada al servicio → HTTP. La
+regla "no borres una tarea con subtareas" vive en el servicio — así se puede
+llamar desde otro endpoint, un test o un WebSocket sin duplicar.
+
+La prueba de que lo hiciste bien llega en la Parte 6: los tests de servicio
+no necesitan ni levantar HTTP.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-u">U</span> Arquitectura por capas: `routes → services → storage`
-- <span class="tag tag-u">U</span> Por qué el endpoint debe ser "tonto": la regla que hace todo testeable
-- <span class="tag tag-ts">TS</span> ES modules, routers de Express
-- <span class="tag tag-py">Py</span> Módulos/paquetes, `APIRouter`, `Depends`
-- <span class="tag tag-go">Go</span> Packages, `internal/`, handlers como funciones
-- <span class="tag tag-u">U</span> Reusar lógica pre-handler: middleware vs dependencies vs wrappers — el mismo patrón, distinta magia
+- <span class="tag tag-u">U</span> **Arquitectura por capas**: transporte /
+  negocio / datos / contratos — y por qué cada capa ignora a las demás.
+- <span class="tag tag-ts">TS</span> **ES modules + routers de Express**:
+  `import/export`, `express.Router()` para separar rutas por dominio.
+- <span class="tag tag-py">Py</span> **Módulos y paquetes**: `import`,
+  `from x import y`, `__init__.py` — el equivalente a ES modules con sus
+  trampas; `APIRouter` para agrupar endpoints.
+- <span class="tag tag-go">Go</span> **Packages**: un directorio = un
+  package; nombres cortos; `internal/` como frontera que el compilador
+  *hace cumplir*.
+- <span class="tag tag-u">U</span> **Lógica reusable pre-handler**:
+  middleware (Express) vs `Depends` (FastAPI) vs `func(http.Handler)
+  http.Handler` (Go) — el mismo patrón, tres cantidades de magia. Primer
+  contacto; el Cap. 16 lo exprime.
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart TB
+  subgraph app["taskflow/"]
+    direction TB
+    R["routes/tasks.ts · api/tasks.py · httpapi/tasks.go<br/><b>transporte</b>: HTTP ↔ tipos del lenguaje"]
+    S["services/taskService.ts · services/task_service.py · service/task.go<br/><b>negocio</b>: reglas, errores de dominio"]
+    ST["storage/memory.ts · store/memory.py · store/memory.go<br/><b>datos</b>: hoy lista; mañana Postgres"]
+    SC["schemas/ · dto/ <br/><b>contratos</b>: TaskCreate, TaskPublic"]
+    R --> S --> ST
+    R -.->|"usa para entrada/salida"| SC
+  end
+  Client["Cliente"] -->|"HTTP"| R
+```
+
+Cuando llegue Postgres (Cap. 10), solo `storage/` cambia. Cuando llegue
+auth (Cap. 16), se cuelga una dependencia antes del handler. **Las features
+nuevas se agregan sin reescribir** — esa es la definición operativa de
+"buena arquitectura".
 
 ## Implementación
+
+El refactor del Cap. 3–6 a capas, en los tres stacks:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
+```text
+src/
+├── index.ts              # ensambla: app + json + routers + error middleware
+├── routes/tasks.ts       # transporte: verbos, params, status
+├── services/tasks.ts     # negocio: reglas, DomainErrors
+├── storage/memory.ts     # datos: la lista (mañana: Postgres)
+└── schemas/tasks.ts      # contratos: zod + toPublic
+```
+
 ```ts
-// TODO
+// routes/tasks.ts — el handler tonto
+import { Router } from "express";
+import * as svc from "../services/tasks.js";
+import { createTaskSchema } from "../schemas/tasks.js";
+
+export const tasksRouter = Router();
+
+tasksRouter.post("/", (req, res, next) => {
+  const parsed = createTaskSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(422).json(/* … */);
+  try {
+    res.status(201).json(svc.createTask(parsed.data));
+  } catch (e) { next(e); }
+});
+```
+
+```ts
+// index.ts — el ensamblador
+import express from "express";
+import { tasksRouter } from "./routes/tasks.js";
+import { errorMiddleware } from "./errors.js";
+
+const app = express();
+app.use(express.json());
+app.use("/tasks", tasksRouter);
+app.use(errorMiddleware);
+app.listen(8000);
 ```
 
 ### Python
+
+```text
+app/
+├── main.py            # ensambla: FastAPI + routers + exception handlers
+├── api/tasks.py       # transporte
+├── services/tasks.py  # negocio
+├── store/memory.py    # datos
+├── schemas/tasks.py   # contratos: TaskCreate, TaskPublic
+└── errors.py          # DomainError + handlers
+```
+
 ```python
-# TODO
+# api/tasks.py — el endpoint delgado
+from fastapi import APIRouter
+from app.schemas.tasks import TaskCreate, TaskPublic
+from app.services import tasks as svc
+
+router = APIRouter(prefix="/tasks")
+
+@router.post("", status_code=201, response_model=TaskPublic)
+def create_task(payload: TaskCreate):
+    return svc.create_task(payload)
+```
+
+```python
+# main.py — el ensamblador
+from fastapi import FastAPI
+from app.api.tasks import router as tasks_router
+from app.errors import register_handlers
+
+app = FastAPI()
+app.include_router(tasks_router)
+register_handlers(app)
 ```
 
 ### Go
+
+```text
+taskflow/
+├── main.go                  # ensambla: mux + handlers
+├── internal/
+│   ├── httpapi/tasks.go     # transporte
+│   ├── service/tasks.go     # negocio
+│   ├── store/memory.go      # datos
+│   └── domain/task.go       # contratos + errores de dominio
+```
+
 ```go
-// TODO
+// internal/httpapi/tasks.go — el handler delgado
+func (h *TaskHandler) create(w http.ResponseWriter, r *http.Request) {
+	var in domain.CreateTaskInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, 400, "INVALID_JSON", "invalid json")
+		return
+	}
+	t, err := h.svc.Create(in)
+	if err != nil { writeDomainError(w, err); return }
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(domain.ToPublic(t))
+}
+```
+
+```go
+// main.go — el ensamblador
+func main() {
+	store := store.NewMemory()
+	svc := service.New(store)      // inyección explícita de dependencias
+	h := httpapi.NewTaskHandler(svc)
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /tasks", h.create)
+	http.ListenAndServe(":8000", mux)
+}
 ```
 
 :::
 
-<!-- proyecto: refactor de Taskflow a estructura por capas -->
-
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+La estructura es **la misma** — lo que cambia es cómo se *conectan* las
+piezas:
+
+- **Express**: los routers se montan con `app.use("/tasks", router)` —
+  composición por middleware.
+- **FastAPI**: `include_router` + `Depends` — la inyección de dependencias
+  es *declarativa* (la pides en la firma y el framework la resuelve).
+- **Go**: la inyección es **manual y explícita**: `service.New(store)`,
+  `NewTaskHandler(svc)` — el wiring se ve en `main.go`. Más verboso,
+  imposible de no entender.
+
+Y un detalle Go que vale oro: `internal/` no es una convención — el
+**compilador prohíbe** que otros módulos importen paquetes bajo `internal/`.
+La frontera de capas la hace cumplir la herramienta, no la disciplina.
 
 ## Errores comunes
 
-<!-- TODO -->
+- **El handler gordo**: lógica de negocio dentro de la ruta → imposible de
+  testear sin HTTP, imposible de reusar.
+- **Imports cruzados**: `storage` importando `schemas` de HTTP, servicios
+  importando `express`/`fastapi` — la flecha de dependencias siempre apunta
+  *hacia adentro* (datos no conocen transporte).
+- **Carpetas por tipo técnico en vez de por capa**: `controllers/`,
+  `utils/`, `misc/` — donde todo acaba siendo cajón desastre.
+- **Sobre-ingeniería temprana**: interfaces, factories y repositorios
+  abstractos "por si acaso" en un CRUD de memoria. Las capas que usamos
+  bastan; más abstracción cuando duela de verdad.
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **La regla del test**: si no puedes testear la regla de negocio sin
+  levantar el servidor, está en la capa equivocada.
+- **El ensamblador es plano**: `main`/`index` solo conecta piezas — leerlo
+  debe contar la arquitectura entera.
+- **Errores de dominio viven en el dominio** (Cap. 6): los handlers los
+  traducen, no los inventan.
+- **Estructura que un extraño navega en 2 minutos**: si alguien clona el
+  repo y no encuentra "dónde está la regla X", la estructura falló.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Refactoriza Taskflow a la estructura por capas de tu stack — mueve
+   reglas, no solo archivos.
+2. Agrega una segunda entidad (`lists` — listas de tareas) como router
+   paralelo, sin duplicar wiring.
+3. Sube la apuesta: implementa `storage` detrás de una interfaz/contrato
+   mínimo para que "lista en memoria" sea intercambiable.
 
 ## Mini reto
 
-Mover una regla de negocio del handler al servicio y explicar qué se ganó.
+Mueve una regla de negocio del handler al servicio (ej: "no puede haber dos
+tareas con el mismo título en la misma lista") y escribe un párrafo
+respondiendo: ¿qué se ganó? ¿Qué se volvió posible que antes no lo era?
+(Pista: piensa en el Cap. 28 — tests sin HTTP.)
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Explicar qué hace cada capa y qué le está prohibido saber
+- [ ] Estructurar un proyecto en capas en tu stack
+- [ ] Implementar un handler deliberadamente "tonto"
+- [ ] Describir cómo se inyectan dependencias en cada stack — y qué hace
+      `internal/` en Go que ningún otro hace
