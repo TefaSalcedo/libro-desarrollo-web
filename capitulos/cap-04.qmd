@@ -1,0 +1,76 @@
+---
+title: "4. Necesitamos confiar en lo que entra (o no confiar)"
+subtitle: "El cliente manda basura; la validación es la muralla"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+El cliente envía `{ "title": 42, "priority": "mucho" }`. Sin validación, eso llega intacto a la lógica de negocio.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> El body crudo: `req.body` / `await request.json()` / `json.NewDecoder` — el problema antes de la solución
+- <span class="tag tag-u">U</span> Validación declarativa: mismo patrón, tres mecanismos
+- <span class="tag tag-ts">TS</span> Zod: schemas que generan tipos
+- <span class="tag tag-py">Py</span> Type hints + Pydantic: la validación *es* la firma
+- <span class="tag tag-go">Go</span> Struct tags + validator (o manual): tipado estático ≠ validación de runtime
+- <span class="tag tag-u">U</span> El error de validación (400/422) como contrato con el frontend
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: schema de entrada para tareas (título requerido, prioridad 1-5, fecha válida) -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Hacer que un email malformado nunca llegue al handler — en los tres lenguajes.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

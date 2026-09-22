@@ -1,0 +1,75 @@
+---
+title: "25. Necesitamos que los errores escalen como en un equipo real"
+subtitle: "El frontend no puede programar contra el caos"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Cada endpoint inventa su formato de error. Necesitamos jerarquías de error, handlers globales y un contrato estable.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Jerarquía de errores de dominio: `DomainError → NotFoundError → TaskNotFoundError`
+- <span class="tag tag-ts">TS</span> Clases `extends Error` · <span class="tag tag-py">Py</span> Excepciones propias · <span class="tag tag-go">Go</span> Sentinel errors + `errors.Is/As`
+- <span class="tag tag-u">U</span> Handlers globales: la frontera entre "error de negocio" y "respuesta HTTP"
+- <span class="tag tag-u">U</span> El contrato de error: `{"error": {"code": "TASK_NOT_FOUND"}}` — códigos estables vs mensajes cambiantes
+- <span class="tag tag-u">U</span> 500: qué se devuelve (poco) vs qué se loguea (todo)
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: sistema de errores coherente de extremo a extremo -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Garantizar que ningún endpoint filtra un stack trace — con tests.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

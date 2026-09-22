@@ -1,0 +1,76 @@
+---
+title: "5. Necesitamos controlar lo que sale"
+subtitle: "Si devuelves el objeto tal cual, filtras datos"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Tu objeto interno tiene `internal_notes` y `owner_id`. El cliente no debe verlos. Necesitamos contratos de salida.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Serialización: de estructura interna a JSON de respuesta
+- <span class="tag tag-u">U</span> El patrón DTO: entrada ≠ salida ≠ almacenamiento
+- <span class="tag tag-py">Py</span> `response_model`: el contrato de salida declarativo de FastAPI
+- <span class="tag tag-ts">TS</span> Mapeo manual o `zod` para la forma pública
+- <span class="tag tag-go">Go</span> Structs con tags `json:"-"` — el filtro vive en el tipo
+- <span class="tag tag-u">U</span> Qué se serializa solo y qué no (fechas, UUID, enums)
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: TaskPublic que oculta campos internos -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Devolver la misma tarea en dos formas: resumen para lista, detalle completo.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

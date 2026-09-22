@@ -1,0 +1,74 @@
+---
+title: "33. Necesitamos servir esto a usuarios reales"
+subtitle: "uvicorn --reload es para tu máquina"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Producción exige otra cosa: workers, reverse proxy, HTTPS y health checks de verdad.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Workers y procesos: por qué un proceso no usa tus 8 núcleos (GIL/single-thread, mencionado honesto)
+- <span class="tag tag-ts">TS</span> PM2/cluster · <span class="tag tag-py">Py</span> gunicorn+uvicorn workers · <span class="tag tag-go">Go</span> un solo binario que ya usa todos los núcleos
+- <span class="tag tag-ops">Ops</span> Reverse proxy y HTTPS: nginx/Traefik delante — TLS, `X-Forwarded-*`, `COOKIE_SECURE`
+- <span class="tag tag-ops">Ops</span> Health checks reales: `/health` para el orquestador vs `/health/deep` para ti
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: Taskflow detrás de un proxy con HTTPS -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Explicar el camino completo de un request desde el navegador hasta tu handler en prod.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

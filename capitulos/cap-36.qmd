@@ -1,0 +1,57 @@
+---
+title: "36. Diseñar antes de construir: la arquitectura de Nexus"
+subtitle: "Te contratan para el backend de un Figma-lite. ¿Por dónde empiezas?"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Proyecto final: workspace colaborativo por equipos. Del requerimiento al modelo, al contrato y a las decisiones documentadas.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Del requerimiento al modelo: entidades, relaciones, ownership — el ER completo
+- <span class="tag tag-u">U</span> ADR mínimo: documentar por qué capas, por qué esas fronteras
+- <span class="tag tag-u">U</span> Diseñar el contrato primero: rutas, schemas, códigos de error — OpenAPI como fuente de verdad
+- <span class="tag tag-d">D</span> `public_id` vs UUID interno y otras decisiones que parecen menores y no lo son
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+<!-- proyecto: diseño completo de Nexus en papel -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Presentar el diseño como si fuera un RFC de equipo — y defender cada decisión.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

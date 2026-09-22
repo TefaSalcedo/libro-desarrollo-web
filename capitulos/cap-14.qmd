@@ -1,0 +1,74 @@
+---
+title: "14. Necesitamos guardar contraseñas sin traicionar a nadie"
+subtitle: "Texto plano nunca; cifrado tampoco. ¿Entonces qué?"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+El sistema de usuarios empieza por la pregunta más delicada: ¿qué guardamos en la columna `password`?
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Hash ≠ cifrado: irreversible vs reversible — la pregunta de entrevista
+- <span class="tag tag-u">U</span> bcrypt: por qué "lento" es una característica — salt, costo, fuerza bruta
+- <span class="tag tag-ts">TS</span> `bcrypt` npm · <span class="tag tag-py">Py</span> `bcrypt` pip · <span class="tag tag-go">Go</span> `x/crypto/bcrypt` — librerías distintas, algoritmo idéntico
+- <span class="tag tag-u">U</span> Qué se guarda en la tabla y qué nunca aparece en el contrato de salida
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: register real: validar → hashear → persistir -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Cronometrar bcrypt con distintos costos y justificar la elección.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

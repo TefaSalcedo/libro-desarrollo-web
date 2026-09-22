@@ -1,0 +1,58 @@
+---
+title: "12. Necesitamos que la API no se ponga lenta"
+subtitle: "Con 5 filas todo es instantáneo; con 10.000, tu query «obvia» escanea la tabla"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+En dev todo vuela. En prod, la lista de tareas tarda segundos. Necesitamos índices, planes de ejecución y paginación.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-d">D</span> Índices: qué son, qué cuestan (no son gratis), cuándo ponerlos
+- <span class="tag tag-d">D</span> `EXPLAIN`: leer el plan de ejecución como un backend dev
+- <span class="tag tag-d">D</span> El problema N+1: lista + loop de queries — se reproduce en los tres stacks
+- <span class="tag tag-d">D</span> Paginación: `LIMIT/OFFSET` vs cursor — por qué `?page=1` no siempre escala
+- <span class="tag tag-u">U</span> `SELECT *` en endpoints de lista: traer lo necesario
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+<!-- proyecto: lista paginada, filtrada, sin N+1 -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Encontrar el N+1 en un fragmento de código que parece inocente.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

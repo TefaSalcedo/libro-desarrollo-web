@@ -1,0 +1,75 @@
+---
+title: "17. Necesitamos que autenticado no signifique puede todo"
+subtitle: "Autenticación ≠ autorización"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Cualquier usuario logueado puede borrar las tareas de otro. Necesitamos ownership, roles y las respuestas correctas.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Ownership: "¿esta tarea es tuya?" — el nivel de permiso más común
+- <span class="tag tag-u">U</span> Roles: `admin/editor/viewer` — modelado en la relación, no en el usuario
+- <span class="tag tag-u">U</span> 401 vs 403 vs 404: por qué devolver 404 en recursos ajenos es seguridad, no un bug
+- <span class="tag tag-u">U</span> Enumeración de recursos: qué filtra un atacante cuando devuelves 403
+- <span class="tag tag-ts">TS</span> <span class="tag tag-py">Py</span> <span class="tag tag-go">Go</span> Factories de middleware/dependencies/wrappers — funciones que devuelven funciones
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: proyectos compartidos con roles (viewer ve pero no muta) -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Auditar tus endpoints: ¿cuáles dejan adivinar que un recurso existe?
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

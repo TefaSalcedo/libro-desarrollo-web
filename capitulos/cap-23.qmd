@@ -1,0 +1,75 @@
+---
+title: "23. Necesitamos ver qué está pasando sin estar mirando"
+subtitle: "Sin logs, «algo falla a veces» es todo lo que sabrás jamás"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+En producción no hay consola que mirar. Necesitamos logging estructurado y request IDs.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Logging real: niveles, por qué `print`/`console.log` no es logging
+- <span class="tag tag-ts">TS</span> `pino`/`winston` · <span class="tag tag-py">Py</span> `logging` · <span class="tag tag-go">Go</span> `log/slog` — estructurado gratis en stdlib
+- <span class="tag tag-u">U</span> Qué loguear y qué NUNCA loguear (passwords, tokens, datos personales)
+- <span class="tag tag-u">U</span> Logs estructurados (JSON): producción parsea logs, no los lee
+- <span class="tag tag-u">U</span> Request ID propagado por middleware en los tres
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: logging real con request ID -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Dado un log "500 a las 3:14", reconstruir qué pasó usando el request ID.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

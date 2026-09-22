@@ -1,0 +1,55 @@
+---
+title: "A. Tres sintaxis, un programador"
+subtitle: "La tabla de traducción TS ↔ Python ↔ Go"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Solo lo que el libro usó: tipos, módulos, errores, clases/structs, concurrencia — y los errores típicos del que viene de JS.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-ts">TS</span> <span class="tag tag-py">Py</span> <span class="tag tag-go">Go</span> Sintaxis: `function`/`def`/`func`, `{}`/indentación/llaves
+- Tipos: `interface`/`dict`/`struct`, arrays/listas/slices, `null`/`None`/`nil`
+- Lo que no se traduce directo: `yield`, `defer`, context managers, goroutines
+- Errores típicos: mutabilidad de defaults, `==` vs `is`, valor vs puntero
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Traducir una función del proyecto a los otros dos lenguajes sin mirar la solución.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

@@ -1,0 +1,75 @@
+---
+title: "38. Colaboración: equipos, invitaciones y tiempo real"
+subtitle: "«Que todos vean qué está pasando» exige realtime + roles"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Membresías, invitaciones con tokens de un solo uso, y WebSockets autenticados para presencia en vivo.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-d">D</span> Modelo de membresías: `teams`, `members`, `project_shares` — roles en la relación
+- <span class="tag tag-u">U</span> Invitaciones: tokens de un solo uso, expiración, aceptación — otro flujo con estado
+- <span class="tag tag-u">U</span> WebSockets: endpoint autenticado, presencia, broadcast — qué mantiene el servidor ahora
+- <span class="tag tag-ts">TS</span> `ws` · <span class="tag tag-py">Py</span> FastAPI WebSocket · <span class="tag tag-go">Go</span> `coder/websocket` — conexiones vivas por runtime
+- <span class="tag tag-u">U</span> Conflictos en vivo: last-writer-wins pragmático — cuándo alcanza y cuándo CRDT
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: presencia y edición concurrente verificable con dos clientes -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Dos navegadores deben verse cambios en <300ms: diseñar cómo verificarlo.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

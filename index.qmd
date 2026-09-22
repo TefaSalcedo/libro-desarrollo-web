@@ -1,0 +1,77 @@
+# Prefacio {.unnumbered}
+
+Ya sabes programar. Sabes JavaScript, React, `fetch`, `async/await`, JSON.
+Has consumido decenas de APIs. Este libro empieza exactamente ahí: **del otro
+lado del `fetch`**.
+
+## Para quién es este libro
+
+Para desarrolladores frontend que quieren construir sistemas backend reales:
+APIs, bases de datos, autenticación, testing, Docker y despliegue. No es un
+curso de "Python desde cero" ni de "JavaScript desde cero" — los lenguajes se
+aprenden **dentro de problemas reales**, justo cuando hacen falta.
+
+## Un concepto, tres lenguajes
+
+Cada funcionalidad se explica como concepto universal de backend y luego se
+implementa en tres stacks minimalistas:
+
+::: {.panel-tabset}
+
+### TypeScript
+Node.js + Express — lo más ubicuo del ecosistema que ya conoces.
+
+### Python
+FastAPI — validación declarativa con type hints y Pydantic.
+
+### Go
+`net/http` de la stdlib — el servidor *es* tu código, sin framework.
+
+:::
+
+Después de cada ejemplo viene la pregunta importante: **¿por qué cada
+ecosistema lo resuelve así?** Ahí es donde se aprende backend de verdad.
+
+## La filosofía
+
+> Aprender el concepto JUSTO CUANDO se necesita para construir algo real.
+
+No hay capítulos de "variables", "strings" ni "for loops". Hay capítulos de
+"necesitamos recibir datos del cliente", "necesitamos que los datos sobrevivan
+al reinicio", "necesitamos que robar una sesión no sea suficiente".
+
+## Los proyectos
+
+| Parte | Proyecto | De… | A… |
+|---|---|---|---|
+| 0 | — | Frontend dev | Entiende qué construye |
+| 1 | Taskflow en memoria | Cero backend | API con arquitectura real |
+| 2 | Taskflow + PostgreSQL | Datos volátiles | Persistencia seria |
+| 3 | Usuarios + auth | API abierta | Sistema multiusuario seguro |
+| 4 | Integraciones | API aislada | Backend conectado al mundo |
+| 5 | Robustez | "Funciona" | "Opera" |
+| 6 | Testing | Confianza ciega | Confianza verificable |
+| 7 | Docker | "En mi máquina" | Reproducible |
+| 8 | Deploy | Local | Internet |
+| 9 | Nexus | Piezas sueltas | Backend profesional completo |
+
+## Etiquetas de concepto
+
+Cada concepto lleva una etiqueta que responde *"¿esto me sirve fuera de este
+framework?"*:
+
+- <span class="tag tag-u">U</span> Universal de backend — vale en cualquier stack
+- <span class="tag tag-ts">TS</span> Específico de Node/TypeScript
+- <span class="tag tag-py">Py</span> Específico de Python
+- <span class="tag tag-go">Go</span> Específico de Go
+- <span class="tag tag-d">D</span> Bases de datos y persistencia
+- <span class="tag tag-ops">Ops</span> Infraestructura y operación
+
+## Cómo leer este libro
+
+- Si vienes de frontend: sigue las pestañas de **TypeScript** y contrasta con
+  las otras dos — las diferencias son la lección.
+- Elige **un** lenguaje para implementar los proyectos; los otros dos te dan
+  las soluciones de referencia.
+- Cada capítulo cierra con un checklist: "qué deberías saber hacer ahora".
+  Si no puedes marcarlo, vuelve atrás antes de seguir.

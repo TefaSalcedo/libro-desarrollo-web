@@ -1,0 +1,76 @@
+---
+title: "16. Necesitamos saber quién eres en cada request"
+subtitle: "¿Copiar la verificación del JWT en 20 endpoints? No."
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Veinte endpoints protegidos. La verificación de auth no se copia: se inyecta. El patrón middleware en tres dialectos.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> El patrón middleware/pipeline: ejecutar antes del handler
+- <span class="tag tag-ts">TS</span> `app.use(authMiddleware)` — función que envuelve la siguiente
+- <span class="tag tag-py">Py</span> `Depends(get_current_user)` — inyección de dependencias declarativa
+- <span class="tag tag-go">Go</span> `middleware(handler)` — composición explícita, sin magia
+- <span class="tag tag-u">U</span> Propagar el usuario: `res.locals` vs DI vs `context.Context` — ¿dónde pongo el user?
+- <span class="tag tag-u">U</span> Orden de ejecución: el diagrama del pipeline completo
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: get_current_user + protección sin duplicar -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Proteger un endpoint nuevo en una sola línea — y entender por qué funciona.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

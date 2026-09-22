@@ -1,0 +1,74 @@
+---
+title: "32. Necesitamos una imagen que producción acepte"
+subtitle: "Funciona, pero pesa 1.2 GB y corre como root"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+La imagen de desarrollo no es la de producción: multi-stage, config en runtime, migraciones al arranque.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-ops">Ops</span> Multi-stage builds: herramientas de build fuera de la imagen final
+- <span class="tag tag-ops">Ops</span> Misma imagen en staging y prod, variables distintas (conexión con el cap. de config)
+- <span class="tag tag-ops">Ops</span> Migraciones al arranque: entrypoint que corre `migrate` antes de servir
+- <span class="tag tag-ops">Ops</span> No-root, healthcheck, señales y shutdown limpio: lo que plataforma revisa
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: Dockerfile de producción serio por lenguaje -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Auditar la imagen contra un checklist de producción.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

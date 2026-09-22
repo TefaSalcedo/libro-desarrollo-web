@@ -1,0 +1,74 @@
+---
+title: "21. Necesitamos responder ya y terminar el trabajo después"
+subtitle: "El email tarda 3 segundos; el usuario no debe esperarlos"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Responder rápido y seguir trabajando en background — con el límite honesto de que si el proceso muere, el trabajo muere.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Background work post-respuesta en cada stack
+- <span class="tag tag-ts">TS</span> `setImmediate`/cola propia · <span class="tag tag-py">Py</span> `BackgroundTasks` · <span class="tag tag-go">Go</span> `go func()` — y el mismo límite en los tres
+- <span class="tag tag-u">U</span> Colas de verdad (concepto): broker, worker, reintentos, idempotencia — BullMQ/RQ/asynq como panorama
+- <span class="tag tag-u">U</span> El patrón `job_id` + polling: procesos largos sin timeout
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: creación que responde 202 y notifica en background -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Diseñar el endpoint de "exportar mis datos" (toma minutos) sin timeout.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

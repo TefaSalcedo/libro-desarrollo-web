@@ -1,0 +1,76 @@
+---
+title: "3. Necesitamos responder a URLs y verbos"
+subtitle: "Qué es exactamente un endpoint y qué promete"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+El cliente llamará `GET /tasks/42?expand=owner`. Necesitamos rutas, parámetros y verbos con intención — y saber qué pasa cuando los usamos mal.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Routing: paths, path params, query params
+- <span class="tag tag-u">U</span> Métodos HTTP con semántica: GET lee, POST crea, PUT reemplaza, PATCH modifica, DELETE borra
+- <span class="tag tag-u">U</span> Status codes como parte del contrato: 200, 201, 400, 404, 422, 500
+- <span class="tag tag-ts">TS</span> `app.get("/tasks/:id")` — params por convención de string
+- <span class="tag tag-py">Py</span> `@app.get("/tasks/{id}")` — params inyectados en la firma
+- <span class="tag tag-go">Go</span> `mux.HandleFunc("GET /tasks/{id}", h)` — método en el patrón (Go 1.22+)
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: CRUD de tareas en memoria con códigos de estado correctos -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Diseñar las rutas de una API de "likes" sin que nada sea ambiguo.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

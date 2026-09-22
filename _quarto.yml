@@ -1,0 +1,99 @@
+project:
+  type: book
+  output-dir: _book
+
+lang: es
+
+book:
+  title: "Backend para desarrolladores frontend"
+  subtitle: "Un concepto, tres lenguajes: TypeScript, Python y Go"
+  author: "Stefa"
+  date: today
+  search: true
+  downloads: [pdf, epub]
+  repo-url: ""
+  chapters:
+    - index.qmd
+    - part: "Parte 0 — El cambio de mentalidad"
+      chapters:
+        - capitulos/cap-01.qmd
+    - part: "Parte 1 — Proyecto 1: Taskflow en memoria"
+      chapters:
+        - capitulos/cap-02.qmd
+        - capitulos/cap-03.qmd
+        - capitulos/cap-04.qmd
+        - capitulos/cap-05.qmd
+        - capitulos/cap-06.qmd
+        - capitulos/cap-07.qmd
+    - part: "Parte 2 — Proyecto 2: PostgreSQL"
+      chapters:
+        - capitulos/cap-08.qmd
+        - capitulos/cap-09.qmd
+        - capitulos/cap-10.qmd
+        - capitulos/cap-11.qmd
+        - capitulos/cap-12.qmd
+        - capitulos/cap-13.qmd
+    - part: "Parte 3 — Usuarios, autenticación y permisos"
+      chapters:
+        - capitulos/cap-14.qmd
+        - capitulos/cap-15.qmd
+        - capitulos/cap-16.qmd
+        - capitulos/cap-17.qmd
+        - capitulos/cap-18.qmd
+    - part: "Parte 4 — Integraciones y concurrencia"
+      chapters:
+        - capitulos/cap-19.qmd
+        - capitulos/cap-20.qmd
+        - capitulos/cap-21.qmd
+        - capitulos/cap-22.qmd
+    - part: "Parte 5 — Robustez"
+      chapters:
+        - capitulos/cap-23.qmd
+        - capitulos/cap-24.qmd
+        - capitulos/cap-25.qmd
+        - capitulos/cap-26.qmd
+    - part: "Parte 6 — Testing"
+      chapters:
+        - capitulos/cap-27.qmd
+        - capitulos/cap-28.qmd
+        - capitulos/cap-29.qmd
+    - part: "Parte 7 — Docker"
+      chapters:
+        - capitulos/cap-30.qmd
+        - capitulos/cap-31.qmd
+        - capitulos/cap-32.qmd
+    - part: "Parte 8 — Deployment"
+      chapters:
+        - capitulos/cap-33.qmd
+        - capitulos/cap-34.qmd
+        - capitulos/cap-35.qmd
+    - part: "Parte 9 — Proyecto final: Nexus"
+      chapters:
+        - capitulos/cap-36.qmd
+        - capitulos/cap-37.qmd
+        - capitulos/cap-38.qmd
+        - capitulos/cap-39.qmd
+        - capitulos/cap-40.qmd
+  appendices:
+    - capitulos/ap-a.qmd
+    - capitulos/ap-b.qmd
+    - capitulos/ap-c.qmd
+    - capitulos/ap-d.qmd
+    - capitulos/ap-e.qmd
+    - capitulos/ap-f.qmd
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    code-overflow: wrap
+    highlight-style: github
+  pdf:
+    documentclass: scrreprt
+    toc: true
+    number-sections: true
+    papersize: letter
+    fontsize: 10pt
+  epub:
+    toc: true

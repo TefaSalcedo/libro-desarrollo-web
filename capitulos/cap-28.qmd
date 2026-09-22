@@ -1,0 +1,75 @@
+---
+title: "28. Necesitamos testear la API completa sin romper la BD"
+subtitle: "Los endpoints tocan Postgres: ¿tests contra qué base de datos?"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Tests de integración reales: BD de test, transacción con rollback por test, y ejercitar la API sin levantar el servidor.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> BD de test dedicada: `DATABASE_URL` apuntando a `taskflow_test`
+- <span class="tag tag-d">D</span> El truco de la transacción con rollback: tests aislados, rápidos, sin limpieza
+- <span class="tag tag-ts">TS</span> supertest · <span class="tag tag-py">Py</span> `TestClient` · <span class="tag tag-go">Go</span> `httptest` — ejercitar la API sin socket real
+- <span class="tag tag-u">U</span> Testear lo protegido: fabricar usuarios, sesiones y tokens en fixtures
+- <span class="tag tag-u">U</span> Tests que son documentación: "viewer no puede mutar → 403" permanente
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: tests de integración sobre endpoints críticos -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Demostrar con un test que el doble-submit devuelve 409 tras éxito.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

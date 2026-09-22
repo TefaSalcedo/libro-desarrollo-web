@@ -1,0 +1,75 @@
+---
+title: "18. Necesitamos que robar una sesión no sea suficiente"
+subtitle: "La cookie se filtró: ¿qué puede hacer el atacante? ¿puedes revocarla?"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+JWT puro no se puede revocar. Necesitamos sesiones persistidas, refresh rotation, rate limiting y CORS bien entendido.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> JWT stateless vs sesión en BD: un query extra a cambio de revocación real
+- <span class="tag tag-u">U</span> "Cerrar sesión en todos mis dispositivos": imposible con JWT puro
+- <span class="tag tag-u">U</span> Refresh token rotation: detectar robo cuando un token viejo se reutiliza
+- <span class="tag tag-u">U</span> Rate limiting en login: fuerza bruta y el 429 como amigo
+- <span class="tag tag-u">U</span> CORS en serio: qué pregunta el navegador y qué responde el servidor
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: sesiones persistidas revocables + logout real + rate limit -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Listar los endpoints donde un 429 debería existir en cualquier API seria.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

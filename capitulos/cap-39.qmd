@@ -1,0 +1,57 @@
+---
+title: "39. Endurecimiento: de funciona a publicable"
+subtitle: "La checklist final que separa portafolio de producción"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Auditoría completa de Nexus: seguridad, configuración, errores, logs, performance con datos reales.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Auditoría integral: todo lo de los caps. 23–26 aplicado sobre código real
+- <span class="tag tag-d">D</span> Performance con datos reales: índices faltantes, N+1 escondidos, endpoints que escanean tablas
+- <span class="tag tag-u">U</span> La suite de tests como contrato: cobertura donde importa, no donde impresiona
+- <span class="tag tag-ops">Ops</span> Documentación usable: README de setup, `openapi.json` publicado, runbook básico
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+<!-- proyecto: release candidate de Nexus desplegado -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Pasar la checklist del apéndice F a Nexus y documentar cada hallazgo.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

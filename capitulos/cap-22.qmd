@@ -1,0 +1,74 @@
+---
+title: "22. Necesitamos recibir lo que otros nos envían"
+subtitle: "Webhooks entrantes y uploads: el endpoint público peligroso"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+El mundo también te llama a ti: webhooks de pago, uploads de avatar. Necesitamos verificar firmas, deduplicar y parsear multipart.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Webhooks entrantes: verificar firma, responder rápido, procesar después
+- <span class="tag tag-u">U</span> Idempotencia: el mismo webhook llega dos veces — `Idempotency-Key` y deduplicación en BD
+- <span class="tag tag-u">U</span> Uploads streaming: parseo multipart, tamaños máximos, validación de tipo real (no el nombre)
+- <span class="tag tag-ops">Ops</span> Dónde van los archivos: disco vs object storage — la decisión, no la implementación
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: webhook verificado + upload de avatar validado -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Hacer que procesar el mismo webhook 5 veces tenga el efecto de procesarlo 1 vez.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

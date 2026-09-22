@@ -1,0 +1,74 @@
+---
+title: "27. Necesitamos confiar en el código que no estamos mirando"
+subtitle: "Sin tests, el miedo es la arquitectura"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Cada refactor rompe algo en otro lugar. Necesitamos una suite de tests — la pirámide correcta, no tests de juguete.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Qué testear y qué no: la pirámide en backend (servicios > endpoints > e2e)
+- <span class="tag tag-ts">TS</span> vitest · <span class="tag tag-py">Py</span> pytest + `conftest` · <span class="tag tag-go">Go</span> `go test` + table-driven tests (estilo exportable)
+- <span class="tag tag-u">U</span> Fixtures: `beforeEach` vs conftest vs helpers — preparar mundo, ejecutar, limpiar
+- <span class="tag tag-u">U</span> Parametrize/table tests: un test, veinte casos
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: suite unitaria de servicios de Taskflow -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Escribir el test que hubiera detectado tu último bug.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

@@ -1,0 +1,74 @@
+---
+title: "24. Necesitamos la misma app en tres lugares distintos"
+subtitle: "Tu máquina, CI y prod tienen BD, secretos y orígenes distintos"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Hardcodear `localhost:5432` no escala. Necesitamos variables de entorno, 12-factor y fail-fast al arranque.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Variables de entorno y 12-factor: la configuración vive fuera del código
+- <span class="tag tag-ts">TS</span> `process.env` + zod · <span class="tag tag-py">Py</span> `pydantic-settings` · <span class="tag tag-go">Go</span> `os.Getenv` + validación manual
+- <span class="tag tag-u">U</span> `.env`, `.env.example`, y por qué `.env` jamás entra a git
+- <span class="tag tag-u">U</span> Fail fast: la app revienta al arrancar si falta `DATABASE_URL`, no a las 3 AM
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: config por entorno (dev/test/prod) con validación -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Quitar todos los valores hardcodeados de Taskflow y arrancar en un entorno limpio.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

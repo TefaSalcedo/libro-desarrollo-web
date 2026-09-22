@@ -1,0 +1,59 @@
+---
+title: "8. Necesitamos que los datos sobrevivan al reinicio"
+subtitle: "La memoria no es un plan"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+La lista en memoria muere con el proceso. Necesitamos una base de datos — y diseñarla antes de escribir código.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-d">D</span> Qué es una base de datos relacional y por qué PostgreSQL (y no "MongoDB porque JSON")
+- <span class="tag tag-d">D</span> Entidades, atributos, tipos de columna, `NOT NULL`, defaults
+- <span class="tag tag-d">D</span> Claves primarias: `SERIAL` vs `UUID` vs id público corto — qué va en la URL
+- <span class="tag tag-d">D</span> Claves foráneas: `ON DELETE CASCADE` vs `SET NULL`
+- <span class="tag tag-d">D</span> Diagramas ER: dibujar el modelo antes de crearlo
+- <span class="tag tag-u">U</span> Capítulo agnóstico: la mitad del backend no es código
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+<!-- proyecto: diseño en papel de la BD de Taskflow (users, tasks, tags) -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Decidir qué pasa con las tareas cuando se borra su usuario — y defenderlo.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

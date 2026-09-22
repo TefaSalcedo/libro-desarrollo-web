@@ -1,0 +1,75 @@
+---
+title: "10. Necesitamos conectar el lenguaje con Postgres"
+subtitle: "Drivers, pools y por qué no abres una conexión por request"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+El código necesita hablar con la BD: drivers, pools de conexiones, consultas parametrizadas y el mapeo de filas a estructuras.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-d">D</span> Qué es un driver: `pg` vs `psycopg` vs `pgx` — todos envuelven el mismo protocolo
+- <span class="tag tag-d">D</span> El pool de conexiones: por qué no abres una conexión por request
+- <span class="tag tag-d">D</span> Consultas parametrizadas en los tres drivers (`$1` / `%s`)
+- <span class="tag tag-u">U</span> Mapear filas a estructuras: objetos vs clases vs `Scan()` a structs
+- <span class="tag tag-u">U</span> Cuándo (y si) usar ORM: SQLAlchemy / Prisma / sqlc como opciones — por qué el libro enseña SQL primero
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: Taskflow persiste de verdad con driver crudo -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Detectar la diferencia entre "objeto modificado en memoria" y "fila actualizada en BD".
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

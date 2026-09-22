@@ -1,0 +1,52 @@
+---
+title: "F. Checklists del profesional"
+subtitle: "Antes de exponer un endpoint / una migración / un deploy / decir que está listo"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Las listas de verificación completas que el libro fue construyendo capítulo a capítulo.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> <span class="tag tag-d">D</span> <span class="tag tag-ops">Ops</span> Referencia de uso diario
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Pasar la checklist completa a un proyecto tuyo anterior y contar los hallazgos.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

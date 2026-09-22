@@ -1,0 +1,75 @@
+---
+title: "20. Necesitamos concurrencia de verdad"
+subtitle: "Tres runtimes, tres modelos distintos — el capítulo estrella"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Consultar dos APIs externas en secuencia tarda el doble. Necesitamos concurrencia — y cada lenguaje la piensa distinto.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-ts">TS</span> Event loop + `Promise.all` — concurrencia cooperativa
+- <span class="tag tag-py">Py</span> `asyncio` + `gather` — el event loop de Python y sus reglas distintas
+- <span class="tag tag-go">Go</span> Goroutines + `WaitGroup`/`errgroup` — concurrencia barata y paralelismo real
+- <span class="tag tag-u">U</span> El GIL y los threads: qué puede y qué no cada runtime en paralelo — la explicación honesta
+- <span class="tag tag-u">U</span> Cuándo la concurrencia importa (I/O) y cuándo es ruido (CPU)
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: endpoint que consulta dos APIs en paralelo -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Medir la diferencia entre secuencial y concurrente con dos llamadas lentas — en tu lenguaje.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

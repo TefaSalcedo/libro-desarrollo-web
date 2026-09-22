@@ -1,0 +1,76 @@
+---
+title: "15. Necesitamos que el servidor recuerde quién eres"
+subtitle: "HTTP no tiene memoria: cada request es un extraño"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Tras el login, el siguiente request vuelve a ser anónimo. Necesitamos tokens, cookies y una política de expiración.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Sesiones con estado vs tokens sin estado: el trade-off real
+- <span class="tag tag-u">U</span> JWT por dentro: header.payload.signature — firmado, NO cifrado (el payload se lee)
+- <span class="tag tag-u">U</span> Claims: `sub`, `exp`, `iat` — qué va dentro del token y qué no
+- <span class="tag tag-u">U</span> Cookie httpOnly vs localStorage: XSS, CSRF, SameSite, Secure
+- <span class="tag tag-u">U</span> Access vs refresh: expiración corta + renovación larga
+- <span class="tag tag-ts">TS</span> `jose` · <span class="tag tag-py">Py</span> `python-jose` · <span class="tag tag-go">Go</span> `golang-jwt` — claims idénticos
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: login que emite JWT en cookie httpOnly + GET /me -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+"Robar" tu propio token desde la consola y explicar por qué httpOnly lo impide (o no).
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

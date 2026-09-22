@@ -1,0 +1,74 @@
+---
+title: "29. Necesitamos testear lo que depende de terceros"
+subtitle: "La API externa no puede recibir 500 llamadas en cada test run"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Mocks y fakes en la frontera correcta: testear que llamaste bien, no la librería HTTP.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-ts">TS</span> `vi.mock` · <span class="tag tag-py">Py</span> `monkeypatch`/`unittest.mock` · <span class="tag tag-go">Go</span> interfaces inyectadas
+- <span class="tag tag-u">U</span> La frontera del mock: qué sustituir y qué no — Go fuerza DI por diseño; TS/Py la simulan
+- <span class="tag tag-u">U</span> Cobertura: qué significa 40%/80% y por qué 100% puede ser peor que 70% bien elegido
+- <span class="tag tag-ops">Ops</span> Tests como requisito de merge: cobertura mínima en CI
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: tests del módulo de notificaciones con externo mockeado -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+El test de "servicio externo caído → la API responde bien igual".
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

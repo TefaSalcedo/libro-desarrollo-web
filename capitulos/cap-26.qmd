@@ -1,0 +1,58 @@
+---
+title: "26. Necesitamos defendernos de lo que el frontend no puede ver"
+subtitle: "El checklist de seguridad antes de exponer una API"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+OWASP no es un capítulo de teoría: es una auditoría sobre nuestros endpoints reales.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> OWASP API Top 10 traducido a tus endpoints: BOLA, auth rota, exposición de datos
+- <span class="tag tag-u">U</span> Inyección (SQL, comandos): por qué parámetros/ORM es tu defensa y dónde aún puedes fallar
+- <span class="tag tag-u">U</span> Headers de seguridad en una API pura: HSTS, X-Content-Type-Options
+- <span class="tag tag-u">U</span> Rate limiting generalizado: qué endpoints se protegen primero
+- <span class="tag tag-u">U</span> Validación como seguridad: el 422 también es una muralla
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+<!-- proyecto: auditoría de seguridad de Taskflow con checklist y correcciones -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Encontrar el endpoint donde un `viewer` podría hacer algo que no debería.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

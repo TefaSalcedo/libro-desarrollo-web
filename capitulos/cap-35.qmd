@@ -1,0 +1,57 @@
+---
+title: "35. Necesitamos cambiar producción sin tumbarla"
+subtitle: "Deploy a las 4 PM del viernes, con migración. ¿Qué puede salir mal?"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Deploys sin downtime, migraciones compatibles hacia atrás y la diferencia entre revertir código y revertir datos.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-ops">Ops</span> Deploys sin downtime (concepto): rolling, qué exige de tu app y de tus migraciones
+- <span class="tag tag-d">D</span> Migraciones compatibles: agregar columna sí, renombrar con datos en prod no — expand/contract
+- <span class="tag tag-ops">Ops</span> Rollback: qué se revierte (código) y qué no se revierte gratis (datos)
+- <span class="tag tag-ops">Ops</span> Post-deploy: logs, errores, latencia — observabilidad mínima viable
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+<!-- proyecto: deploy seguro con migración -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Planear "dividir name en first_name/last_name" sin downtime.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

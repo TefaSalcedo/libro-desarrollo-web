@@ -1,0 +1,58 @@
+---
+title: "40. Cierre: cómo piensa un backend developer"
+subtitle: "Qué stack elegirías para cada problema — la respuesta honesta"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Repaso del mapa completo, la tabla Python/FastAPI/universal final, y cuándo elegir Node, Python o Go.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Cada decisión del libro y por qué se tomó — arquitectura como respuesta a problemas
+- <span class="tag tag-u">U</span> La tabla final: qué es del lenguaje, qué del framework, qué de la industria
+- <span class="tag tag-u">U</span> Cuándo Node, cuándo Python, cuándo Go: equipo, dominio, performance, hiring
+- <span class="tag tag-u">U</span> Lo que quedó fuera deliberadamente: colas serias, caché, eventos, microservicios, observabilidad profunda
+- <span class="tag tag-u">U</span> Cómo seguir: leer backends reales
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+<!-- proyecto: la autoevaluación final y tu siguiente roadmap -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Elegir un backend open-source real y mapear sus capas contra la arquitectura del libro.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

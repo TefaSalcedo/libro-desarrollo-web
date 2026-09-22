@@ -1,0 +1,57 @@
+---
+title: "31. Necesitamos la app y Postgres levantándose juntas"
+subtitle: "El entorno completo en un archivo"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+`docker run postgres` + `docker run app` + red manual = script frágil. Necesitamos docker-compose.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-ops">Ops</span> docker-compose: servicios, redes, volúmenes, `depends_on`
+- <span class="tag tag-ops">Ops</span> Volúmenes: dónde viven los datos cuando el contenedor muere
+- <span class="tag tag-ops">Ops</span> `depends_on` + healthcheck: "Postgres listo" no es "Postgres arrancado"
+- <span class="tag tag-ops">Ops</span> El workflow diario: `compose up`, logs, rebuild — `.env` dentro de compose
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+<!-- proyecto: docker-compose.yml con app + Postgres + migraciones automáticas -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Un compañero clona el repo y levanta todo con un solo comando.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

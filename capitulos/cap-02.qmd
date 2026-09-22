@@ -1,0 +1,76 @@
+---
+title: "2. Necesitamos que alguien escuche el puerto 8000"
+subtitle: "En backend, tú eres el navegador de alguien más"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+En frontend el navegador ejecuta tu código; en backend algo tiene que correr **siempre**. Necesitamos un proceso que escuche el puerto 8000 y nunca termine.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-ts">TS</span> `npm`, `package.json`, `tsx`/`node` — el entorno Node
+- <span class="tag tag-py">Py</span> `venv` + `pip` + `pyproject.toml` — el `node_modules` por proyecto de Python
+- <span class="tag tag-go">Go</span> `go mod` — dependencias con toolchain integrado
+- <span class="tag tag-u">U</span> App vs servidor: quién escucha el socket en cada stack
+- <span class="tag tag-u">U</span> `--reload` / watch mode: el `nodemon` de cada ecosistema
+- <span class="tag tag-u">U</span> `/health`: el endpoint más aburrido y más importante
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: la app mínima corriendo en localhost:8000 -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Explicar qué pasa exactamente entre el comando que arranca el servidor y el primer request.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

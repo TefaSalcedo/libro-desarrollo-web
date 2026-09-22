@@ -1,0 +1,74 @@
+---
+title: "13. Necesitamos que dos cosas pasen juntas o ninguna"
+subtitle: "Si falla el paso 2, la BD queda mentirosa"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+"Crear tarea + registrar evento + actualizar contador": si algo falla a la mitad, la BD queda inconsistente. Necesitamos transacciones.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-d">D</span> Transacciones y ACID, explicado con dinero
+- <span class="tag tag-d">D</span> `BEGIN`/`COMMIT`/`ROLLBACK` en cada driver — y dónde vive la frontera en una arquitectura por capas
+- <span class="tag tag-u">U</span> `try-finally` vs `defer` vs context managers: tres formas de garantizar limpieza
+- <span class="tag tag-d">D</span> Concurrencia mínima: `SELECT ... FOR UPDATE` contra doble-submit y pestañas paralelas
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: operación multi-paso atómica -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Diseñar qué debería pasar si dos usuarios completan la misma tarea "a la vez".
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

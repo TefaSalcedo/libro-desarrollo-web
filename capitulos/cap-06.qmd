@@ -1,0 +1,75 @@
+---
+title: "6. Necesitamos fallar correctamente"
+subtitle: "Tres lenguajes, tres filosofías de error"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+La tarea no existe. ¿Devuelves `null`? ¿Un `{error: ...}`? ¿Explota el servidor? Cada lenguaje responde distinto.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Excepciones vs valores: "excepciones para lo excepcional"
+- <span class="tag tag-ts">TS</span> `throw`/`catch` + middleware de errores de Express
+- <span class="tag tag-py">Py</span> `try/except` + `HTTPException` + exception handlers
+- <span class="tag tag-go">Go</span> `error` como valor de retorno + `errors.Is/As` — el modelo que enseña
+- <span class="tag tag-u">U</span> Formato de error consistente: algo contra lo que el frontend pueda programar
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: 404 real, 409 en conflicto, formato uniforme -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Simular un error inesperado y verificar que el cliente nunca ve un stack trace.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

@@ -1,0 +1,57 @@
+---
+title: "34. Necesitamos que nadie rompa main"
+subtitle: "Si depende de la memoria, fallará"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+"¿Pasaste los tests antes del merge?" — CI con lint, typecheck, tests y build en cada PR.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-ops">Ops</span> CI con GitHub Actions: lint + typecheck + tests + build por stack
+- <span class="tag tag-ops">Ops</span> La BD en CI: Postgres como servicio del pipeline — el esquema es reproducible
+- <span class="tag tag-u">U</span> Gates de merge: cobertura mínima, CI verde obligatorio — la conversación de equipo
+- <span class="tag tag-ops">Ops</span> CD: build de imagen → registry → deploy — las piezas y su orden
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+<!-- proyecto: pipeline completo de Taskflow -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Hacer fallar el build a propósito con un test roto y ver el gate funcionar.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

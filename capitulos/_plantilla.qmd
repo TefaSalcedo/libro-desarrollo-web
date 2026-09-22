@@ -1,0 +1,75 @@
+---
+title: "N. Título del capítulo"
+subtitle: "El problema en una frase"
+---
+
+<!-- PLANTILLA — no publicada (empieza por _). Copiar y rellenar.
+     Reglas en docs/guia-de-estilo.md -->
+
+## El problema
+
+<!-- "Necesitamos…" — una necesidad real del proyecto, no un tema de teoría -->
+
+## Cómo lo resuelve un equipo
+
+<!-- Contexto profesional: qué conversación tendría un equipo real ante esto -->
+
+## Conceptos nuevos
+
+<!-- Lista con etiquetas:
+- <span class="tag tag-u">U</span> concepto universal
+- <span class="tag tag-ts">TS</span> / <span class="tag tag-py">Py</span> / <span class="tag tag-go">Go</span>
+- <span class="tag tag-d">D</span> / <span class="tag tag-ops">Ops</span>
+-->
+
+## La explicación visual
+
+<!-- Mermaid o tabla -->
+
+```{mermaid}
+flowchart LR
+  A --> B
+```
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// english code
+```
+
+### Python
+```python
+# english code
+```
+
+### Go
+```go
+// english code
+```
+
+:::
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- La lección transferible. Obligatoria tras un tabset. -->
+
+## Errores comunes
+
+## Buenas prácticas
+
+## Ejercicio
+
+<!-- Guiado, sobre el proyecto -->
+
+## Mini reto
+
+<!-- Abierto, de razonamiento -->
+
+## Lo que deberías saber hacer ahora
+
+- [ ] …
+- [ ] …
+- [ ] …

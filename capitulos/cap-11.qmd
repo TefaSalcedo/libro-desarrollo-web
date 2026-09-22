@@ -1,0 +1,58 @@
+---
+title: "11. Necesitamos cambiar el esquema sin rezar"
+subtitle: "La BD de producción ya tiene datos; DROP TABLE no es una opción"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Hay que agregar `tasks.due_date`. En producción ya hay filas. Necesitamos el esquema como código versionado.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-d">D</span> Qué es una migración: `upgrade()`/`downgrade()`, diffs del esquema como código
+- <span class="tag tag-d">D</span> `golang-migrate` con `.sql` plano — las migraciones son de la BD, no del framework
+- <span class="tag tag-u">U</span> Migraciones en equipo: generar → revisar → aplicar en CI → aplicar en prod
+- <span class="tag tag-u">U</span> Errores clásicos: editar una migración ya aplicada, migraciones destructivas sin plan
+- <span class="tag tag-d">D</span> Caja comparativa: Alembic (autogenerate), `prisma migrate`, `goose`
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+<!-- proyecto: migración inicial + migración de evolución de Taskflow -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Agregar una columna con default a una tabla "con millones de filas" — ¿qué consideraciones tiene?
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

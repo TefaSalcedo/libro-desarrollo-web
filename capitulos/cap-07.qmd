@@ -1,0 +1,76 @@
+---
+title: "7. Necesitamos que esto quepa en la cabeza de otra persona"
+subtitle: "Un archivo de 800 líneas con 30 endpoints no es un proyecto"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+La API crece. Necesitamos módulos, capas y una estructura que un equipo reconozca.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Arquitectura por capas: `routes → services → storage`
+- <span class="tag tag-u">U</span> Por qué el endpoint debe ser "tonto": la regla que hace todo testeable
+- <span class="tag tag-ts">TS</span> ES modules, routers de Express
+- <span class="tag tag-py">Py</span> Módulos/paquetes, `APIRouter`, `Depends`
+- <span class="tag tag-go">Go</span> Packages, `internal/`, handlers como funciones
+- <span class="tag tag-u">U</span> Reusar lógica pre-handler: middleware vs dependencies vs wrappers — el mismo patrón, distinta magia
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: refactor de Taskflow a estructura por capas -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Mover una regla de negocio del handler al servicio y explicar qué se ganó.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

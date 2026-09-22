@@ -1,0 +1,214 @@
+---
+title: "1. Dejas de consumir APIs. Ahora las construyes."
+subtitle: "Todo lo que fetch oculta, alguien tuvo que construirlo"
+---
+
+## El problema
+
+Llevas tiempo escribiendo código así:
+
+```ts
+const res = await fetch("/api/tasks", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ title: "Deploy to prod" }),
+});
+const task = await res.json();
+```
+
+Sabes usar `fetch`. Pero… ¿qué hay *del otro lado*? ¿Qué programa escuchó ese
+request, dónde corre, cómo decidió responder `201` y no `200`, quién convirtió
+tu JSON en una fila de base de datos?
+
+Ese "otro lado" es lo que vas a construir durante todo este libro. Y la buena
+noticia: **ya sabes la mitad**. El protocolo es el mismo HTTP que conoces; lo
+que cambia es el rol — pasas de cliente a servidor.
+
+## Cómo lo resuelve un equipo
+
+Cuando un equipo backend recibe un requerimiento ("hay que crear tareas"), la
+conversación nunca empieza en el código. Empieza en el **contrato**:
+
+- ¿Qué ruta y qué verbo? `POST /api/tasks`
+- ¿Qué shape tiene el body? `{ title: string, priority?: number }`
+- ¿Qué responde en éxito? `201` con la tarea creada
+- ¿Qué responde si el body está mal? `400`/`422` con un error estructurado
+- ¿Quién puede llamarlo? ¿Cualquiera o solo usuarios autenticados?
+
+Ese contrato es lo único que el frontend conoce de ti. Es también lo que te
+permite reescribir tu backend en otro lenguaje sin que el frontend se entere —
+o que otro equipo escriba el frontend sin hablar contigo. **El contrato es el
+producto; la implementación es un detalle.**
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> **Servidor**: un proceso que corre *siempre*, escuchando un puerto, esperando requests. En frontend tu código lo ejecuta el navegador del usuario; en backend tú eres responsable de que el proceso esté vivo.
+- <span class="tag tag-u">U</span> **El ciclo request/response**: `Request → Routing → Validación → Lógica → Datos → Response`. Cada capítulo del libro profundiza en una de esas etapas.
+- <span class="tag tag-u">U</span> **Las cuatro preguntas**: ante cada request, un backend se pregunta *¿quién eres?* (autenticación), *¿puedes?* (autorización), *¿los datos son válidos?* (validación), *¿qué hago con ellos?* (lógica + persistencia).
+- <span class="tag tag-ts">TS</span> <span class="tag tag-py">Py</span> <span class="tag tag-go">Go</span> **App vs servidor**: en Node y Python el framework y el servidor son piezas separadas; en Go son la misma cosa. Detalle abajo.
+
+## La explicación visual
+
+```{mermaid}
+flowchart LR
+  subgraph Client["Tu mundo actual"]
+    UI["React app"] -->|"fetch POST /api/tasks"| Req
+  end
+  subgraph Server["El otro lado — este libro"]
+    Req["HTTP request"] --> R["1. Routing<br/>¿qué función atiende esto?"]
+    R --> A["2. Auth<br/>¿quién eres? ¿puedes?"]
+    A --> V["3. Validación<br/>¿el body es correcto?"]
+    V --> S["4. Servicio<br/>lógica de negocio"]
+    S --> D["5. Datos<br/>INSERT INTO tasks…"]
+    D --> Res["JSON response 201"]
+  end
+  Res -->|"res.json()"| UI
+```
+
+Cada etapa del diagrama es un capítulo (o varios). La gracia del diseño: si
+cada capa hace **un** trabajo, puedes testear la lógica sin HTTP y cambiar la
+base de datos sin tocar las rutas.
+
+## Implementación
+
+El "hola mundo" honesto de un backend no es imprimir texto: es **responder un
+request**. Estos tres programas hacen exactamente lo mismo — exponen
+`GET /health` en el puerto 8000:
+
+::: {.panel-tabset}
+
+### TypeScript
+
+```ts
+// src/index.ts — Node.js + Express
+import express from "express";
+
+const app = express();
+
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.listen(8000, () => {
+  console.log("listening on http://localhost:8000");
+});
+```
+
+```bash
+npm install express
+npx tsx src/index.ts
+```
+
+### Python
+
+```python
+# app/main.py — FastAPI
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+```
+
+```bash
+pip install fastapi uvicorn
+uvicorn app.main:app --port 8000
+```
+
+### Go
+
+```go
+// main.go — stdlib only
+package main
+
+import (
+	"encoding/json"
+	"net/http"
+)
+
+func health(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", health)
+	http.ListenAndServe(":8000", mux)
+}
+```
+
+```bash
+go mod init taskflow
+go run .
+```
+
+:::
+
+## ¿Por qué cada stack lo hace así?
+
+Aquí está la primera diferencia filosófica real entre ecosistemas:
+
+- **Node/Express**: el *framework* (`app`) define rutas y responde; `app.listen`
+  crea el servidor HTTP debajo. Dos piezas disfrazadas de una.
+- **Python/FastAPI**: la separación es explícita — `app` es solo una
+  *aplicación ASGI* (un objeto que sabe responder); **otro proceso**
+  (`uvicorn`) es quien escucha el puerto y le pasa los requests. Por eso
+  arrancas con `uvicorn app.main:app` y no `python main.py`.
+- **Go**: no hay framework que separar — `net/http` *es* el servidor y el
+  enrutador a la vez. El binario que compilas escucha el puerto directamente.
+
+¿Por qué existe la separación app/servidor? Porque permite poner el servidor
+"tonto" (uvicorn, nginx) delante de varias aplicaciones, escalar workers, o
+testear la app sin abrir sockets. Go decide que esa indirección no vale la
+pena: simplicidad operativa sobre flexibilidad. Ninguna respuesta es "la
+correcta" — es una decisión de diseño del ecosistema, y reconocerlas así es
+pensar como backend.
+
+## Errores comunes
+
+- **Creer que el framework es el servidor.** `app` no escucha nada; en Python
+  lo verás explícito desde el día 1 (`uvicorn app:app`), en Express queda
+  escondido en `app.listen`.
+- **`print`/`console.log` como respuesta.** Responder un request es devolver
+  bytes HTTP por la conexión, no escribir en tu terminal.
+- **Levantar el servidor y no probarlo.** Abre
+  `http://localhost:8000/health` o haz `curl` — ver la respuesta JSON es el
+  primer "funciona" real.
+
+## Buenas prácticas
+
+- **`/health` desde el primer commit.** Es el endpoint más aburrido del libro
+  y el más importante: Docker, CI y cualquier balanceador lo usarán para
+  saber si tu proceso está vivo.
+- **Puerto configurable**, no hardcodeado — en producción el puerto lo decide
+  el entorno, no tu código (volveremos a esto en configuración).
+- **Un endpoint, una responsabilidad.** El handler de `/health` no sabe de
+  tareas ni de usuarios. Esa disciplina es la arquitectura por capas en
+  miniatura.
+
+## Ejercicio
+
+1. Levanta el servidor en **tu lenguaje elegido** y verifica `GET /health`
+   desde el navegador.
+2. Agrega `GET /version` que responda `{ "version": "0.1.0" }`.
+3. Ahora hazlo en **uno de los otros dos lenguajes**. Cronometra: ¿qué fue
+   distinto, qué fue idéntico?
+
+## Mini reto
+
+Dibuja —a mano o en Mermaid— el ciclo de vida completo de un `POST /login`
+que ya conozcas desde el frontend: qué envía el navegador, qué verifica el
+servidor, qué devuelve (cookie, token), qué pasa con ese token en el siguiente
+request. Si hay etapas que no puedes dibujar, acabas de encontrar qué
+capítulos necesitas más.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Explicar qué pasa entre `fetch()` y tu handler, etapa por etapa
+- [ ] Levantar un proceso que responde HTTP en al menos un lenguaje
+- [ ] Explicar la diferencia entre *aplicación* y *servidor* — y por qué en
+      Go esa diferencia no existe
+- [ ] Decir qué es un contrato de API y por qué es más importante que la
+      implementación

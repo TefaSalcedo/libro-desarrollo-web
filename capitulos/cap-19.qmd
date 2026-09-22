@@ -1,0 +1,75 @@
+---
+title: "19. Necesitamos llamar a otra API desde el servidor"
+subtitle: "Tu backend ahora es cliente de otro backend"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+"Cuando se crea una tarea, notifica a Slack/email". Necesitamos hacer requests salientes — con timeouts, retries y fallos controlados.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> El backend como cliente HTTP: `fetch` nativo vs `httpx` vs `net/http.Client`
+- <span class="tag tag-u">U</span> Timeouts: el concepto que los tutoriales omiten y producción exige
+- <span class="tag tag-u">U</span> Reintentos con backoff: reintentar sin amplificar el incendio
+- <span class="tag tag-u">U</span> Degradación elegante: el servicio externo devuelve 500, tu API sigue viva
+- <span class="tag tag-u">U</span> API keys en servidor (nunca en frontend): el patrón BFF
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: notificaciones a servicio externo con timeout + retry -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Responder: ¿qué ve tu usuario si la API externa está caída?
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

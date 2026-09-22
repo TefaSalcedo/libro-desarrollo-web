@@ -1,0 +1,52 @@
+---
+title: "D. Glosario de backend de la vida real"
+subtitle: "Definiciones como las daría un equipo, no un examen"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+ORM, migración, transacción, N+1, idempotencia, JWT, nonce, CORS, reverse proxy, 12-factor, y todos los términos del libro.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> Referencia
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Explicar 5 términos en voz alta sin mirar.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

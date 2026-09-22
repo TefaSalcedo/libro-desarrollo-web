@@ -1,0 +1,75 @@
+---
+title: "37. El corazón: documentos versionados"
+subtitle: "Un «git interno»: snapshot + diff + puntero"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Guardar N cambios uno por uno corrompe el documento si la red cae; el undo no puede vivir solo en el navegador.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-d">D</span> Snapshot + diff + puntero: `documents`, `element_revisions`, `current_revision`
+- <span class="tag tag-d">D</span> Guardado atómico: transacciones + `SELECT FOR UPDATE` contra doble-submit y pestañas
+- <span class="tag tag-u">U</span> Undo/redo/restore como operaciones del servidor: mover el puntero, truncar el futuro
+- <span class="tag tag-d">D</span> `JSONB` para datos que evolucionan: cuándo es decisión y cuándo pereza
+- <span class="tag tag-u">U</span> El patrón de Google Docs / Figma / AutoCAD web — la analogía con git es exacta
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+::: {.panel-tabset}
+
+### TypeScript
+```ts
+// TODO
+```
+
+### Python
+```python
+# TODO
+```
+
+### Go
+```go
+// TODO
+```
+
+:::
+
+<!-- proyecto: servicio de versionado completo con historial -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Explicar por qué snapshot completo y no solo diffs (O(1) restore vs replay).
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->

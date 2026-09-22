@@ -1,0 +1,58 @@
+---
+title: "9. Necesitamos hablar SQL de verdad"
+subtitle: "El ORM viene después; primero hay que saber qué genera"
+---
+
+> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
+> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
+> `docs/guia-de-estilo.md`.
+
+## El problema
+
+Antes de que cualquier ORM traduzca por nosotros, necesitamos escribir las queries a mano en `psql`.
+
+## Cómo lo resuelve un equipo
+
+<!-- TODO: contexto profesional -->
+
+## Conceptos nuevos
+
+- <span class="tag tag-d">D</span> `SELECT` / `WHERE` / `ORDER BY` / `LIMIT`
+- <span class="tag tag-d">D</span> `INSERT` / `UPDATE` / `DELETE` — y por qué `UPDATE` sin `WHERE` es un incidente
+- <span class="tag tag-d">D</span> JOINs: inner, left — el diagrama de Venn hecho bien
+- <span class="tag tag-d">D</span> `COUNT`, `GROUP BY`, `HAVING`: reportes sin traer toda la tabla
+- <span class="tag tag-d">D</span> Inyección SQL: por qué concatenar strings es el error clásico y los parámetros lo matan
+
+## La explicación visual
+
+<!-- TODO: diagrama Mermaid o tabla -->
+
+## Implementación
+
+<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+
+<!-- proyecto: las queries de Taskflow a mano en psql -->
+
+## ¿Por qué cada stack lo hace así?
+
+<!-- TODO: la lección transferible tras el tabset -->
+
+## Errores comunes
+
+<!-- TODO -->
+
+## Buenas prácticas
+
+<!-- TODO -->
+
+## Ejercicio
+
+<!-- TODO: guiado, sobre el proyecto -->
+
+## Mini reto
+
+Escribir la query "tareas pendientes por usuario, ordenadas por prioridad".
+
+## Lo que deberías saber hacer ahora
+
+- [ ] <!-- TODO: checklist -->
