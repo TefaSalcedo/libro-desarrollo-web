@@ -102,6 +102,24 @@ nada que no se haya declarado público.
 
 ### TypeScript
 
+::: {.panel-tabset}
+
+#### Fundamentos (a mano)
+
+```ts
+// La tentación: devolver el objeto tal cual
+app.get("/tasks/:id", (req, res) => {
+  const task = findTask(Number(req.params.id));
+  res.json(task);  // ← owner_id e internal_notes salen gratis 😬
+});
+
+// El "arreglo" ingenuo — blacklist manual:
+const { owner_id, internal_notes, deleted_at, ...pub } = task;
+res.json(pub);     // funciona… hasta que llega el próximo campo privado
+```
+
+#### Explícito (canónico del libro)
+
 ```ts
 // La forma pública se construye explícitamente — función o pick de zod
 interface Task {
@@ -136,7 +154,40 @@ app.get("/tasks/:id", (req, res) => {
 });
 ```
 
+#### class-transformer / NestJS serializers
+
+```ts
+// class-transformer — la whitelist son decoradores sobre la clase
+class TaskPublic {
+  @Expose() id: number;
+  @Expose() title: string;
+  @Exclude() owner_id: number;   // o simplemente: no declararlo
+}
+res.json(plainToInstance(TaskPublic, task));
+```
+
+*Qué te cuesta:* NestJS lo activa global con
+`ClassSerializerInterceptor` — la aduana automática estilo FastAPI, pero
+pagas el framework entero. Con Express puro, la función `toPublic`
+honesta es lo que verás en la mayoría de codebases.
+
+:::
+
 ### Python
+
+::: {.panel-tabset}
+
+#### Fundamentos (dict a mano)
+
+```python
+@app.get("/tasks/{task_id}")
+def get_task(task_id: int):
+    task = find_task(task_id)
+    # whitelist manual — funciona pero se desincroniza del contrato
+    return {"id": task.id, "title": task.title, "done": task.done}
+```
+
+#### response_model (canónico)
 
 ```python
 class TaskPublic(BaseModel):
@@ -156,7 +207,29 @@ def get_task(task_id: int):
 `response_model` es la aduana: aunque `task` tenga `owner_id` y
 `internal_notes`, el JSON de salida solo lleva los campos declarados.
 
+#### DRF serializers / Marshmallow
+
+```python
+# Django REST Framework — el serializer ES la clase que filtra
+class TaskPublicSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    done = serializers.BooleanField()
+
+# return Response(TaskPublicSerializer(task).data)
+```
+
+*Qué te cuesta:* DRF/Marshmallow son la generación anterior — mismo
+concepto de whitelist declarada, más verboso y sin type hints gratis.
+El patrón es idéntico: declarar lo público, filtrar lo demás.
+
+:::
+
 ### Go
+
+::: {.panel-tabset}
+
+#### Structs + tags (canónico)
 
 ```go
 // Dos structs: la interna y la pública. El filtro ES el tipo.
@@ -185,6 +258,21 @@ func toPublic(t Task) TaskPublic {
 `json:"-"` es el caso simple ("este campo jamás sale"); una struct separada
 es el caso general ("la forma pública difiere de la interna").
 
+#### Alternativas de encoder
+
+```go
+// jsoniter / goccy — drop-in más rápido, mismos tags:
+// import jsoniter "github.com/json-iterator/go"
+// json.NewEncoder(w) → jsoniter.ConfigFastest.NewEncoder(w)
+```
+
+*Qué te cuesta:* los encoders alternativos solo cambian *velocidad*, no
+el modelo — la frontera sigue siendo la struct con tags. En Go no hay
+"serializers mágicos" populares: el tipo *es* el contrato, y eso es una
+decisión de diseño del lenguaje.
+
+:::
+
 :::
 
 ## ¿Por qué cada stack lo hace así?
@@ -203,6 +291,20 @@ es el caso general ("la forma pública difiere de la interna").
 La lección universal: **entrada, almacenamiento y salida son tres contratos
 distintos**. Cualquier atajo que los fusione ("devuelvo el objeto de BD
 directo") es un agujero de seguridad esperando un campo nuevo.
+
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre un contrato de salida separado?"}
+
+**Esta decisión es estructural:** la frontera "qué sale" debe existir —
+es carga del edificio, no decoración. Lo intercambiable es *dónde* vive:
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| Schema/DTO en código (este capítulo) | `TaskPublic`/`response_model`/struct | Una declaración extra por forma | El default — explícito y testeable |
+| Selección en la query (SQL `SELECT id, title`) | La BD nunca devuelve lo privado | No protege si otro código usa la fila completa | Excelente *complemento*, insuficiente solo |
+| Codegen desde OpenAPI | El contrato genera los tipos | Toolchain + codegen en CI | Contratos publicados a terceros |
+| GraphQL (cliente pide campos) | El filtro lo hace la query del cliente | Todo el stack GraphQL; auth por campo | Cuando los clientes necesitan formas muy variables |
+
+:::
 
 ## Errores comunes
 

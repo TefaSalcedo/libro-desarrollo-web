@@ -30,23 +30,40 @@ sección 6 si no aplica — pero el patrón "problema primero" nunca se omite.
 
 ## Tabsets multi-lenguaje
 
+El tabset principal de `## Implementación` lleva **sub-tabs anidados**:
+dentro de cada lenguaje, primero la forma *Fundamentos* (stdlib / a mano,
+qué hace la librería debajo del capó), luego el stack canónico del libro,
+luego 1–2 alternativas modernas.
+
 ````markdown
 ::: {.panel-tabset}
 
 ### TypeScript
+::: {.panel-tabset}
+#### Fundamentos (Node puro)
 ```ts
-// english code
+// http.createServer — qué hace Express debajo del capó
 ```
+#### Express
+```ts
+// stack canónico del libro
+```
+#### NestJS / Fastify
+```ts
+// snippet corto (5–15 líneas)
+```
+*Qué te cuesta:* dependencia, magia/decoradores; a cambio: estructura/perf.
+:::
 
 ### Python
-```python
-# english code
-```
+::: {.panel-tabset}
+#### Fundamentos (stdlib) | #### FastAPI | #### Flask / Django
+:::
 
 ### Go
-```go
-// english code
-```
+::: {.panel-tabset}
+#### net/http (stdlib — ya es el canónico) | #### chi / Gin / Echo
+:::
 
 :::
 
@@ -55,13 +72,57 @@ sección 6 si no aplica — pero el patrón "problema primero" nunca se omite.
 
 Reglas:
 
-- Orden siempre: TypeScript → Python → Go.
+- Orden siempre: TypeScript → Python → Go; dentro de cada lengua:
+  Fundamentos → canónico → alternativas.
 - El ejemplo debe resolver *el mismo problema* en los tres — no tres
   problemas distintos.
-- La sección "¿Por qué cada stack…?" es obligatoria tras un tabset: ahí va la
-  lección transferible.
-- Si un lenguaje no tiene equivalente directo (p. ej. `Depends` de FastAPI),
-  se dice explícitamente y se muestra el patrón manual.
+- Las alternativas llevan snippet corto + línea **"qué te cuesta"**
+  (dependencia, curva, magia, performance). No reescribir el ejemplo
+  completo por librería.
+- **Densidad**: sub-tabs completos solo en el tabset de Implementación
+  principal. Tabsets secundarios: stack canónico + callout colapsable
+  "Otras formas en este ecosistema".
+- La sección "¿Por qué cada stack…?" es obligatoria tras un tabset.
+- Si un lenguaje no tiene equivalente directo (p. ej. `Depends` de
+  FastAPI), se dice explícitamente y se muestra el patrón manual.
+
+### Catálogo de librerías por ecosistema
+
+| Lenguaje | Fundamentos | Canónico | Alternativas modernas |
+|---|---|---|---|
+| TypeScript | `node:http`, `if` manual | Express | Fastify, NestJS, Hono; validación: Zod → Valibot/Joi |
+| Python | `http.server`, dict manual | FastAPI | Flask, Django/DRF, Litestar; validación: Pydantic → msgspec |
+| Go | `net/http` + `ServeMux` | `net/http` | chi, Gin, Echo; validación: validator → ozzo |
+
+El criterio no es exhaustividad: son las 2–3 opciones que un equipo real
+evaluaría hoy.
+
+## "Otras cimentaciones" (alternativas conceptuales)
+
+Tras explicar una decisión o técnica, bloque clicable que responde: ¿esto
+es **estructural** (debe existir — como la cimentación) o **material**
+(hay varias formas de llegar al mismo resultado — zapatas, losas,
+pilotes)?
+
+````markdown
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre se hace así?"}
+
+**Esta decisión es material:** la API necesita X, pero hay varias formas…
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| La del capítulo | … | … | … |
+| Otra | … | … | … |
+
+:::
+````
+
+Reglas:
+
+- 1–2 bloques por capítulo, donde hay decisión real — no en cada párrafo.
+- La línea estructural/material va siempre antes de la tabla.
+- "Qué te cuesta" es honesto: dependencias, magia, curva de aprendizaje,
+  performance, madurez, hiring.
 
 ## Etiquetas de concepto
 

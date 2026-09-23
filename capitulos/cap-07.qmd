@@ -108,6 +108,10 @@ El refactor del Cap. 3–6 a capas, en los tres stacks:
 
 ### TypeScript
 
+::: {.panel-tabset}
+
+#### Capas manuales (canónico)
+
 ```text
 src/
 ├── index.ts              # ensambla: app + json + routers + error middleware
@@ -147,7 +151,35 @@ app.use(errorMiddleware);
 app.listen(8000);
 ```
 
+#### NestJS (framework con estructura impuesta)
+
+```ts
+// NestJS hace las capas por ti: module → controller → service con DI
+@Module({
+  controllers: [TasksController],
+  providers: [TasksService],   // el servicio se inyecta solo
+})
+export class TasksModule {}
+
+@Controller("tasks")
+export class TasksController {
+  constructor(private svc: TasksService) {}  // DI declarativa
+  @Post() create(@Body() dto: CreateTaskDto) { return this.svc.create(dto); }
+}
+```
+
+*Qué te cuesta:* la arquitectura viene decidida (módulos, decoradores,
+guards, interceptors — estilo Angular en el backend). Ganas convenciones
+fuertes y DI gratis; pagas con magia, build más pesado y "the NestJS way".
+En Express tú eres el arquitecto; en NestJS lo es el framework.
+
+:::
+
 ### Python
+
+::: {.panel-tabset}
+
+#### Capas manuales (canónico)
 
 ```text
 app/
@@ -183,7 +215,30 @@ app.include_router(tasks_router)
 register_handlers(app)
 ```
 
+#### Django (apps: la convención impuesta)
+
+```text
+# Django divide el proyecto en "apps" — capas predefinidas por dominio
+taskflow/
+├── tasks/                  # app por dominio
+│   ├── models.py           # datos (ORM integrado)
+│   ├── views.py            # transporte
+│   ├── serializers.py      # contratos (DRF)
+│   └── services.py         # negocio (convención, no impuesta)
+```
+
+*Qué te cuesta:* Django decide la estructura por ti (models/views/serializers
+por app) — aprendes un sistema completo a cambio de que todo esté resuelto
+(ORM, admin, auth). FastAPI te deja arquitecto: `api/services/store/schemas`
+fue *tu* decisión — y por eso este libro la enseña.
+
+:::
+
 ### Go
+
+::: {.panel-tabset}
+
+#### Packages (canónico)
 
 ```text
 taskflow/
@@ -222,6 +277,23 @@ func main() {
 }
 ```
 
+#### chi / convenciones de la comunidad
+
+```text
+# La estructura de packages no cambia con el router — chi solo es mejor mux
+taskflow/
+├── cmd/api/main.go          # entrypoint separado (convención cmd/)
+└── internal/
+    ├── httpapi/ · service/ · store/ · domain/
+```
+
+*Qué te cuesta:* en Go los frameworks (Gin, Echo) casi nunca imponen
+estructura — la comunidad convergió en `cmd/` + `internal/` + packages
+planos. El "framework de arquitectura" de Go es la convención misma, y
+`internal/` la hace cumplir el compilador.
+
+:::
+
 :::
 
 ## ¿Por qué cada stack lo hace así?
@@ -240,6 +312,26 @@ piezas:
 Y un detalle Go que vale oro: `internal/` no es una convención — el
 **compilador prohíbe** que otros módulos importen paquetes bajo `internal/`.
 La frontera de capas la hace cumplir la herramienta, no la disciplina.
+
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre arquitectura por capas?"}
+
+**Esta decisión es estructural** en espíritu (separar transporte de negocio
+es innegociable) pero **material** en forma — hay varias cimentaciones
+legítimas:
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| Capas (este libro) | routes → services → storage | Disciplina manual de fronteras | El default pragmático — 80% de los proyectos |
+| MVC | Model-View-Controller clásico | "View" no aplica bien a APIs JSON | Frameworks que lo traen (Django, Rails) |
+| Clean / Hexagonal | Puertos y adaptadores, dominio al centro | Muchas interfaces y carpetas para un CRUD | Dominios complejos, larga vida, equipos grandes |
+| Feature folders | Todo de "tasks" junto (ruta+servicio+storage) | Acopla capas dentro del feature | Proyectos chicos, microservicios por dominio |
+| Framework impone estructura | NestJS modules, Django apps | Aprendes "la forma del framework" | Cuando el equipo ya usa ese framework |
+
+Regla de experiencia: **empieza en capas; migra a hexagonal cuando el
+dominio lo grite** — no antes. La sobre-ingeniería temprana también es
+una mala cimentación: pilotes para una casa de un piso.
+
+:::
 
 ## Errores comunes
 

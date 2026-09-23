@@ -214,6 +214,22 @@ contrato** — ahora tú produces ese contrato. Y tu `services/` del frontend
 (hablador de APIs) es el espejo del `services/` del backend (lógica de
 negocio) del Cap. 7: mismo nombre, distinto rol.
 
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre fetch/axios/HttpClient?"}
+
+**Esta decisión es material:** "llamar una API desde el cliente" es
+estructural (tiene que pasar), pero *con qué* es intercambiable — como
+elegir zapatas vs losas: todas sostienen el edificio, distinto costo.
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| `fetch` nativo | HTTP del navegador, cero deps | Tú manejas errores 4xx, JSON, cancelación | Proyectos pequeños, una llamada puntual |
+| `axios` / `ky` | Wrapper con interceptors y JSON auto | Una dependencia + su API propia | Apps con auth, retries, config global |
+| TanStack Query / SWR | Caché + estados sobre fetch | Curva de conceptos (caché, invalidación) | React serio: casi siempre la respuesta |
+| Angular `HttpClient` | Observables + DI nativa | RxJS: el modelo mental más empinado | Angular — no tienes opción, y está bien |
+| GraphQL clients (Apollo/urql) | Cliente + schema tipado | Cambia el contrato entero (no REST) | Cuando el backend ya es GraphQL |
+
+:::
+
 ## 0.5 Clases y objetos: por qué importan aquí
 
 Si usaste clases en JS/TS, esto es repaso con traducción. Si no, la idea es
@@ -316,6 +332,25 @@ Las diferencias que importan de verdad:
   reemplaza la herencia (lo verás en servicios).
 - **En Python todo es objeto** y `self` es obligatorio: `def create(self,
   title)` — olvidarlo es el error clásico del que viene de JS.
+
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre clases para modelar datos?"}
+
+**Esta decisión es material:** necesitas *alguna* forma de darle nombre y
+estructura a tus datos — pero "clase" es solo una de las cimentaciones.
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| Clases completas | Datos + comportamiento juntos | Más ceremonial; tentación de meter lógica de más | Servicios con estado (`TaskService`), patrones OO |
+| Solo forma (interface/DTO) | `interface` TS, `TypedDict`, struct | Sin métodos — solo describe la forma | Schemas de entrada/salida (lo más común en APIs) |
+| `dataclass` / `BaseModel` | Clase reducida a "datos con validación" | Dependencia (Pydantic) o menos flexibilidad | Python moderno — es lo que FastAPI usa |
+| Structs + funciones | Datos y lógica separados (Go) | No hay herencia — composición explícita | Go: es *la* forma, no una opción |
+| Funciones + objetos literales | Sin tipos nombrados | Nada te garantiza la forma | Scripts chicos — en backend se queda corto rápido |
+
+La regla práctica del libro: **los datos que cruzan la frontera (request,
+response, DB) llevan forma declarada; los servicios que orquestan llevan
+comportamiento.**
+
+:::
 
 ## 0.6 Funciones, parámetros y módulos
 

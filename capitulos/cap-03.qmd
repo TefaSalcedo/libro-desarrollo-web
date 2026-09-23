@@ -81,8 +81,33 @@ base de datos llega en la Parte 2; hoy nos importa el *contrato HTTP*.
 
 ### TypeScript
 
+::: {.panel-tabset}
+
+#### Fundamentos (Node puro)
+
 ```ts
-// src/index.ts
+// Routing a mano: así se siente sin Express
+import { createServer } from "node:http";
+
+createServer((req, res) => {
+  const parts = req.url!.split("/");          // "/tasks/42" → ["","tasks","42"]
+  if (req.method === "GET" && parts[1] === "tasks" && !parts[2]) {
+    res.end(JSON.stringify(tasks));
+  } else if (req.method === "GET" && parts[1] === "tasks") {
+    const id = Number(parts[2]);              // path param manual
+    // …find, 404, res.end…
+  }
+  // …un if anidado por cada (método, ruta)
+}).listen(8000);
+```
+
+Esto funciona — y es exactamente lo que Express abstrae: parsing de path
+params, dispatch por método, helpers de respuesta.
+
+#### Express
+
+```ts
+// src/index.ts — el canónico del libro
 import express from "express";
 
 const app = express();
@@ -127,10 +152,49 @@ app.delete("/tasks/:id", (req, res) => {
 app.listen(8000);
 ```
 
+#### Hono / Fastify
+
+```ts
+// Hono — las mismas rutas, API casi idéntica, corre en edge/bun/deno
+import { Hono } from "hono";
+const app = new Hono();
+
+app.get("/tasks", (c) => c.json(tasks));
+app.get("/tasks/:id", (c) => {
+  const task = tasks.find((t) => t.id === Number(c.req.param("id")));
+  return task ? c.json(task) : c.json({ error: "not found" }, 404);
+});
+```
+
+*Qué te cuesta:* Hono/Fastify son swaps casi directos — mismo modelo, APIs
+más rápidas/modernas. **NestJS** es otro planeta: decoradores
+`@Get("/tasks")` sobre clases con DI — más estructura, más framework.
+
+:::
+
 ### Python
 
+::: {.panel-tabset}
+
+#### Fundamentos (stdlib)
+
 ```python
-# app/main.py
+# Routing manual: lo que FastAPI hace por ti
+from http.server import BaseHTTPRequestHandler
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/tasks":
+            ...  # listar
+        elif self.path.startswith("/tasks/"):
+            task_id = int(self.path.split("/")[2])  # path param a mano
+            ...
+```
+
+#### FastAPI
+
+```python
+# app/main.py — el canónico del libro
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -175,7 +239,31 @@ def delete_task(task_id: int):
     raise HTTPException(status_code=404, detail="task not found")
 ```
 
+#### Flask / Django
+
+```python
+# Flask — mismo mapa de rutas, validación manual
+from flask import Flask, request, jsonify
+app = Flask(__name__)
+
+@app.get("/tasks/<int:task_id>")
+def get_task(task_id):
+    task = next((t for t in tasks if t["id"] == task_id), None)
+    return (jsonify(task), 200) if task else (jsonify({"error": "not found"}), 404)
+```
+
+*Qué te cuesta:* Flask te da routing y JSON, pero la validación la escribes
+tú (no hay `task_id: int` que convierta+valide en la firma). **Django REST
+Framework** va al otro extremo: ViewSets + serializers — potencia total,
+framework entero.
+
+:::
+
 ### Go
+
+::: {.panel-tabset}
+
+#### net/http (stdlib — el canónico)
 
 ```go
 // main.go
@@ -246,6 +334,28 @@ func main() {
 }
 ```
 
+#### chi / Gin
+
+```go
+// chi — mismos handlers http.HandlerFunc, router con más conveniencias
+r := chi.NewRouter()
+r.Get("/tasks", listTasks)
+r.Get("/tasks/{id}", getTask)   // chi.URLParam(r, "id")
+
+// Gin — framework completo: binding, JSON helpers, middleware built-in
+router := gin.Default()
+router.GET("/tasks/:id", func(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	// c.JSON(200, task) / c.AbortWithStatusJSON(404, …)
+})
+```
+
+*Qué te cuesta:* chi es stdlib-friendly y casi gratis. Gin/Echo dan
+contextos propios (`*gin.Context` en vez de `(w, r)`) — cómodos pero te
+atan a su API. En Go muchas APIs serias viven solo con `ServeMux`.
+
+:::
+
 :::
 
 Así se prueba cualquiera de los tres — misma llamada, mismo resultado:
@@ -278,6 +388,25 @@ curl -i http://localhost:8000/tasks/99
 Nótese lo que es **idéntico** en los tres: la forma de las rutas, los
 verbos, los status codes. Eso es el protocolo HTTP — el lenguaje solo cambia
 *cómo* lo expresas.
+
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre REST con sustantivos?"}
+
+**Esta decisión es material:** *algún* mapa verbo+ruta→handler debe existir
+(estructural), pero las **convenciones de diseño** son elegibles — REST es
+una cimentación popular, no la única.
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| REST de recursos (este libro) | Sustantivos + verbos HTTP + status | Diseñar recursos bien; no todo encaja en CRUD | APIs públicas, equipos diversos — el default |
+| RPC-style (`/getTask`, `/doAction`) | Funciones remotas por nombre | Pierdes convenciones (caché, idempotencia) que HTTP regala | APIs internas, operaciones que no son recursos |
+| GraphQL | Un endpoint, el cliente pide campos | Otra capa entera: schema, resolvers, N+1 | Clientes con necesidades de datos muy distintas |
+| tRPC / OpenAPI codegen | Contrato tipado end-to-end | Acopla cliente y servidor al mismo lenguaje/schema | Monorepos TS, equipos full-stack |
+
+El libro usa REST porque sus convenciones (status codes, idempotencia) son
+*lecciones gratis de diseño* — y porque es lo que el 90% de los equipos
+espera ver.
+
+:::
 
 ## Errores comunes
 

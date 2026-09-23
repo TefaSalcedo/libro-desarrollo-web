@@ -92,8 +92,32 @@ request**. Estos tres programas hacen exactamente lo mismo — exponen
 
 ### TypeScript
 
+::: {.panel-tabset}
+
+#### Fundamentos (Node puro)
+
 ```ts
-// src/index.ts — Node.js + Express
+// src/index.ts — sin frameworks: node:http es lo que Express usa debajo
+import { createServer } from "node:http";
+
+const server = createServer((req, res) => {
+  if (req.method === "GET" && req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok" }));
+    return;
+  }
+  res.writeHead(404).end(); // ← routing a mano: un if por ruta
+});
+
+server.listen(8000);
+```
+
+Esto **es** un servidor HTTP completo — Express solo te ahorra los `if`.
+
+#### Express
+
+```ts
+// src/index.ts — el canónico del libro
 import express from "express";
 
 const app = express();
@@ -112,10 +136,54 @@ npm install express
 npx tsx src/index.ts
 ```
 
+#### Fastify / NestJS / Hono
+
+```ts
+// Fastify — misma idea, más rápido y con schemas integrados
+import Fastify from "fastify";
+const app = Fastify();
+app.get("/health", async () => ({ status: "ok" }));
+app.listen({ port: 8000 });
+```
+
+*Qué te cuesta:* Fastify es casi drop-in (más performance, plugins).
+**NestJS** te da arquitectura completa (decoradores, DI — estilo Angular)
+pero impone su estructura entera. **Hono** es ultraligero y corre en
+edge/bun/deno. Express sigue siendo el más común en equipos y docs.
+
+:::
+
 ### Python
 
+::: {.panel-tabset}
+
+#### Fundamentos (stdlib)
+
 ```python
-# app/main.py — FastAPI
+# app/main.py — http.server: lo que hay debajo de todo
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"status": "ok"}')
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+HTTPServer(("0.0.0.0", 8000), Handler).serve_forever()
+```
+
+Feo a propósito: así se siente HTTP sin framework. Uvicorn+FastAPI existe
+para no escribir esto.
+
+#### FastAPI
+
+```python
+# app/main.py — el canónico del libro
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -130,10 +198,33 @@ pip install fastapi uvicorn
 uvicorn app.main:app --port 8000
 ```
 
+#### Flask / Django
+
+```python
+# Flask — el clásico minimalista: menos magia, más cables visibles
+from flask import Flask
+app = Flask(__name__)
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+```
+
+*Qué te cuesta:* Flask no trae validación ni async moderno (los agregas con
+plugins). **Django** es lo opuesto: baterías incluidas (ORM, admin, auth)
+pero impone "the Django way" entero. FastAPI queda en el medio: moderno,
+tipado, sin imponerte un monolito.
+
+:::
+
 ### Go
 
+::: {.panel-tabset}
+
+#### net/http (stdlib — el canónico)
+
 ```go
-// main.go — stdlib only
+// main.go — en Go la stdlib YA es la respuesta seria
 package main
 
 import (
@@ -157,6 +248,27 @@ go mod init taskflow
 go run .
 ```
 
+#### chi / Gin / Echo
+
+```go
+// chi — router ligero sobre net/http: mismos handlers, mejor routing
+import "github.com/go-chi/chi/v5"
+
+func main() {
+	r := chi.NewRouter()
+	r.Get("/health", health)
+	http.ListenAndServe(":8000", r)
+}
+```
+
+*Qué te cuesta:* **chi** es casi gratis (stdlib compatible, solo mejor
+mux). **Gin**/**Echo** son frameworks completos: más cómodos (JSON
+binding, middleware listo) pero otro modelo mental y una dependencia
+grande. En Go la stdlib es tan buena que la pregunta real es "¿necesito
+framework?" — muchas empresas dicen que no.
+
+:::
+
 :::
 
 ## ¿Por qué cada stack lo hace así?
@@ -178,6 +290,25 @@ testear la app sin abrir sockets. Go decide que esa indirección no vale la
 pena: simplicidad operativa sobre flexibilidad. Ninguna respuesta es "la
 correcta" — es una decisión de diseño del ecosistema, y reconocerlas así es
 pensar como backend.
+
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre un proceso escuchando un puerto?"}
+
+**Esta decisión es estructural:** *algo* tiene que recibir el request y
+producir la respuesta — eso no se negocia. Pero la forma de la cimentación
+sí:
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| Proceso + framework (este libro) | Tu proceso escucha un puerto 24/7 | Tú mantienes el proceso vivo | El default: control total, cualquier host |
+| Serverless (Lambda, Cloud Functions) | Tu función despierta por request | Cold starts, límites de tiempo, vendor lock-in | Tráfico irregular, sin ops |
+| Edge (Workers, Deno Deploy) | Tu código corre cerca del usuario | Runtime limitado (no todo Node corre) | Latencia global, APIs ligeras |
+| Contenedor + orquestador (K8s) | El proceso es el mismo; otros lo escalan | Complejidad operativa seria | Escala grande, muchos servicios |
+
+El punto: **el contrato HTTP y las capas internas son idénticos en las
+cuatro** — por eso el libro enseña el modelo `Request → … → Response`
+como estructura, y deja el runtime como material intercambiable.
+
+:::
 
 ## Errores comunes
 

@@ -102,6 +102,28 @@ Agregamos el schema `TaskCreate` real: `title` requerido (1–200 chars),
 
 ### TypeScript
 
+::: {.panel-tabset}
+
+#### Fundamentos (a mano)
+
+```ts
+// Validación sin librería: veinte ifs — el problema antes de la solución
+app.post("/tasks", (req, res) => {
+  const { title, priority, due_date } = req.body ?? {};
+  if (typeof title !== "string" || title.length < 1 || title.length > 200)
+    return res.status(422).json({ error: "title invalid" });
+  if (priority !== undefined &&
+      (typeof priority !== "number" || priority < 1 || priority > 5))
+    return res.status(422).json({ error: "priority invalid" });
+  // …y esto solo cubre 3 campos de un endpoint
+});
+```
+
+Nota lo que falta: el `if` *rechaza* pero no produce un objeto tipado —
+`title` sigue siendo `any` para TypeScript.
+
+#### Zod (canónico)
+
 ```ts
 import { z } from "zod";
 
@@ -130,7 +152,42 @@ app.post("/tasks", (req, res) => {
 });
 ```
 
+#### Valibot / Joi / ArkType
+
+```ts
+// Valibot — API casi idéntica a Zod, pero modular (bundle más chico)
+import * as v from "valibot";
+const createTaskSchema = v.object({
+  title: v.pipe(v.string(), v.minLength(1), v.maxLength(200)),
+  priority: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(5))),
+});
+```
+
+*Qué te cuesta:* Valibot/ArkType = mismo modelo que Zod, mejor bundle o
+más velocidad — son swaps directos. **Joi** es el veterano de Express
+(mismo concepto, API anterior a TS-first). El patrón es uno: *schema →
+parse → objeto de dominio*.
+
+:::
+
 ### Python
+
+::: {.panel-tabset}
+
+#### Fundamentos (dict manual)
+
+```python
+# Validación sobre el dict crudo — lo que Pydantic te ahorra
+@app.post("/tasks")
+def create_task(request: Request):
+    # body = await request.json() → dict sin garantías
+    ...
+    if not isinstance(body.get("title"), str) or not (1 <= len(body["title"]) <= 200):
+        raise HTTPException(422, "title invalid")
+    # …y body sigue siendo un dict — sin tipos, sin autocompletar
+```
+
+#### FastAPI + Pydantic (canónico)
 
 ```python
 from datetime import date
@@ -160,7 +217,47 @@ Si el cliente manda `{"title": 42}`, FastAPI responde automáticamente:
 }
 ```
 
+#### msgspec / Marshmallow / DRF serializers
+
+```python
+# msgspec — el mismo modelo que Pydantic, compilado: más rápido
+import msgspec
+
+class TaskCreate(msgspec.Struct):
+    title: str
+    priority: int | None = None
+```
+
+*Qué te cuesta:* msgspec valida igual pero con menos features de
+conversión. **Marshmallow**/**DRF serializers** son la generación anterior:
+mismo patrón de schema declarativo, más verboso. La idea (declarar la
+forma, parsear, rechazar antes) es idéntica en todas.
+
+:::
+
 ### Go
+
+::: {.panel-tabset}
+
+#### net/http + validación manual
+
+```go
+// Sin librería: Decode + ifs explícitos — Go te obliga a ver cada check
+var in struct {
+	Title    string `json:"title"`
+	Priority *int   `json:"priority"`
+}
+if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	http.Error(w, `{"error":"invalid json"}`, 400)
+	return
+}
+if in.Title == "" || len(in.Title) > 200 {
+	http.Error(w, `{"error":"title invalid"}`, 422)
+	return
+}
+```
+
+#### validator (canónico del capítulo)
 
 ```go
 type CreateTaskInput struct {
@@ -187,6 +284,24 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
+#### ozzo-validation / manual
+
+```go
+// ozzo — validación por reglas de función en vez de struct tags
+func (i CreateTaskInput) Validate() error {
+	return validation.ValidateStruct(&i,
+		validation.Field(&i.Title, validation.Required, validation.Length(1, 200)),
+		validation.Field(&i.Priority, validation.Min(1), validation.Max(5)),
+	)
+}
+```
+
+*Qué te cuesta:* `validator` usa struct tags (declarativo, pero errores
+crípticos); ozzo usa código normal (más explícito, IDE-friendly). En Go
+la validación manual también es legítima — no hay magia que esconder.
+
+:::
+
 :::
 
 ## ¿Por qué cada stack lo hace así?
@@ -209,6 +324,25 @@ Aquí hay una diferencia **profunda**, no de sintaxis:
 La lección universal: **el contrato de entrada debe existir fuera del
 handler**, expresado una sola vez, y rechazar antes de ejecutar lógica.
 Zod, Pydantic y validator son tres implementaciones del mismo muro.
+
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre un schema declarativo?"}
+
+**Esta decisión es estructural:** validar la entrada *antes* del handler
+es obligatorio — es la zapata sin la cual el edificio se cae. Lo
+intercambiable es *cómo* declaras la forma válida:
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| Schema en código (Zod/Pydantic/validator) | La forma válida vive junto al handler | Una dependencia por ecosistema | El default moderno — lo del capítulo |
+| JSON Schema / OpenAPI primero | El contrato es un documento; el código se genera | Toolchain extra (codegen), curva | APIs públicas con muchos consumidores |
+| Validación manual (`if`s) | Reglas en el handler | Se desordena, se olvida, sin tipos | Solo un campo trivial — se degrada rápido |
+| Validación solo en frontend | El formulario rechaza | **Nada protege al servidor** — `curl` lo salta | Nunca como única defensa (sí como UX) |
+| Validación en DB (constraints) | Postgres rechaza el INSERT | El error llega tarde y feo | Como *segunda* muralla, no la primera |
+
+La cimentación correcta: schema declarativo en el borde + constraints en
+la DB como respaldo. Lo demás son materiales para el mismo muro.
+
+:::
 
 ## Errores comunes
 

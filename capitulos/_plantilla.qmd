@@ -33,28 +33,94 @@ flowchart LR
 
 ## Implementación
 
+<!-- Tabset principal: sub-tabs por lenguaje.
+     Orden dentro de cada lengua: Fundamentos → canónico → alternativas.
+     Alternativas: snippet corto (5–15 líneas) + "qué te cuesta". -->
+
 ::: {.panel-tabset}
 
 ### TypeScript
+
+::: {.panel-tabset}
+
+#### Fundamentos (Node puro)
 ```ts
-// english code
+// http.createServer — qué hace la librería debajo del capó
 ```
+
+#### Express
+```ts
+// english code — stack canónico del libro
+```
+
+#### NestJS / Fastify
+```ts
+// snippet corto
+```
+*Qué te cuesta:* dependencia + magia/decoradores; a cambio: estructura/performance.
+
+:::
 
 ### Python
+
+::: {.panel-tabset}
+
+#### Fundamentos (stdlib)
 ```python
-# english code
+# http.server o parseo manual
 ```
 
-### Go
-```go
-// english code
+#### FastAPI
+```python
+# english code — stack canónico del libro
 ```
+
+#### Flask / Django
+```python
+# snippet corto
+```
+*Qué te cuesta:* …
+
+:::
+
+### Go
+
+::: {.panel-tabset}
+
+#### net/http (stdlib)
+```go
+// english code — en Go la stdlib YA es el canónico
+```
+
+#### chi / Gin / Echo
+```go
+// snippet corto
+```
+*Qué te cuesta:* …
+
+:::
 
 :::
 
 ## ¿Por qué cada stack lo hace así?
 
 <!-- La lección transferible. Obligatoria tras un tabset. -->
+
+<!-- Patrón A — "Otras cimentaciones": tras explicar una decisión/técnica,
+     bloque clicable que responde: ¿es estructural (debe existir) o
+     material (varias formas llegan al mismo resultado)? + tabla de costos. -->
+
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre se hace así?"}
+
+**Esta decisión es estructural / material:** <!-- una línea explicando -->
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| La del capítulo | … | … | … |
+| Otra forma | … | … | … |
+| Otra más | … | … | … |
+
+:::
 
 ## Errores comunes
 

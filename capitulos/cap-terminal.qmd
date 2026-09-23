@@ -60,6 +60,27 @@ flowchart TB
 Por eso `export PORT=8000` funciona en bash pero en PowerShell es
 `$env:PORT = "8000"`. Misma intención, distinto intérprete.
 
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿qué shell y qué terminal elegir?"}
+
+**Esta decisión es material:** necesitas *un* shell — pero cuál es como
+elegir el tipo de cimentación: todas sostienen, cambia el terreno donde
+mejor funcionan.
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| **bash** | El estándar universal | Sintaxis vieja, quirks históricos | Scripts portables, servidores Linux — default seguro |
+| **zsh** | bash mejorado (default en macOS) | Casi nada — compatible con bash | Uso diario en Mac/Linux |
+| **PowerShell / pwsh** | Shell de objetos (no texto) | Sintaxis distinta; menos portable a Linux | Windows nativo, automatización .NET |
+| **fish** | Autocompletado y UX moderna | NO compatible con sintaxis bash | Terminal interactiva, no scripts |
+| **Nushell** | Datos estructurados en pipes | Joven; ecosistema pequeño | Curiosos, pipelines de datos |
+| **Git Bash** (Windows) | bash emulado en Windows | No es Linux real — casos borde | Windows sin WSL; lo que usa este libro |
+
+Y la terminal (la ventana): Windows Terminal, iTerm2, la integrada de VS
+Code — es decoración, elige la que te guste. **El shell es lo que importa
+para los comandos.**
+
+:::
+
 ## El tour esencial
 
 Nada de memorizar — esto es lo que usarás cada día, agrupado por

@@ -179,6 +179,24 @@ es el precio de que Python no tuviera `node_modules` por diseño durante años.
 Hoy existen herramientas modernas (`uv`, `poetry`) que lo hacen más cómodo;
 el libro usa `venv`+`pip` porque es lo que entenderás en cualquier equipo.
 
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre estos gestores de paquetes?"}
+
+**Esta decisión es material:** *declarar y fijar dependencias* es
+estructural — pero el gestor concreto es intercambiable dentro de cada
+ecosistema.
+
+| Ecosistema | El del libro | Alternativas | Qué te cuesta / qué ganas |
+|---|---|---|---|
+| Node | `npm` | **pnpm** (más rápido, disco duro feliz), **yarn**, **bun** (runtime+gestor) | pnpm cambia `node_modules` a links — casi gratis y mejor; bun es joven pero rapidísimo |
+| Python | `venv`+`pip` | **uv** (Rust, 10-100× más rápido), **poetry**/**pdm** (resolución+lockfile integrados), **conda** | uv es drop-in hoy; poetry/pdm gestionan el proyecto entero pero imponen su flujo |
+| Go | `go mod` | — (el toolchain *es* el gestor) | No hay elección real — ventaja Go: una herramienta, una forma |
+
+La lección: cuando leas "instala con X", tradúcelo a "declara dependencia
+en el manifiesto del ecosistema". La sintaxis cambia; la obligación
+(manifiesto + lockfile + aislamiento) no.
+
+:::
+
 ## Errores comunes
 
 - **Instalar librerías globalmente** (`pip install` sin venv): funciona hoy,

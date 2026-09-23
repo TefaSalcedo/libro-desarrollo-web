@@ -84,6 +84,10 @@ transporte — y mañana no podrás reusarla desde un WebSocket o un test.
 
 ### TypeScript
 
+::: {.panel-tabset}
+
+#### Excepciones + middleware (canónico)
+
 ```ts
 // errores de dominio
 class DomainError extends Error {}
@@ -115,7 +119,31 @@ app.use((err: Error, _req, res, _next) => {
 });
 ```
 
+#### Result types (neverthrow)
+
+```ts
+// neverthrow — errores como VALORES (estilo Go/Rust) dentro de TS
+import { Result, ok, err } from "neverthrow";
+
+function getTask(id: number): Result<Task, NotFoundError> {
+  const t = tasks.find((t) => t.id === id);
+  return t ? ok(t) : err(new NotFoundError("TASK_NOT_FOUND", "…"));
+}
+
+// en el handler: result.match(t => res.json(t), e => next(e))
+```
+
+*Qué te cuesta:* `Result` hace el error visible en la firma (como Go),
+pero es una convención de librería — tu equipo entero debe adoptarla.
+Interesante saber que existe: es el modelo de Go empaquetado para TS.
+
+:::
+
 ### Python
+
+::: {.panel-tabset}
+
+#### Excepciones + handlers (canónico)
 
 ```python
 # errores de dominio
@@ -144,7 +172,29 @@ def get_task_endpoint(task_id: int):
     return get_task(task_id)   # si falla, el handler global traduce
 ```
 
+#### Result pattern / RFC 9457
+
+```python
+# La alternativa "errores como valores" en Python (librería result/returns):
+from result import Result, Ok, Err
+
+def get_task(task_id: int) -> Result[Task, NotFoundError]:
+    ...
+    return Err(NotFoundError("TASK_NOT_FOUND", "…"))
+```
+
+*Qué te cuesta:* `result`/`returns` traen el modelo explícito de Go a
+Python — pero pelean contra la idiomática del lenguaje (todo el mundo
+espera excepciones). Y en el *formato* del error existe un estándar:
+**RFC 9457 `application/problem+json`** — lo verás en APIs grandes.
+
+:::
+
 ### Go
+
+::: {.panel-tabset}
+
+#### error como valor (stdlib — canónico)
 
 ```go
 // errores de dominio como valores — no hay excepciones
@@ -177,6 +227,22 @@ func getTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
+#### panic / recover (y por qué no)
+
+```go
+// Go SÍ tiene "excepciones": panic. Pero es para bugs irrecuperables,
+// no para errores de negocio — un panic en un handler derriba el request.
+// net/http hace recover por request, pero usarlo como flujo de control
+// es el equivalente a "throw para todo": se considera malpractice.
+```
+
+*Qué te cuesta:* `panic` existe pero su rol es distinto — "esto no debería
+pasar jamás" (índice fuera de rango, invariante roto). Los errores
+*esperados* viajan como valores. El modelo de Go te obliga a esta
+distinción que otros lenguajes dejan difusa.
+
+:::
+
 :::
 
 ## ¿Por qué cada stack lo hace así?
@@ -194,6 +260,20 @@ func getTaskHandler(w http.ResponseWriter, r *http.Request) {
 `errors.Is`/`errors.As` merece una mirada: envolver con `%w` crea una
 cadena (`"task not found: 99"`) que el borde puede interrogar sin parsear
 strings — el equivalente Go a la jerarquía de clases de error.
+
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre formato de error propio?"}
+
+**Esta decisión es material:** devolver *un* formato consistente es
+estructural (el frontend programa contra él); cuál formato es intercambiable.
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| Envelope propio (este libro) | `{ error: { code, message, details } }` | Diseñarlo y mantenerlo tú | APIs internas/propias — el default pragmático |
+| RFC 9457 `application/problem+json` | Estándar: `type`, `title`, `status`, `detail` | Media type + campos fijos | APIs públicas, interoperabilidad |
+| Errores por campo estilo formulario | `{ fields: { title: ["required"] } }` | Menos expresivo fuera de forms | APIs que solo sirven formularios |
+| GraphQL errors array | `{ errors: [{ message, extensions }] }` | Acoplado a GraphQL | Si ya eres GraphQL |
+
+:::
 
 ## Errores comunes
 
