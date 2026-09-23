@@ -7,38 +7,197 @@ subtitle: "Managed Postgres, storage, DNS, CDN y secretos — lo que la nube te 
 ## En una frase
 
 El valor real de la nube no son las máquinas — son los **servicios
-administrados**: una Postgres con backups automáticos (RDS), un storage
-infinito (S3), DNS global, CDN. Pagas para *no* ser DBA ni sysadmin.
+administrados**: una Postgres con backups y failover automáticos (RDS),
+un storage prácticamente indestructible (S3), DNS global, CDN, y un
+lugar diseñado para secretos. Pagas para *no* ser DBA ni sysadmin a las
+3 de la mañana.
 :::
 
 ## El problema
 
-*(Por escribir: administrar Postgres a mano vs RDS.)*
+En N1 administraste un VPS: SO, nginx, systemd. Ahora imagina hacer lo
+mismo con **PostgreSQL**: instalarla, configurar backups diarios,
+probar que esos backups restauran (los backups que nunca se prueban no
+existen), montar una réplica por si el servidor muere, aplicar parches
+de seguridad sin tumbar el servicio, cifrar los discos. Eso es un
+*empleo de tiempo completo* llamado DBA — y tu equipo de 3 personas no
+tiene uno.
 
 ## Cómo lo resuelve un equipo
 
+La respuesta de la industria: **comprar la administración, no solo la
+máquina**. Un servicio administrado te da el software funcionando y el
+proveedor absorbe: parches, backups, failover, réplicas, escalado de
+disco. Tú recibes una **connection string** y un panel.
+
+El intercambio es el patrón de toda esta sección: *menos control, menos
+trabajo, más factura por unidad*. Para casi todo equipo, el trato sale
+ganando — las horas de DBA cuestan más que la diferencia de precio.
+
 ## Conceptos nuevos
 
-- <span class="tag tag-d">D</span> Managed DB: RDS/Cloud SQL — backups, réplicas, patching incluidos
-- <span class="tag tag-ops">Ops</span> Object storage: S3 — durabilidad 11 nueves, no es un filesystem
-- <span class="tag tag-ops">Ops</span> DNS (Route 53) y CDN (CloudFront/Cloudflare)
-- <span class="tag tag-ops">Ops</span> Secretos: Secrets Manager, Key Vault — dónde van las API keys
+- <span class="tag tag-d">D</span> **BD administrada** (RDS, Cloud SQL, Azure SQL, Supabase, Neon, PlanetScale): backups, réplicas y parches incluidos
+- <span class="tag tag-ops">Ops</span> **Object storage** (S3, Blob, GCS): archivos por HTTP, durabilidad de "11 nueves" — NO es un filesystem
+- <span class="tag tag-ops">Ops</span> **DNS administrado** (Route 53, Cloudflare) y **CDN** (CloudFront, Cloudflare): tu contenido copiado cerca de cada usuario
+- <span class="tag tag-ops">Ops</span> **Secretos administrados** (Secrets Manager, Key Vault, Doppler): dónde van las API keys de verdad
+- <span class="tag tag-ops">Ops</span> **Observabilidad administrada** (CloudWatch, Datadog): logs/métricas sin montar el stack
 
 ## La explicación visual
 
+```{mermaid}
+flowchart TB
+  subgraph You["Lo que tú ves"]
+    CS["DATABASE_URL<br/>S3_BUCKET<br/>SECRET_ARN"]
+  end
+  subgraph Them["Lo que el proveedor administra"]
+    B["Backups diarios + restauración"] --> R["Réplica / failover"] --> P["Parches de seguridad"] --> M["Monitoreo 24/7"]
+  end
+  You -.->|"connection string"| Them
+```
+
+| Servicio | Qué te quita de encima | Qué NO es |
+|---|---|---|
+| RDS | Backups, failover, parches, réplicas, cifrado | "Postgres en una VM" — es Postgres *con equipo de ops incluido* |
+| S3 | Discos, RAID, capacidad, replicación | "Una carpeta en la nube" — es key→objeto por HTTP, sin directorios reales |
+| CDN | Servidores en 100+ ciudades | "Un acelerador mágico" — es caché geográfica de tus estáticos |
+| Secrets Manager | Rotación, auditoría, cifrado de secretos | "Un .env caro" — rota credenciales sin redeploy |
+
 ## Implementación
+
+Conectar Taskflow a una Postgres administrada — el flujo es idéntico en
+los tres proveedores porque **la app no sabe quién administra la base**:
+
+**Paso 1 — provisionar** (consola o CLI, 5 minutos):
+
+```bash
+# AWS example — creates a managed Postgres
+aws rds create-db-instance \
+  --db-instance-identifier taskflow-db \
+  --db-instance-class db.t3.micro \
+  --engine postgres --master-username app \
+  --manage-master-user-password     # secret auto-created in Secrets Manager
+```
+
+**Paso 2 — la app solo ve una URL.** Esto es lo elegante: tu código de
+los caps. 8–13 no cambia *nada* — cambia una variable de entorno:
+
+```bash
+# .env — the ONLY difference between local and managed Postgres
+# Local:          DATABASE_URL=postgresql://app:dev@localhost:5432/taskflow
+# Managed (RDS):  DATABASE_URL=postgresql://app:****@taskflow-db.abc.us-east-1.rds.amazonaws.com:5432/taskflow
+```
+
+**Paso 3 — el secreto vive en el servicio de secretos**, no en tu `.env`
+ni en el historial del shell (¿recuerdas el mini reto de N1?):
+
+```bash
+aws secretsmanager get-secret-value --secret-id taskflow/db
+# → {"DATABASE_URL": "postgresql://..."}   fetched at boot, never in a file
+```
+
+**El contrato mental:** el proveedor te entrega un *endpoint + credencial
+auditable*; tú entregas la app configurada por entorno. La frontera de
+N2 aplicada a la base de datos.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Migra mi API de tareas de la Postgres local a una base de datos
+administrada [RDS / Cloud SQL / Neon / Supabase]. Dame: los pasos para
+provisionar la instancia (tier gratuito), cómo correr mis migraciones
+existentes contra ella, qué cambia en mi configuración (pista: solo una
+env var), dónde guardar la connection string (secret manager, no .env
+commiteado), y cómo verificar backups automáticos habilitados. Incluye
+el paso que la mayoría olvida: cerrar el acceso público y abrir solo
+desde mi app.
+```
+
+:::
+
+## ¿Por qué no administrarlo todo tú?
+
+**Lo único que necesitas llevarte:** un servicio administrado convierte
+*conocimiento operativo* (que tardas años en ganar) en *factura mensual*
+(que puedes pagar hoy). La pregunta correcta nunca es "¿puedo hacerlo yo?"
+— es "¿quiero mantenerlo yo a las 3am dentro de dos años?".
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: administrado vs autogestionado"}
+
+| Alternativa | Qué te cuesta | Cuándo elegirla |
+|---|---|---|
+| Managed DB (RDS/Cloud SQL) | ~2× el precio de la VM equivalente, menos control fino | Casi siempre — es la cimentación por defecto |
+| Postgres en tu VPS/contenedor | Toda la operación: backups, failover, parches | Aprendizaje, presupuesto cero, o requisitos muy raros |
+| DBaaS nueva gen (Neon, Supabase, Turso) | Dependencia de un proveedor más joven | MVPs: free tiers generosos, DX excelente |
+| Self-hosted + herramientas (CloudNativePG) | Operación Kubernetes + DBA-light | Escala grande donde el 2× de RDS pesa |
+
+El punto medio moderno: **Neon/Supabase/Turso** — Postgres administrada
+con free tier real y DX de startup. Para Taskflow en producción inicial,
+son la opción más sensata: administrado *y* barato.
+
+:::
 
 ## Errores comunes
 
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| RDS expuesta a internet | "Así la pruebo desde mi laptop" | Red privada + acceso solo desde la app (o bastion) |
+| Secreto en `.env` commiteado | El repo es eterno aunque borres el commit | Secret manager + rotar lo que ya se filtró |
+| S3 usado como filesystem | `s3://bucket/uploads/` como "carpeta" con millones de archivos y listados | Es key→objeto: prefijos sí, `ls` barato no |
+| Pensar "administrado = infalible" | RDS cae también; solo cae menos | Backups + réplica + plan de restauración igualmente |
+| Facturación por sorpresa en S3 | Cobran por GB, requests y *egress* (salida de datos) | Lifecycle policies + revisar egress en la factura |
+
 ## Buenas prácticas
+
+- **La app se configura por entorno, no por proveedor:** `DATABASE_URL`
+  apunta a localhost en dev y a RDS en prod — mismo código.
+- **Backups verificados:** programa una restauración de prueba. Un backup
+  que nunca restauraste es una esperanza, no un plan.
+- **Menor privilegio también en la nube:** la BD de la app solo acepta
+  conexiones de la app, no de `0.0.0.0/0`.
+- **Un secreto, un lugar:** mezclar `.env`, Secrets Manager y variables
+  del CI dispersa la responsabilidad — elige uno por entorno.
 
 ## Ejercicio
 
-## Mini reto
+1. Nombra **cuatro** cosas que RDS hace por ti y que tendrías que
+   implementar a mano en un VPS.
+2. Un junior dice: "S3 es como Google Drive del servidor". ¿Qué dos
+   diferencias técnicas rompen la analogía?
+3. ¿Dónde debe vivir `DATABASE_URL` en producción y por qué no en un
+   `.env` del servidor?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-*(Por escribir.)*
+1. Backups automáticos con restauración point-in-time, failover a
+   réplica (si muere el nodo, otro toma el lugar), parches de seguridad
+   aplicados sin downtime, réplicas de lectura, cifrado de disco,
+   monitoreo. Cualquiera de las cuatro es correcta.
+2. (a) S3 es key→objeto por HTTP — no hay directorios reales ni `ls`
+   barato (listar millones de objetos cuesta). (b) La durabilidad es
+   por diseño (11 nueves: objetos replicados entre instalaciones) — no
+   es "un disco que puedes formatear", es un servicio de objetos.
+3. En un secret manager (Secrets Manager, Key Vault, las env vars del
+   PaaS). El `.env` del servidor queda en disco en texto plano, en
+   backups del filesystem, y en la historia del repo si se commitea —
+   el secret manager da cifrado, rotación y auditoría.
+
+:::
+
+## Mini reto
+
+Tu Taskflow ya corre en un VPS (N1) y la Postgres vive **en la misma
+máquina**. Enumera tres escenarios donde esa decisión duele — y cuál es
+la primera señal de que debes moverla a un servicio administrado.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+Escenarios: (a) el VPS muere → pierdes app **y** datos en un solo
+incidente; (b) el disco se llena de WAL/ backups improvisados → nadie
+los prueba hasta el desastre; (c) necesitas reiniciar/parchear el SO →
+también tumbas la base. La primera señal de migración: **el momento en
+que la base guarda datos que no puedes volver a generar** — típicamente
+el primer usuario real. Desde ese día, "Postgres en la misma caja" es
+una deuda con vencimiento desconocido.
 
 :::
 
@@ -46,3 +205,5 @@ infinito (S3), DNS global, CDN. Pagas para *no* ser DBA ni sysadmin.
 
 - [ ] Decir qué te quita de encima un servicio administrado
 - [ ] Explicar por qué S3 no es "un disco" y RDS no es "Postgres en una VM"
+- [ ] Conectar tu app a una BD administrada cambiando solo una env var
+- [ ] Justificar dónde viven los secretos en producción

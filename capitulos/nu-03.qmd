@@ -7,52 +7,225 @@ subtitle: "Los tres gigantes venden lo mismo — aprende las equivalencias"
 ## En una frase
 
 AWS, Azure y Google Cloud ofrecen **los mismos servicios con distintos
-nombres**: EC2 = Azure VM = Compute Engine. Aprende la categoría, no el
-logo — y ninguna certificación te pillará por sorpresa.
+nombres**: EC2 = Azure VM = Compute Engine. Aprende las ~10 categorías,
+no el logo — y sabrás moverte en cualquiera de los tres.
 :::
 
 ## El problema
 
-*(Por escribir: "usa AWS" suena a aprender un universo; en realidad es
-aprender las 10 categorías que todos venden igual.)*
+*"Hay que usar AWS"* suena a aprender un universo: 200+ servicios,
+siglas por todas partes, una consola que parece cabina de avión. La
+verdad liberadora: **de esos 200 servicios usas 10**, y esos 10 existen
+idénticos en los tres proveedores. El trabajo no es aprender AWS — es
+aprender las categorías (compute, storage, base de datos, DNS,
+identidad, colas...) y luego traducir nombres.
 
 ## Cómo lo resuelve un equipo
 
+Nadie memoriza el catálogo. Un equipo real:
+
+1. **Elige UN proveedor** — casi siempre por razones externas: dónde ya
+   está la empresa, créditos gratis, qué sabe el equipo.
+2. **Aprende sus 10 servicios núcleo** en ese proveedor.
+3. **Guarda la tabla de equivalencias** para cuando toque otro.
+
+El proveedor dominante es AWS (~30% del mercado), luego Azure (~20%,
+fuerte en empresas con Microsoft), luego GCP (~10%, fuerte en
+datos/ML). Los PaaS modernos (Render, Vercel, Fly.io) viven *encima* de
+estos tres.
+
 ## Conceptos nuevos
 
-- <span class="tag tag-ops">Ops</span> Compute: EC2 / Azure VM / Compute Engine
-- <span class="tag tag-ops">Ops</span> Storage: S3 / Blob / Cloud Storage
-- <span class="tag tag-d">D</span> Managed DB: RDS / Azure SQL / Cloud SQL
-- <span class="tag tag-ops">Ops</span> Serverless: Lambda / Functions / Cloud Functions
-- <span class="tag tag-ops">Ops</span> IAM: identidad y permisos en los tres
+- <span class="tag tag-ops">Ops</span> **Compute:** EC2 / Azure VM / Compute Engine — las VMs del cap. N1
+- <span class="tag tag-ops">Ops</span> **Storage de objetos:** S3 / Blob / Cloud Storage — archivos infinitos por HTTP
+- <span class="tag tag-d">D</span> **BD administrada:** RDS / Azure SQL / Cloud SQL — Postgres sin ser DBA (cap. N4)
+- <span class="tag tag-ops">Ops</span> **Serverless:** Lambda / Azure Functions / Cloud Functions (cap. N5)
+- <span class="tag tag-ops">Ops</span> **IAM:** identidad y permisos — quién puede tocar qué, en los tres
+- <span class="tag tag-ops">Ops</span> **Regiones y zonas:** dónde vive físicamente tu recurso (latencia + leyes)
 
 ## La explicación visual
 
+La tabla de equivalencias — la herramienta más útil del capítulo:
+
 | Categoría | AWS | Azure | GCP |
 |---|---|---|---|
-| Compute | EC2 | Virtual Machines | Compute Engine |
+| Compute (VM) | EC2 | Virtual Machines | Compute Engine |
 | Storage objetos | S3 | Blob Storage | Cloud Storage |
-| BD relacional | RDS | Azure SQL | Cloud SQL |
+| BD relacional | RDS | Azure SQL Database | Cloud SQL |
+| BD NoSQL | DynamoDB | Cosmos DB | Firestore |
 | Serverless | Lambda | Azure Functions | Cloud Functions |
+| Contenedores | ECS/EKS | AKS | GKE/Cloud Run |
 | DNS | Route 53 | Azure DNS | Cloud DNS |
+| CDN | CloudFront | Azure CDN | Cloud CDN |
+| Identidad | IAM | Entra ID (ex-AD) | Cloud IAM |
+| Secretos | Secrets Manager | Key Vault | Secret Manager |
+| Colas | SQS | Service Bus | Pub/Sub |
+| Observabilidad | CloudWatch | Azure Monitor | Cloud Monitoring |
+
+**Fíjate el patrón:** las categorías son universales porque resuelven
+problemas universales. Azure renombra más (Entra ID era "Active
+Directory"), GCP usa nombres descriptivos ("Compute Engine"), AWS usa
+siglas ("EC2" = Elastic Compute Cloud). Mismo supermercado.
 
 ## Implementación
 
+El mismo trabajo — *subir el frontend estático de Taskflow (Sección I) a
+un bucket público* — en los tres proveedores. Mira cómo cambian solo los
+nombres:
+
+::: {.panel-tabset}
+
+### AWS
+
+```bash
+# awscli — one profile configured with `aws configure`
+aws s3 mb s3://taskflow-web-you              # make bucket
+aws s3 sync ./dist s3://taskflow-web-you     # upload the build
+aws s3 website s3://taskflow-web-you --index-document index.html
+# + CloudFront distribution in front for HTTPS + caching
+```
+
+### Azure
+
+```bash
+# az cli — `az login` first
+az storage account create -n taskflowwebyou -g my-rg
+az storage blob service-properties update \
+  --account-name taskflowwebyou --static-website --index-document index.html
+az storage blob upload-batch -s ./dist -d '$web' --account-name taskflowwebyou
+```
+
+### GCP
+
+```bash
+# gcloud cli — `gcloud init` first
+gsutil mb gs://taskflow-web-you
+gsutil -m rsync -r ./dist gs://taskflow-web-you
+gsutil web set -m index.html gs://taskflow-web-you
+gsutil iam ch allUsers:objectViewer gs://taskflow-web-you
+```
+
+:::
+
+Tres comandos equivalentes: *crear contenedor de objetos → subir build →
+habilitar como sitio web*. La categoría (static hosting en object
+storage) es la misma; solo cambia el CLI.
+
+**El tour mental de cualquier consola:** todas se organizan igual —
+*región* arriba a la derecha (dónde vive el recurso), *buscador* de
+servicios (las 10 categorías), *IAM* (quién eres y qué puedes tocar),
+*Billing* (dónde mirar cada semana). Domina esas 4 zonas y cualquier
+consola deja de intimidar.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Quiero desplegar [mi frontend estático / mi API / ambos] en [AWS /
+Azure / GCP] usando el free tier. Dame los comandos CLI exactos en
+orden: crear los recursos mínimos, subir el código, exponer la URL, y —
+igual de importante — los comandos para DESTRUIR todo al terminar y no
+generar costos. Explícame qué hace cada recurso que creamos en
+términos de las categorías universales (compute/storage/identidad).
+```
+
+:::
+
+## ¿Por qué existen tres?
+
+**Lo único que necesitas llevarte:** compiten por el mismo pastel, así
+que convergen a los mismos servicios — la diferencia real no es técnica
+sino de *ecosistema*: Azure entra por las empresas que ya pagan
+Microsoft, GCP por equipos de datos/ML, AWS por ser el primero y tener
+la comunidad más grande. Para ti, la habilidad transferible es la
+categoría, no la consola.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: elegir proveedor"}
+
+| Criterio | Qué significa | Peso real |
+|---|---|---|
+| El que ya usa tu empresa/cliente | No eliges — vas ahí | El 80% de los casos |
+| Créditos/free tier | AWS Activate, Azure for Startups, \$300 de GCP | Alto al empezar |
+| Ecosistema de tu stack | .NET → Azure natural; ML → GCP Vertex | Medio |
+| Multi-cloud "por si acaso" | Usar dos proveedores a la vez | Casi nunca vale el doble de complejidad |
+| Proveedores alternos | Cloudflare, DigitalOcean, Hetzner, OVH | Excelentes para cosas específicas y precio |
+
+El mito del multi-cloud: *"si AWS cae, tengo Azure"* cuesta duplicar
+todo tu conocimiento e infraestructura. Lo que sí se hace: diseñar sin
+lock-in innecesario (contenedores portables, Postgres estándar) para
+que migrar sea *posible*, no diario.
+
+:::
+
 ## Errores comunes
+
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| **La factura sorpresa** | Dejaste una VM/bucket/NAT corriendo "por si acaso" | Billing alerts día 1 + destruir lo que no uses |
+| Bucket S3 público con datos privados | "Public" suena a "mi sitio web" | Bloqueo de acceso público por defecto; revisa dos veces |
+| Trabajar como root/admin | La cuenta raíz puede TODO — incluso vaciar tu cuenta | IAM user con mínimos permisos + MFA |
+| Todo en una región lejana | "us-east-1 por defecto" aunque tus usuarios estén en LATAM | Región cerca de usuarios (latencia) y legal del dato |
+| Aprender "AWS" en vez de categorías | Memorizas siglas que no transfieren | Esta tabla de equivalencias |
 
 ## Buenas prácticas
 
+- **Billing alert antes que cualquier recurso.** Todos tienen
+  presupuestos con alerta por email — configúrala en tu primera sesión.
+- **MFA en la cuenta raíz + usuario IAM para el día a día.** La cuenta
+  raíz queda guardada como la escritura de la casa.
+- **Tags en cada recurso** (`project:taskflow`, `env:dev`) — en 3 meses
+  no sabrás qué VM era de qué.
+- **Destruye los experimentos.** El tutorial terminó = recursos borrados.
+  La nube cobra por existir, no por usar.
+
 ## Ejercicio
 
-## Mini reto
+1. Traduce a Azure y GCP: EC2, S3, RDS, Lambda, Route 53.
+2. Tu app necesita: una VM, una Postgres administrada, storage para
+   imágenes de usuarios, y DNS. Nombra los 4 servicios en AWS.
+3. ¿Por qué "multi-cloud desde el día 1" casi nunca es buena idea?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-*(Por escribir.)*
+1. EC2 → Azure VM / Compute Engine · S3 → Blob Storage / Cloud Storage ·
+   RDS → Azure SQL / Cloud SQL · Lambda → Azure Functions / Cloud
+   Functions · Route 53 → Azure DNS / Cloud DNS.
+2. EC2 (compute), RDS (Postgres administrada), S3 (imágenes como
+   objetos), Route 53 (DNS). Son 4 de las ~10 categorías — ya nombraste
+   medio AWS.
+3. Porque duplicas el costo de conocimiento y complejidad para cubrir
+   un evento raro (la caída total de un proveedor). Lo correcto: evitar
+   lock-in *innecesario* (tecnologías portables) y aceptar que migrar es
+   un proyecto, no un interruptor.
+
+:::
+
+## Mini reto
+
+Encuentra los **tres** problemas en este "deploy a AWS":
+
+```bash
+aws configure    # entered ROOT account keys
+aws s3 mb s3://company-user-data
+aws s3 sync ./backups s3://company-user-data
+aws s3api put-bucket-acl --bucket company-user-data --acl public-read
+# done! left the t2.large test instance running "just in case"
+```
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+1. **Llaves de la cuenta raíz** — pueden hacer TODO incluyendo cerrar la
+   cuenta; deben ser credenciales de un usuario IAM con permisos mínimos.
+2. **`public-read` en datos de usuarios** — el bucket queda listable y
+   descargable por cualquiera en internet. Es el error que produce las
+   filtraciones masivas de "S3 bucket expuesto" en las noticias.
+3. **Instancia corriendo "por si acaso"** — una t2.large son ~\$70/mes
+   de nada. Regla de la nube: se cobra por existir.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
 - [ ] Traducir un servicio de un proveedor a los otros dos
-- [ ] Nombrar las 5-6 categorías universales que todos venden
+- [ ] Nombrar las ~10 categorías universales que todos venden
+- [ ] Configurar billing alerts y un usuario IAM antes de crear recursos
+- [ ] Explicar por qué el multi-cloud prematuro es una trampa

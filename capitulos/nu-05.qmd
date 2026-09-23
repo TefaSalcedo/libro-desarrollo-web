@@ -7,47 +7,244 @@ subtitle: "Lambda, Functions, Workers y cuándo la nube corre por ti"
 ## En una frase
 
 Serverless es la cimentación alternativa del Cap. 1 llevada al extremo:
-**no hay proceso escuchando — tu función despierta por request**. Pagas
-por ejecución, no por servidor encendido. Cuándo conviene y cuándo no es
-la lección del capítulo.
+**no hay proceso escuchando — tu función despierta con cada request y
+muere al responder**. Pagas por ejecución, no por servidor encendido.
+Cuándo conviene y cuándo te sale carísimo es la lección del capítulo.
 :::
 
 ## El problema
 
-*(Por escribir: tráfico irregular — ¿pagar un servidor 24/7 que duerme?) *
+Tu API de tareas tiene tráfico irregular: 200 requests el lunes, 3 el
+martes, 5.000 cuando un cliente la descubre. En el modelo de N1–N2 pagas
+un servidor **encendido 24/7** que duerme la mayor parte del día — como
+dejar un taxi corriendo en la puerta por si algún día necesitas ir al
+aeropuerto. La pregunta de este capítulo: ¿y si el taxi solo existiera
+*mientras viajas*?
 
 ## Cómo lo resuelve un equipo
 
+El modelo **FaaS** (Function as a Service): subes una función — no una
+app, no un servidor — y el proveedor la ejecuta cuando algo la invoca
+(un HTTP request, un archivo subido, un cron). Cobran por milisegundo de
+ejecución. Sin requests, costo ≈ \$0.
+
+El caso que enamora: **webhooks, eventos, trabajos ocasionales**. El
+caso que arruina: una API con tráfico constante y alto, donde el precio
+por ejecución supera al servidor fijo — y donde los *cold starts* (la
+función "fría" tarda en despertar) pegan en cada usuario nuevo.
+
 ## Conceptos nuevos
 
-- <span class="tag tag-ops">Ops</span> FaaS: Lambda, Azure Functions, Cloud Functions
-- <span class="tag tag-ops">Ops</span> Edge: Cloudflare Workers, Vercel — código cerca del usuario
-- <span class="tag tag-u">U</span> Cold starts, límites de tiempo, vendor lock-in — el precio real
+- <span class="tag tag-ops">Ops</span> **FaaS:** Lambda, Azure Functions, Cloud Functions — función por evento
+- <span class="tag tag-ops">Ops</span> **Edge:** Cloudflare Workers, Vercel Edge, Deno Deploy — tu código corre en el datacenter *más cercano al usuario*
+- <span class="tag tag-u">U</span> **Cold start:** la función dormida tarda ~100ms–2s en despertar — imperceptible o inaceptable según tu caso
+- <span class="tag tag-u">U</span> **Sin estado:** cada ejecución nace nueva — la memoria y el disco NO sobreviven entre requests
+- <span class="tag tag-ops">Ops</span> **Vendor lock-in:** la función usa el runtime/eventos del proveedor — moverla es un proyecto
 
 ## La explicación visual
 
 ```{mermaid}
 flowchart LR
-  R["Request"] -->|"despierta"| F["tu función<br/>(solo existe al ejecutarse)"] --> Res["Response"]
+  R["Request"] -->|"despierta"| F["tu función<br/><i>solo existe ejecutándose</i>"] --> Res["Response"]
+  F -.->|"se duerme"| Z["$0 mientras duerme"]
 ```
+
+Comparado con lo que ya conoces:
+
+| | Proceso (N1/N2) | Serverless |
+|---|---|---|
+| Qué existe | Un proceso escuchando 24/7 | Una función que despierta por evento |
+| Pagas por | Servidor encendido (aunque duerma) | Milisegundos de ejecución |
+| Estado | Memoria/disco del proceso | NADA persiste entre requests |
+| Escala | Tú la configuras | Automática: 1 o 10.000 ejecuciones |
+| Latencia | Siempre caliente | Cold starts ocasionales |
 
 ## Implementación
 
+El mismo endpoint — `GET /tasks` — como función serverless. Fíjate qué
+desaparece: el `listen()`, el puerto, el servidor. La función recibe un
+**evento** (el request envuelto por el proveedor) y devuelve un objeto:
+
+::: {.panel-tabset}
+
+### TypeScript (Lambda)
+
+```ts
+// handler.ts — AWS Lambda + API Gateway
+export const handler = async (event: any) => {
+  const tasks = await listTasks();   // DB via DATABASE_URL from env
+  return {
+    statusCode: 200,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(tasks),     // Lambda returns an OBJECT, not res.json()
+  };
+};
+// No app.listen() — the platform invokes handler() per request
+```
+
+### Python (Lambda)
+
+```python
+# handler.py — AWS Lambda
+def handler(event, context):
+    tasks = list_tasks()              # DB via DATABASE_URL from env
+    return {
+        "statusCode": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps(tasks),
+    }
+# No uvicorn, no port — AWS calls handler(event, context)
+```
+
+### Go (Lambda)
+
+```go
+// main.go — AWS Lambda
+func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+    tasks, err := listTasks(ctx)     // DB via DATABASE_URL from env
+    if err != nil {
+        return events.APIGatewayProxyResponse{StatusCode: 500}, nil
+    }
+    body, _ := json.Marshal(tasks)
+    return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(body)}, nil
+}
+
+func main() { lambda.Start(handler) } // the runtime calls handler() per request
+```
+
+:::
+
+¿Y si ya tienes una app completa y no quieres reescribirla? Los
+**adaptadores** envuelven tu app existente en un handler: `aws-serverless-express`
+(Express), `mangum` (FastAPI), `aws-lambda-go-api-proxy` (Go). Tu código
+de los caps. 2–7 viaja casi intacto — la ruta sigue siendo la ruta, pero
+ahora la invoca la plataforma en vez de un socket.
+
+**El edge** es serverless + geografía: la función no corre en
+`us-east-1` sino en el punto de presencia *más cercano al usuario*
+(Cloudflare Workers corre en 300+ ciudades). Ideal para: auth checks,
+redirects, personalización ligera — código que debe responder en <50ms
+desde cualquier país.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Convierte mi endpoint GET /tasks de [Express/FastAPI/Go] a una función
+serverless para [AWS Lambda / Cloudflare Workers / Vercel]. Requisitos:
+usa el adaptador apropiado para no reescribir toda la app (o el handler
+nativo si prefieres), la conexión a la base de datos debe funcionar con
+el modelo sin estado (conexión por ejecución o pooler — explícame cuál
+y por qué), y dame el archivo de configuración de despliegue. Al final
+explícame qué partes de mi código asumen un proceso siempre vivo y
+dejarían de funcionar.
+```
+
+:::
+
+## ¿Por qué no es siempre la respuesta?
+
+**Lo único que necesitas llevarte:** serverless gana cuando el tráfico
+es *irregular* (pagas solo lo que usas y escala solo) y pierde cuando el
+tráfico es *constante y alto* (una función cobra más por millón de
+requests que un servidor fijo) o cuando el trabajo es *largo* (límites
+de ~15 min) o *con estado* (websockets, sesiones en memoria). El cálculo
+es honesto, no ideológico.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: el mapa final de deployment"}
+
+| Alternativa | Modelo | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| VPS (N1) | Proceso siempre vivo | Toda la ops | Aprendizaje, control total, precio fijo |
+| PaaS (N2) | Subes código | Precio/unidad mayor | El default sano para la mayoría de APIs |
+| Contenedores (cap. 30+) | Subes imagen | Sabes Docker + orquestación | Portabilidad entre proveedores |
+| FaaS | Subes función | Cold starts, límites, lock-in, sin estado | Eventos, webhooks, tráfico irregular |
+| Edge | Función en 300 ciudades | Runtime limitado (no todo Node corre) | Latencia global, middleware ligero |
+
+El espectro completo del libro en una tabla: **misma app, cinco
+cimentaciones**. La elección correcta depende del tráfico, el equipo y
+el tiempo de vida del proceso — nunca del hype.
+
+:::
+
 ## Errores comunes
+
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| "Serverless = gratis" | El free tier engaña; a 10M requests/mes Lambda puede costar más que un VPS | Haz la cuenta a tu volumen real |
+| Estado en memoria entre requests | La función nueva no recuerda nada | Estado externo: DB, Redis, KV — como debe ser siempre |
+| El monolito en UNA lambda | Una función gigante hace todo → cold start enorme, despliegue lento | Funciones por dominio, o app completa via adaptador sabiendo el costo |
+| Conexión DB por request | Postgres no tolera 5.000 funciones abriendo conexiones | Pooler (RDS Proxy, PgBouncer, Neon serverless) |
+| Ignorar cold starts en auth | El primer request del día tarda 2s | Keep-warm, provisioned concurrency, o acepta el trade |
 
 ## Buenas prácticas
 
+- **Diseña sin estado de todas formas** — es buena práctica para todo
+  backend (el proceso siempre vivo también puede morir), y te deja la
+  puerta serverless abierta.
+- **Serverless para eventos primero:** webhooks, procesamiento de
+  archivos, crons — ahí el modelo es perfecto antes de mover tu API
+  entera.
+- **Mide el cold start real** de tu función con sus dependencias — el
+  de los benchmarks (una función vacía) no es el tuyo.
+- **Vigila la factura por volumen:** configura alertas; el modelo
+  escala solo… incluido el cobro.
+
 ## Ejercicio
 
-## Mini reto
+1. Clasifica cada caso como "serverless conviene" o "proceso fijo
+   conviene": (a) webhook de pagos que llega 50 veces/día, (b) API con
+   2M requests/día estables, (c) resize de imágenes al subirse, (d) app
+   de chat con websockets.
+2. ¿Por qué tu función Lambda no puede guardar la sesión del usuario en
+   una variable global?
+3. ¿Qué dos diferencias hay entre `res.json(tasks)` (Express) y el
+   `return {statusCode, body}` de Lambda?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-*(Por escribir.)*
+1. Conviene: (a) eventos irregulares — pagas ~nada entre webhooks;
+   (c) procesamiento por evento — el caso clásico. Proceso fijo: (b)
+   tráfico alto y estable — el costo por ejecución supera al servidor;
+   (d) websockets necesitan conexiones persistentes — las funciones
+   mueren al responder.
+2. Porque cada ejecución puede correr en una *instancia distinta* (o en
+   la misma reciclada después) — la variable global no es confiable:
+   existe solo mientras esa ejecución viva y no la ven las demás. La
+   sesión va en un store externo (Redis, DB, o JWT en el token).
+3. (a) Lambda devuelve un objeto que la *plataforma* traduce a HTTP —
+   no escribes en un socket; el body debe ser string serializado tú
+   mismo. (b) No hay `listen()` ni puerto: la plataforma decide cuándo
+   invocarte — tu código es un *handler*, no un servidor.
+
+:::
+
+## Mini reto
+
+Un equipo migra su API completa a Lambda "para ahorrar". Su tráfico: 3M
+requests/día constantes, cada request toca Postgres. Dos semanas después
+la factura subió y los usuarios se quejan de lentitud intermitente. ¿Qué
+salió mal? (Pista: tres cosas.)
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+1. **El cálculo era al revés:** a 90M requests/mes constantes, el costo
+   por ejecución + API Gateway supera a un contenedor/VM fija —
+   serverless ahorra con tráfico *irregular*, no con carga sostenida.
+2. **Cold starts:** los usuarios sentían los despertares — funciones
+   con muchas dependencias tardan en arrancar; con tráfico constante
+   igual aparecen cuando AWS recicla instancias o escala.
+3. **Conexiones a Postgres:** miles de funciones abriendo conexiones
+   nuevas agotaron la base (Postgres tolera ~cientos, no miles) —
+   necesitaban un pooler (RDS Proxy) que olvidaron o cuya latencia
+   extra empeoró todo.
+
+Moraleja: serverless es una *herramienta con un nicho*, no un upgrade.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] Explicar el modelo serverless y su precio real (cold starts, límites)
+- [ ] Explicar el modelo serverless y su precio real (cold starts, límites, sin estado)
 - [ ] Decidir cuándo conviene serverless vs un proceso siempre vivo
+- [ ] Escribir o adaptar un endpoint como función en tu stack
+- [ ] Nombrar las 5 cimentaciones de deployment y su criterio de elección

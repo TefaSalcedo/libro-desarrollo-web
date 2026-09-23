@@ -9,57 +9,229 @@ subtitle: "On-premise, datacenters, VPS y bare metal — la máquina siempre exi
 "La nube" no existe: son **computadoras de otros en datacenters**. Este
 capítulo mapea el espectro completo — tu laptop, un servidor en tu closet
 (on-premise), un VPS alquilado, bare metal — y qué responsabilidad carga
-cada uno.
+cada uno. Al final vas a conectarte por SSH a una máquina remota y dejar
+tu app corriendo ahí, como se hizo durante 20 años.
 :::
 
 ## El problema
 
-*"Sube la app a la nube"* — ¿a dónde exactamente? Antes de AWS hay que
-entender el espectro físico: alguien, en algún lugar, mantiene una máquina
-encendida conectada a internet. Las opciones cambian *quién* la mantiene
-y *cuánto* control tienes.
+*"Sube la app a la nube"* — ¿a dónde exactamente? Tu API corre en tu
+laptop porque tu laptop es una computadora encendida con un proceso
+escuchando en un puerto. Para que otros la usen necesitas **otra
+computadora, encendida 24/7, con una IP pública**. Toda la industria del
+hosting se reduce a: ¿de quién es esa máquina, dónde está, y quién la
+mantiene?
 
 ## Cómo lo resuelve un equipo
 
-- El spectrum de opciones de hosting
-- Quién paga el hardware, la red, la electricidad, la seguridad física
-- On-premise: tu propio rack — control total, costo total
-- Colocation: tu máquina, datacenter ajeno
-- VPS: una porción de máquina ajena (DigitalOcean, Hetzner, EC2 básico)
+Nadie empieza comprando un rack. El camino típico de un producto:
+
+1. **Desarrollo:** tu laptop. IP `localhost`, apagas cuando quieres.
+2. **Primer deploy:** un VPS de \$5/mes (DigitalOcean, Hetzner). Una
+   porción de máquina ajena con IP pública.
+3. **Crecimiento:** cloud (AWS/Azure/GCP) — misma idea, más servicios
+   alrededor.
+4. **Escala o regulación:** datacenter propio o *bare metal* (máquina
+   física completa alquilada). Raro en productos pequeños.
+
+La lección no es "usa X" sino **entender qué responsabilidad heredas en
+cada opción**: hardware, red, electricidad, parches del SO, backups.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-u">U</span> On-premise vs cloud vs hybrid
-- <span class="tag tag-ops">Ops</span> VPS, bare metal, rack, datacenter
-- <span class="tag tag-ops">Ops</span> La máquina siempre existe: "serverless" también corre en una
+- <span class="tag tag-u">U</span> **On-premise:** tu propio hardware en tu edificio — control total, costo total
+- <span class="tag tag-ops">Ops</span> **Colocation:** tu máquina vive en un datacenter ajeno (ellos: luz, red, seguridad física)
+- <span class="tag tag-ops">Ops</span> **VPS (Virtual Private Server):** una porción virtual de máquina física — DigitalOcean, Hetzner, EC2 básico
+- <span class="tag tag-ops">Ops</span> **Bare metal:** una máquina física completa solo para ti, alquilada
+- <span class="tag tag-u">U</span> La máquina siempre existe: "serverless" también corre en una — solo que no es tu problema
 
 ## La explicación visual
 
 ```{mermaid}
 flowchart LR
-  A["Tu laptop"] --> B["Servidor en tu closet<br/>(on-premise)"] --> C["VPS<br/>(porción alquilada)"] --> D["Cloud<br/>(AWS/Azure/GCP)"]
+  A["Tu laptop<br/><i>0 usuarios</i>"] --> B["Servidor en tu closet<br/><i>on-premise</i>"]
+  B --> C["VPS<br/><i>porción alquilada</i>"]
+  C --> D["Cloud<br/><i>AWS/Azure/GCP</i>"]
+  D -.-> E["Bare metal / colo<br/><i>escala extrema</i>"]
 ```
+
+| Modelo | Máquina de... | Datacenter de... | Tú administras | Costo típico |
+|---|---|---|---|---|
+| On-premise | tuya | tuyo (tu closet) | TODO | Hardware + luz + tu tiempo |
+| Colocation | tuya | ajeno | SO en adelante | \$100-500/mes por rack |
+| VPS | ajena (compartida) | ajeno | SO en adelante | \$5-50/mes |
+| Cloud VM | ajena | ajeno | SO en adelante | Por hora/segundo |
+| Bare metal | ajena (exclusiva) | ajeno | SO en adelante | \$100+/mes |
+
+La regla de oro: **a más control, más responsabilidad.** No hay opción
+"mejor" — hay opción que *te cuesta lo que puedes pagar*.
 
 ## Implementación
 
-*(Por escribir: provisionar un VPS real, conectar por SSH, levantar la
-app — el camino clásico antes del cloud abstracto.)*
+El camino clásico que todo backend debería hacer **una vez**: alquilar un
+VPS, entrar por SSH y dejar la app corriendo. Aunque luego uses PaaS o
+serverless, entenderás qué abstraen.
+
+**Paso 1 — provisionar.** En DigitalOcean/Hetzner creas un "Droplet"/VPS:
+Ubuntu, el plan más barato, y subes tu **llave SSH pública** (la
+alternativa — password — es la primera mala práctica que evitaremos).
+
+**Paso 2 — entrar.** SSH es "la terminal de otra máquina":
+
+```bash
+# From your terminal — run the remote machine's shell
+ssh ubuntu@203.0.113.10
+# Now every command runs on THAT machine, not yours
+```
+
+**Paso 3 — subir tu app** (con `git clone` o `scp`/`rsync`):
+
+```bash
+# On the VPS: clone and install
+git clone https://github.com/you/taskflow.git
+cd taskflow && npm ci
+```
+
+**Paso 4 — correrla... y que sobreviva.** Si la arrancas con `node
+dist/index.js` y cierras la terminal, el proceso muere con tu sesión.
+Necesitas un **gestor de procesos** — algo que la reinicie si crashea y
+la arranque si el servidor reinicia:
+
+```bash
+# systemd — the OS's own process manager (recommended)
+sudo systemctl enable taskflow    # start on boot
+sudo systemctl start taskflow
+sudo systemctl status taskflow    # is it alive?
+journalctl -u taskflow -f         # its logs
+
+# PM2 — same idea, Node-specific and friendlier
+pm2 start dist/index.js --name taskflow
+pm2 save && pm2 startup           # survive reboots
+```
+
+**Paso 5 — abrir el puerto justo.** Tu app escucha en 8000, pero el mundo
+espera HTTP en 80. Además, exponer el puerto de la app directo es mala
+idea — por eso va nginx delante (reverse proxy, cap. 33). El firewall
+mínimo:
+
+```bash
+sudo ufw allow OpenSSH   # port 22 — NEVER lock yourself out
+sudo ufw allow 'Nginx Full'
+sudo ufw enable
+```
+
+Resultado: `http://203.0.113.10` responde tu API, corriendo en una
+máquina que no ves, en un datacenter que no conoces. **Eso es "la
+nube"** — con tu responsabilidad encima.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Guíame para desplegar mi API [Express/FastAPI/Go] en un VPS Ubuntu por
+primera vez. Dame los pasos en orden: crear la llave SSH si no tengo,
+provisionar el VPS, conectar por SSH, subir el código, instalar
+dependencias, y dejar el proceso vivo con systemd (con el archivo .service
+completo). Requisitos: NO uses password para SSH (solo llaves), crea un
+usuario no-root para la app, configura ufw abriendo solo lo necesario, y
+explícame por qué cada capa de seguridad existe.
+```
+
+:::
+
+## ¿Por qué cada modelo existe?
+
+**Lo único que necesitas llevarte:** el espectro mueve una sola
+variable — *quién sufre cuando algo físico se rompe*. On-premise: tú, a
+las 3am, manejando al datacenter. VPS: ellos, tú solo el SO. Todo lo
+demás (precio, control, compliance) se deriva de esa única pregunta.
+
+::: {.callout-note collapse="true" title="Detalle: cuándo cada cimentación"}
+
+- **On-premise** sigue existiendo por tres razones reales: regulación
+  (bancos, salud — el dato no puede salir), costo a escala masiva
+  (Dropbox *salió* de AWS ahorrando millones), y latencia (fábricas,
+  hospitales sin internet confiable).
+- **VPS** es el sweet spot de proyectos pequeños: \$5/mes, IP propia,
+  aprendes Linux real.
+- **Cloud** paga cuando necesitas los *servicios alrededor* de la
+  máquina (redes, balanceadores, servicios administrados — caps.
+  siguientes).
+- **Bare metal** es para cargas que no toleran la virtualización o la
+  vecindad de otros tenants.
+
+:::
 
 ## Errores comunes
 
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| SSH con password y root abierto | "Es solo un VPS de prueba" — los bots escanean port 22 en minutos | Llaves SSH, `PermitRootLogin no`, usuario no-root |
+| El proceso muere al cerrar la terminal | Lo corriste con `node app.js` en tu sesión SSH | systemd o PM2 |
+| Todo el tráfico directo al puerto 8000 | "Funciona, no lo toco" | ufw + nginx delante; el puerto de la app queda interno |
+| No saber *dónde* está la máquina | La región importa: latencia y leyes del dato | Elige región cerca de tus usuarios |
+
 ## Buenas prácticas
+
+- **Llaves SSH siempre; password nunca.** La llave pública va al VPS al
+  crearlo; la privada no sale de tu máquina.
+- **Un usuario por servicio**, no root. Si tu app se compromete, el
+  atacante hereda los permisos de *ese* usuario — que sean pocos.
+- **Firewall que niega por defecto** y abre solo 22/80/443.
+- **Documenta la máquina:** IP, región, qué corre ahí. Un servidor
+  olvidado es una factura olvidada y un agujero de seguridad.
 
 ## Ejercicio
 
-## Mini reto
+1. Ordena estas opciones de menor a mayor responsabilidad tuya:
+   bare metal, PaaS, VPS, on-premise, serverless.
+2. Tu app corre con `npm start` dentro de tu sesión SSH. Nombra **dos**
+   formas en que esto falla sin que toques nada.
+3. ¿Por qué el firewall se configura ANTES de exponer la app?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-*(Por escribir.)*
+1. Serverless < PaaS < VPS < bare metal < on-premise. (En serverless ni
+   siquiera ves el SO; en on-premise hasta la electricidad es tuya.)
+2. (a) Tu sesión SSH se cae o la cierras → el proceso muere con ella.
+   (b) El servidor reinicia por un parche de AWS/DigitalOcean → nada
+   vuelve a arrancar tu app. Ambas se arreglan con un process manager
+   (systemd/PM2).
+3. Porque el orden es defensivo: primero cierras puertas, luego abres la
+   que necesitas. Si expones la app y *después* configuras el firewall,
+   quedó una ventana donde cualquiera entra — y los bots no esperan.
+
+:::
+
+## Mini reto
+
+Este script de deploy circula por internet. Encuentra las **tres**
+decisiones peligrosas:
+
+```bash
+ssh root@203.0.113.10
+git clone https://github.com/you/taskflow.git && cd taskflow
+npm install
+export DB_PASSWORD="super-secret-prod-pw"
+node dist/index.js &
+```
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+1. **`root` por SSH** — el usuario con todos los permisos expuesto a
+   internet (debería estar `PermitRootLogin no` + usuario normal).
+2. **Secreto en la línea de comandos** — `export DB_PASSWORD=...` queda
+   en el historial del shell y visible en `ps` mientras corre (cap. 24
+   y N4 cubren dónde van los secretos de verdad).
+3. **`node ... &` y a rezar** — el proceso queda huérfano: muere con la
+   sesión SSH, nadie lo reinicia si crashea, nada lo arranca al
+   reiniciar el servidor. Falta systemd/PM2.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] Explicar el espectro on-premise → VPS → cloud
+- [ ] Explicar el espectro on-premise → VPS → cloud → bare metal
 - [ ] Decir qué es un datacenter y quién lo opera en cada modelo
+- [ ] Conectar por SSH a una máquina remota con llaves
+- [ ] Dejar un proceso vivo con systemd o PM2
+- [ ] Nombrar las 3 capas mínimas de seguridad de un VPS expuesto

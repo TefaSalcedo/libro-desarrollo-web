@@ -7,49 +7,201 @@ subtitle: "Quién administra qué — la pregunta que responde todo modelo de nu
 ## En una frase
 
 La única pregunta que importa en la nube: **¿hasta dónde llega tu
-responsabilidad?** IaaS (máquina, tú todo), PaaS (plataforma, solo tu
-código), SaaS (solo lo usas). Mismo problema, distinta frontera.
+responsabilidad?** IaaS te da la máquina y administras todo desde el SO;
+PaaS te da la plataforma y solo subes tu código; SaaS solo la usas. Mismo
+problema, distinta línea donde terminas tú y empieza el proveedor.
 :::
 
 ## El problema
 
-*(Por escribir: elegir entre administrar el SO o solo subir código.)*
+En N1 viste el VPS: tú instalas Ubuntu, Node, nginx, systemd, firewall.
+Funciona, pero ¿qué pasa si **no quieres** administrar todo eso? Cada
+modelo de nube es una respuesta distinta a *"¿qué parte de la pila quiero
+olvidar?"*. No son opciones buenas/malas — son fronteras distintas entre
+tu trabajo y el del proveedor.
 
 ## Cómo lo resuelve un equipo
 
+La analogía clásica es la pizza:
+
+| Modelo | Análogo | Tú traes | Ellos traen |
+|---|---|---|---|
+| **On-premise** | Cocinar en casa | Todo: horno, ingredientes, mesa | La receta quizá |
+| **IaaS** | Cocinar en cocina rentada | Ingredientes y cocinar | Local, horno, luz |
+| **PaaS** | Pizza congelada en casa ajena | Elegirla y calentarla | Cocina, horno, pizza hecha |
+| **FaaS** | Delivery | Pedirla por teléfono | Todo lo demás |
+| **SaaS** | Restaurante | Sentarte a comer | Absolutamente todo |
+
+Traducido a la pila técnica (hardware → virtualización → SO → runtime →
+app → datos):
+
+- **IaaS** (EC2, Azure VM, Droplet): ellos hardware + virtualización.
+  Tú desde el SO: parches, runtime, nginx, app, datos. *"Te alquilo la
+  cocina vacía."*
+- **PaaS** (Heroku, Render, Railway, App Engine): ellos hasta el runtime.
+  Tú `git push` con tu código. *"Cocina equipada: trae tu receta."*
+- **FaaS/serverless** (Lambda, Functions): ellos hasta el handler. Tú una
+  función. *"Delivery por evento."*
+- **SaaS** (Gmail, Notion, Stripe): ellos todo. Tú eres el usuario.
+
 ## Conceptos nuevos
 
-- <span class="tag tag-u">U</span> IaaS: EC2, VMs — tú el SO en adelante
-- <span class="tag tag-u">U</span> PaaS: Heroku, App Engine, Elastic Beanstalk — solo tu app
-- <span class="tag tag-u">U</span> SaaS: Gmail, Notion — solo lo usas
-- <span class="tag tag-ops">Ops</span> Containers as a Service, FaaS — puntos intermedios
+- <span class="tag tag-u">U</span> **IaaS:** EC2, VMs — tú desde el SO en adelante
+- <span class="tag tag-u">U</span> **PaaS:** Heroku, Render, App Engine, Elastic Beanstalk — solo tu app
+- <span class="tag tag-u">U</span> **SaaS:** Gmail, Notion — solo lo usas
+- <span class="tag tag-ops">Ops</span> **CaaS** (Containers as a Service: ECS, Cloud Run) y **FaaS** (Lambda) — puntos intermedios: el primero sube un contenedor, el segundo sube una función
 
 ## La explicación visual
 
 ```{mermaid}
 flowchart TB
-  subgraph Stack["La pila: hardware → SO → runtime → app → datos"]
-    direction TB
+  subgraph S["La pila: quién administra cada capa"]
+    direction LR
+    HW["Hardware"] --> VI["Virtualización"] --> OS["SO"] --> RT["Runtime"] --> AP["Tu app"] --> DA["Tus datos"]
   end
+  IaaS["IaaS: tú desde el SO"] -.-> OS
+  PaaS["PaaS: tú desde la app"] -.-> AP
+  SaaS["SaaS: tú nada — solo usas"] -.-> DA
 ```
+
+| Capa | On-prem | IaaS | CaaS | PaaS | FaaS | SaaS |
+|---|---|---|---|---|---|---|
+| App | tú | tú | tú | tú | tú (función) | ellos |
+| Runtime | tú | tú | tú | ellos | ellos | ellos |
+| SO | tú | tú | ellos | ellos | ellos | ellos |
+| Virtualización | tú | ellos | ellos | ellos | ellos | ellos |
+| Hardware | tú | ellos | ellos | ellos | ellos | ellos |
+
+**La lectura:** cada paso a la derecha te quita trabajo operativo y te
+cuesta control + dinero + dependencia del proveedor (*lock-in*).
 
 ## Implementación
 
+Misma app — Taskflow — en los dos extremos que ya conoces:
+
+::: {.panel-tabset}
+
+### IaaS (lo que hiciste en N1)
+
+```bash
+# On your VPS — YOU own everything from the OS up
+sudo apt update && sudo apt install -y nodejs npm nginx
+git clone https://github.com/you/taskflow.git && cd taskflow
+npm ci && npm run build
+sudo systemctl enable taskflow && sudo systemctl start taskflow
+# + firewall, + TLS certs, + log rotation, + OS patches... all yours
+```
+
+### PaaS (Render/Railway/Heroku)
+
+```bash
+# On your laptop — you own only the code
+git push render main
+# They: build, runtime, process manager, TLS, restarts, OS patches
+# You see: "Deploy live at https://taskflow.onrender.com"
+```
+
+:::
+
+En IaaS ejecutaste ~10 comandos operativos; en PaaS, **uno**. El PaaS
+interiorizó todo lo del capítulo N1 (systemd, nginx, firewall, parches)
+detrás de `git push`. *Eso* es lo que pagas.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Quiero desplegar mi API de tareas [Express/FastAPI/Go] en un PaaS
+[Render / Railway / Heroku / Fly.io]. Dame: el archivo de configuración
+necesario (Procfile, render.yaml o equivalente), qué cambios necesita mi
+código (puerto desde variable de entorno, build command), las variables
+de entorno que debo configurar en el dashboard, y cómo hacer deploy.
+Después explícame exactamente qué partes del servidor de N1 está
+administrando el PaaS por mí.
+```
+
+:::
+
+## ¿Por qué existen tantos modelos?
+
+**Lo único que necesitas llevarte:** elige la frontera según *lo que tu
+equipo puede administrar bien*, no según lo que "debería" usarse. Un
+equipo de 2 sin sysadmin no compra IaaS — compra PaaS y se dedica a su
+producto. Un equipo con 50 ingenieros y requisitos raros sí justifica
+IaaS. El modelo correcto es el que minimiza *tu* costo total, no el que
+minimiza la factura del proveedor.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: la línea se mueve"}
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| PaaS | Subes código | Control limitado, precio/unidad más alto, lock-in moderado | Equipos pequeños, MVPs, la opción por defecto sana |
+| CaaS | Subes contenedor | Debes saber Docker (cap. 30-32) | Cuando PaaS se queda corto pero no quieres VMs |
+| IaaS | Subes SO completo | Todo el trabajo de N1 + parches + seguridad | Control fino, compliance, escala con equipo ops |
+| FaaS | Subes función | Cold starts, límites de tiempo, lock-in alto | Eventos, webhooks, tráfico irregular (cap. N5) |
+| SaaS+backend | Auth0/Supabase/Firebase hacen tu backend | Dependencia fuerte, pero velocidad extrema | MVPs donde el backend no es tu diferencial |
+
+:::
+
 ## Errores comunes
+
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| IaaS "para aprender cloud" en el primer deploy | Se confunde "nube" con "VM" | Empieza en PaaS; baja a IaaS cuando tengas razón concreta |
+| "PaaS = no hay ops" | Siguen existiendo: config, secretos, costos, límites | PaaS quita *sysadmin*, no *responsabilidad* |
+| Elegir por factura y no por tiempo | El VPS de \$5 te cuesta 10h/mes de ops | Costo real = factura + horas de equipo |
+| Miedo al lock-in prematuro | "¿Y si cambio de proveedor?" en un MVP | El lock-in se paga; la velocidad perdida no se recupera |
 
 ## Buenas prácticas
 
+- **La app no debe saber en qué modelo corre:** puerto desde env var,
+  configuración por entorno, estado fuera del proceso — así puedes
+  cambiar de frontera después.
+- **Documenta qué frontera elegiste y por qué** — el próximo deploy
+  parte de esa decisión, no de cero.
+- **PaaS no es "para novatos":** la mayoría de productos reales vive en
+  PaaS durante años. Administrar VMs no es un logro, es un costo.
+
 ## Ejercicio
 
-## Mini reto
+1. Clasifica: Gmail, EC2, Heroku, un Droplet, Notion, Lambda, Cloud Run.
+2. Tu startup de 3 personas lanza su API. ¿IaaS o PaaS? Justifica con la
+   frontera, no con el precio.
+3. ¿Qué capa comparten IaaS y PaaS como responsabilidad del proveedor?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-*(Por escribir.)*
+1. SaaS: Gmail, Notion · IaaS: EC2, Droplet · PaaS: Heroku · FaaS:
+   Lambda · CaaS: Cloud Run (punto medio: subes un contenedor, ellos el
+   SO y runtime).
+2. PaaS. Con 3 personas, cada hora de sysadmin es una hora que no va al
+   producto. La frontera correcta es "nosotros código, ellos plataforma"
+   hasta que exista una *razón concreta* (requisito de red, costo a
+   escala, compliance) que la mueva.
+3. Ninguna más allá del hardware — espera, trampa: IaaS delega
+   hardware+virtualización; PaaS delega además SO+runtime. La capa
+   compartida como *del proveedor* en ambos es hardware+virtualización.
+
+:::
+
+## Mini reto
+
+Un equipo dice: *"Pasamos de Heroku a EC2 para ahorrar \$200/mes"*.
+Tres meses después tienen un sysadmin parcial. Haz la cuenta honesta.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+La factura bajó \$200, pero el costo subió: si el sysadmin cuesta
+aunque sea 5h/mes a \$50/h = \$250 + el tiempo de los devs en
+parches/incidentes + el riesgo de errores operativos. El ahorro era
+ilusorio — compararon factura contra factura e ignoraron las horas.
+Regla: migra de frontera cuando el *costo total* (factura + tiempo +
+riesgo) mejora, no cuando solo una línea baja.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
 - [ ] Dibujar la frontera de responsabilidad de IaaS/PaaS/SaaS
-- [ ] Ubicar un servicio concreto en el modelo correcto
+- [ ] Ubicar un servicio concreto en el modelo correcto (incl. CaaS/FaaS)
+- [ ] Calcular el costo real de un modelo: factura + horas + riesgo
+- [ ] Decidir la frontera correcta para un equipo dado
