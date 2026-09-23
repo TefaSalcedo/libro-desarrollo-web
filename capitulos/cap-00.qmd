@@ -91,7 +91,130 @@ En backend, *serializar* es convertir tu objeto interno a JSON para la
 respuesta; *parsear* es convertir el JSON del request a tu objeto. Harás
 ambas cosas cientos de veces en este libro.
 
-## 0.4 Clases y objetos: por qué importan aquí
+## 0.4 Recordatorio: así llamas a una API desde el frontend
+
+Antes de construir el servidor, un repaso de **todas las formas en que el
+cliente ya llama a una API** — porque a partir del Cap. 1 tú eres quien está
+del otro lado de cada una de estas llamadas.
+
+### fetch nativo (la base de todo)
+
+```ts
+// async/await — el estilo moderno
+const res = await fetch("/api/tasks");
+if (!res.ok) throw new Error(`HTTP ${res.status}`);
+const tasks = await res.json();
+
+// .then() — la misma Promise, estilo encadenado (código más viejo)
+fetch("/api/tasks")
+  .then((r) => r.json())
+  .then((tasks) => console.log(tasks))
+  .catch((err) => console.error(err));
+```
+
+Tres detalles que el backend agradece que sepas: `fetch` **no rechaza en
+404 ni 500** (solo en error de red — por eso existe `res.ok`), el body hay
+que `.json()` explícitamente, y `credentials: "include"` es lo que envía
+las cookies (importante en la Parte 3).
+
+### XMLHttpRequest y callbacks (el pasado)
+
+```ts
+const xhr = new XMLHttpRequest();
+xhr.open("GET", "/api/tasks");
+xhr.onload = () => console.log(JSON.parse(xhr.responseText));
+xhr.send();
+```
+
+Nadie escribe esto a mano hoy, pero vive debajo de librerías viejas. La
+evolución fue: callbacks → Promises (`fetch`) → `async/await` (azúcar sobre
+Promises). **Todo es asíncrono en JS** porque hay un solo hilo: bloquear la
+línea principal congelaría la UI.
+
+### axios y librerías cliente
+
+```ts
+import axios from "axios";
+const { data } = await axios.get("/api/tasks");   // JSON automático
+// axios lanza error en 4xx/5xx (a diferencia de fetch)
+axios.interceptors.request.use((cfg) => { /* agregar headers auth */ });
+```
+
+Lo que axios agrega sobre `fetch`: JSON automático, errores en 4xx/5xx,
+*interceptors* (middleware del lado cliente — agregar el token a cada
+request), timeouts cómodos. Mismo wire, mejor DX.
+
+### En React
+
+```tsx
+// El patrón manual: fetch dentro de useEffect + estados
+const [tasks, setTasks] = useState([]);
+const [loading, setLoading] = useState(true);
+useEffect(() => {
+  fetch("/api/tasks")
+    .then((r) => r.json())
+    .then(setTasks)
+    .finally(() => setLoading(false));
+}, []);
+
+// El patrón profesional: TanStack Query / SWR — caché + revalidación
+const { data, isLoading } = useQuery({
+  queryKey: ["tasks"],
+  queryFn: () => fetch("/api/tasks").then((r) => r.json()),
+});
+const mutation = useMutation({
+  mutationFn: (t) =>
+    fetch("/api/tasks", { method: "POST", body: JSON.stringify(t) }),
+});
+```
+
+`useQuery`/`useMutation` existen porque una llamada real no es solo "pedir
+datos": es caché, loading, error, reintento y revalidación. Cuando
+construyas el endpoint, estos son los estados que tu contrato provoca.
+
+### En Angular: HttpClient con Observables
+
+```ts
+// Angular NO devuelve una Promise: devuelve un Observable (RxJS)
+this.http.get<Task[]>("/api/tasks").subscribe({
+  next: (tasks) => (this.tasks = tasks),
+  error: (err) => console.error(err.status),   // err.status ya viene
+});
+
+// En el template, el async pipe se suscribe solo:
+// {{ (tasks$ | async) | json }}   con  tasks$ = this.http.get<Task[]>("/api/tasks")
+```
+
+La diferencia mental que importa:
+
+| | `fetch` → **Promise** | `HttpClient` → **Observable** |
+|---|---|---|
+| Cuándo dispara | Al crearla (hot) | Al suscribirse (cold — sin `subscribe` no hay request) |
+| Valores | Uno (o error) | Un stream de valores posibles |
+| Cancelar | `AbortController` manual | `unsubscribe()` nativo |
+| Interceptors | No nativos (axios sí) | `HttpInterceptor` nativo (auth, logs) |
+
+Angular también trae DI nativa (`@Injectable` services) — la misma idea de
+inyección de dependencias que FastAPI usa con `Depends` en el Cap. 16.
+
+### Las carpetas que ya conoces
+
+```text
+React                          Angular
+src/                           src/app/
+├── components/    UI          ├── components/        UI
+├── pages/         rutas       ├── services/          *.service.ts (inyectable)
+├── hooks/         lógica      ├── models/            interfaces/tipos
+├── lib/api-client.ts  ← fetch centralizado
+└── services/      ← llamadas por dominio
+```
+
+El puente hacia este libro: tu `lib/api-client.ts` era **el consumidor del
+contrato** — ahora tú produces ese contrato. Y tu `services/` del frontend
+(hablador de APIs) es el espejo del `services/` del backend (lógica de
+negocio) del Cap. 7: mismo nombre, distinto rol.
+
+## 0.5 Clases y objetos: por qué importan aquí
 
 Si usaste clases en JS/TS, esto es repaso con traducción. Si no, la idea es
 simple: una **clase** es un molde que agrupa *datos* (atributos) y
@@ -194,7 +317,7 @@ Las diferencias que importan de verdad:
 - **En Python todo es objeto** y `self` es obligatorio: `def create(self,
   title)` — olvidarlo es el error clásico del que viene de JS.
 
-## 0.5 Funciones, parámetros y módulos
+## 0.6 Funciones, parámetros y módulos
 
 La traducción rápida:
 
@@ -240,7 +363,7 @@ Dos detalles Python que confunden al principio:
 - **La indentación ES la sintaxis**: `def`/`if`/`for` terminan en `:` y el
   cuerpo va indentado — no hay `{}` ni `end`.
 
-## 0.6 Estructuras de datos mínimas
+## 0.7 Estructuras de datos mínimas
 
 | Concepto | TypeScript | Python | Go |
 |---|---|---|---|
@@ -264,14 +387,14 @@ Las **comprehensions** de Python (`[x for x in y if cond]`) merecen un
 momento: son `.filter()` y `.map()` fusionados en sintaxis — las verás en
 servicios y queries por todos lados.
 
-## 0.7 Errores en una frase (el Cap. 6 los abre de verdad)
+## 0.8 Errores en una frase (el Cap. 6 los abre de verdad)
 
 - **TS/Python**: `throw`/`raise` una excepción; alguien arriba hace
   `catch`/`except`. Si nadie la atrapa → 500.
 - **Go**: la función *devuelve* el error como valor: `t, err := getTask(id)`
   — no salta nada, tú decides.
 
-## 0.8 Qué es un endpoint (la anatomía mínima)
+## 0.9 Qué es un endpoint (la anatomía mínima)
 
 Un endpoint = **(verbo + ruta) → handler**. El handler es solo una función
 que recibe el request y produce la response:
@@ -336,7 +459,7 @@ Leído en voz alta, los tres dicen lo mismo: *"cuando llegue un GET a
 Sin código: escribe con tus palabras la diferencia entre *la clase* `Task`
 y *un objeto* `task`, y da un ejemplo de cuándo en backend usas cada una.
 Si puedes explicar por qué un schema de validación (Cap. 4) se define como
-clase pero un endpoint es una función, entendiste la sección 0.4.
+clase pero un endpoint es una función, entendiste la sección 0.5.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
@@ -396,6 +519,9 @@ request, devolver una response), no un estado que mantener.
 
 ## Lo que deberías saber hacer ahora
 
+- [ ] Reconocer todas las formas de llamar una API desde el cliente:
+      fetch, axios, React Query/SWR, HttpClient de Angular
+- [ ] Explicar la diferencia Promise vs Observable (hot vs cold)
 - [ ] Probar un endpoint con `curl` sin abrir el navegador
 - [ ] Leer un request HTTP completo: método, ruta, headers, body
 - [ ] Definir una clase/struct con un método en tu lenguaje
