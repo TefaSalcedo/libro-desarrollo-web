@@ -3,64 +3,257 @@ title: "9. Necesitamos hablar SQL de verdad"
 subtitle: "El ORM viene después; primero hay que saber qué genera"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Antes de que cualquier ORM traduzca por ti, escribes las queries a mano
+en `psql`. SELECT para leer, INSERT/UPDATE/DELETE para escribir, JOIN
+para cruzar tablas, GROUP BY para reportes — y la lección de seguridad
+más importante del libro: **nunca concatenes datos del usuario en una
+query**.
+:::
 
 ## El problema
 
-Antes de que cualquier ORM traduzca por nosotros, necesitamos escribir las queries a mano en `psql`.
+En el cap. 8 creamos las tablas — están vacías. Ahora hay que *usarlas*:
+meter filas, leerlas, cruzarlas. Podríamos saltar directo al ORM
+("el framework escribe el SQL por ti"), pero entonces cada query sería
+magia: no sabrías qué se ejecuta, por qué va lento, ni qué revisar cuando
+algo falla. Primero se aprende el idioma; después el traductor.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+`psql` es la terminal de PostgreSQL — el equivalente a tu shell, pero el
+idioma es SQL. Todo backend dev tiene una abierta siempre: inspeccionar
+datos reales, probar una query antes de meterla en código, arreglar una
+fila a mano. Los comandos de orientación primero:
+
+```bash
+psql "postgresql://app:dev@localhost:5432/taskflow"
+```
+
+```sql
+\dt              -- list tables
+\d tasks         -- describe the tasks table (columns, constraints)
+\q               -- quit
+```
 
 ## Conceptos nuevos
 
-- <span class="tag tag-d">D</span> `SELECT` / `WHERE` / `ORDER BY` / `LIMIT`
-- <span class="tag tag-d">D</span> `INSERT` / `UPDATE` / `DELETE` — y por qué `UPDATE` sin `WHERE` es un incidente
-- <span class="tag tag-d">D</span> JOINs: inner, left — el diagrama de Venn hecho bien
-- <span class="tag tag-d">D</span> `COUNT`, `GROUP BY`, `HAVING`: reportes sin traer toda la tabla
-- <span class="tag tag-d">D</span> Inyección SQL: por qué concatenar strings es el error clásico y los parámetros lo matan
+- <span class="tag tag-d">D</span> `SELECT` / `WHERE` / `ORDER BY` / `LIMIT` — leer con filtros
+- <span class="tag tag-d">D</span> `INSERT` / `UPDATE` / `DELETE` — y por qué `UPDATE` sin `WHERE` es un incidente con nombre
+- <span class="tag tag-d">D</span> JOINs: `INNER` vs `LEFT` — cruzar tablas por sus FKs
+- <span class="tag tag-d">D</span> `COUNT`, `GROUP BY`, `HAVING` — reportes sin traer toda la tabla
+- <span class="tag tag-d">D</span> Inyección SQL: el error clásico y por qué los parámetros lo matan
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+La anatomía de una query — siempre en este orden mental:
+
+```{mermaid}
+flowchart LR
+  F["FROM<br/><i>¿de qué tabla(s)?</i>"] --> J["JOIN<br/><i>¿qué cruzo?</i>"]
+  J --> W["WHERE<br/><i>¿qué filas?</i>"]
+  W --> G["GROUP BY<br/><i>¿agrupo?</i>"]
+  G --> S["SELECT<br/><i>¿qué columnas?</i>"]
+  S --> O["ORDER BY / LIMIT<br/><i>¿cómo salen?</i>"]
+```
 
 ## Implementación
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+Las 6 queries que Taskflow necesita, escritas a mano en `psql`. Lee
+cada una preguntándote: *¿de dónde, qué filas, qué columnas?*
 
-<!-- proyecto: las queries de Taskflow a mano en psql -->
+**1. Insertar — `INSERT ... RETURNING`:**
 
-## ¿Por qué cada stack lo hace así?
+```sql
+INSERT INTO users (email, password_hash)
+VALUES ('ana@taskflow.dev', '$2b$10$...')
+RETURNING id, public_id;           -- give me back the generated ids
+```
 
-<!-- TODO: la lección transferible tras el tabset -->
+`RETURNING` es el truco de Postgres: te devuelve lo que acabas de crear
+sin una segunda query.
+
+**2. Leer con filtro — `SELECT ... WHERE`:**
+
+```sql
+SELECT public_id, title, due_date
+FROM tasks
+WHERE user_id = 1 AND done = FALSE
+ORDER BY priority ASC, due_date ASC NULLS LAST
+LIMIT 20;
+```
+
+**3. Actualizar — el `WHERE` es tu cinturón:**
+
+```sql
+UPDATE tasks
+SET done = TRUE
+WHERE public_id = '7f3a9c2e-...' AND user_id = 1;
+--                     the user_id check: you can only touch YOUR tasks
+```
+
+**4. Cruzar tablas — `JOIN`:**
+
+```sql
+SELECT t.title, tg.name AS tag
+FROM tasks t
+JOIN task_tags tt ON tt.task_id = t.id
+JOIN tags tg      ON tg.id = tt.tag_id
+WHERE t.user_id = 1;
+```
+
+`INNER JOIN` trae solo filas con pareja en ambos lados; `LEFT JOIN`
+trae todas las de la izquierda aunque no tengan pareja (`NULL` en las
+columnas de la derecha) — útil para "tareas *con o sin* etiquetas".
+
+**5. Reportes — `GROUP BY`:**
+
+```sql
+SELECT u.email, COUNT(t.id) AS open_tasks
+FROM users u
+LEFT JOIN tasks t ON t.user_id = u.id AND t.done = FALSE
+GROUP BY u.id, u.email
+HAVING COUNT(t.id) > 0
+ORDER BY open_tasks DESC;
+```
+
+"Tareas abiertas por usuario" sin traer las tareas — la BD *cuenta*,
+tú recibes el resumen.
+
+**6. La lección de seguridad — inyección SQL:**
+
+```python
+# NEVER — the user types: ' OR '1'='1
+query = f"SELECT * FROM users WHERE email = '{email}'"
+# becomes: WHERE email = '' OR '1'='1'  → returns EVERY user
+
+# ALWAYS — the driver sends data SEPARATE from code
+cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+```
+
+Con parámetros, el dato del usuario viaja *apartado* de la query — la BD
+lo trata como texto, jamás como código. Toda la sección de seguridad del
+libro cuelga de esta regla.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Enséñame SQL practicando sobre este esquema: users(id, email),
+tasks(id, user_id→users, title, priority 1-5, due_date, done),
+tags(id, name), task_tags(task_id, tag_id). Para cada una de estas
+necesidades dame la query y explícala línea por línea: (1) tareas
+abiertas de un usuario ordenadas por prioridad, (2) tareas con sus
+tags, (3) usuarios con conteo de tareas abiertas incluyendo los que
+tienen cero, (4) marcar una tarea como done solo si pertenece al
+usuario. Luego muéstrame cómo se vería cada query parametrizada y por
+qué concatenar strings es inyección SQL.
+```
+
+:::
+
+## ¿Por qué SQL primero y ORM después?
+
+**Lo único que necesitas llevarte:** el ORM *genera* SQL — si no sabes
+leerlo, cada ORM es una caja negra que no puedes depurar. Con SQL en la
+cabeza, el ORM es un atajo que entiendes; sin él, es una dependencia que
+temes.
+
+::: {.callout-note collapse="true" title="Detalle: por qué los JOINs confunden"}
+
+El diagrama de Venn clásico miente un poco — un JOIN no es "intersección
+de conjuntos", es **multiplicación con filtro**: cada fila de `tasks`
+se empareja con cada fila de `tags` que cumpla el `ON`. Si una tarea
+tiene 3 tags, aparece 3 veces en el resultado (una por tag). Por eso
+"la lista de tareas" con JOIN a tags devuelve filas repetidas — y por
+eso el cap. 12 necesita hablar de cómo traer relaciones sin duplicar.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| `UPDATE`/`DELETE` sin `WHERE` | Enter, pánico | Escribe el `WHERE` *primero*, luego el UPDATE; haz `SELECT` con ese WHERE antes |
+| Concatenar strings en queries | "Es un string más" | Parámetros siempre — el dato nunca toca el SQL |
+| `SELECT *` por costumbre | Traes columnas que no usas (y `password_hash` de regalo) | Nombra las columnas — es tu contrato de salida del cap. 5 aplicado a la BD |
+| Probar la query solo en código | El error sale en el handler, lejos de la query | Pruébala en `psql` primero — ahí el error es inmediato |
+| `LEFT JOIN` cuando era `INNER` | "Salen filas de más con NULLs" | Pregúntate: ¿quiero filas sin pareja? |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **El `WHERE` se escribe antes que el `UPDATE`** — literal: redacta
+  `WHERE public_id = '...'` y úsalo en un `SELECT` que devuelva exactamente
+  la fila esperada; recién entonces conviértelo en UPDATE.
+- **`RETURNING` para saber qué creaste** — una sola ida a la BD.
+- **Alias cortos pero legibles** (`tasks t`, `users u`) — las queries de
+  JOIN se leen como nombres completos.
+- **Formato consistente:** keywords en mayúscula, una cláusula por línea.
+  La query que lees en un incidente a las 3am agradece el aire.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+En `psql` (o en papel):
 
-## Mini reto
-
-Escribir la query "tareas pendientes por usuario, ordenadas por prioridad".
+1. Lista las tareas del usuario 2 que vencen esta semana (`due_date <
+   now() + interval '7 days'`), abiertas, por fecha.
+2. Cuenta cuántas tareas tiene cada tag (`GROUP BY`).
+3. Escribe el `INSERT` de una tarea con `RETURNING` y explica qué
+   devuelve.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+1. ```sql
+   SELECT title, due_date
+   FROM tasks
+   WHERE user_id = 2 AND done = FALSE
+     AND due_date < now() + interval '7 days'
+   ORDER BY due_date ASC;
+   ```
+2. ```sql
+   SELECT tg.name, COUNT(tt.task_id) AS task_count
+   FROM tags tg
+   JOIN task_tags tt ON tt.tag_id = tg.id
+   GROUP BY tg.id, tg.name
+   ORDER BY task_count DESC;
+   ```
+3. ```sql
+   INSERT INTO tasks (user_id, title, priority)
+   VALUES (2, 'Write chapter 9', 1)
+   RETURNING id, public_id, created_at;
+   ```
+   Devuelve una fila con los valores *generados por la BD* — sin un
+   segundo SELECT para conocerlos.
 
-**Mini reto.** <!-- TODO -->
+:::
+
+## Mini reto
+
+Escribir la query "tareas pendientes por usuario, ordenadas por
+prioridad" — y luego la versión peligrosa que un junior escribiría
+concatenando el `user_id`.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+```sql
+SELECT title, priority
+FROM tasks
+WHERE user_id = $1 AND done = FALSE      -- $1: parameter, never concatenated
+ORDER BY priority ASC;
+```
+
+La versión peligrosa: `"WHERE user_id = " + userInput`. Si `userInput`
+es `0 OR 1=1`, la query devuelve las tareas de *todos* los usuarios.
+El parámetro `$1`/`%s` envía el dato por un canal separado — la BD no
+puede confundirlo con SQL.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Escribir SELECT con WHERE, ORDER BY, LIMIT a mano
+- [ ] Hacer INSERT/UPDATE/DELETE con `WHERE` consciente y `RETURNING`
+- [ ] Cruzar tablas con INNER/LEFT JOIN y entender las filas duplicadas
+- [ ] Armar un reporte con GROUP BY + HAVING
+- [ ] Explicar la inyección SQL y por qué los parámetros la previenen

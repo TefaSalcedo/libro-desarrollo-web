@@ -3,64 +3,263 @@ title: "12. Necesitamos que la API no se ponga lenta"
 subtitle: "Con 5 filas todo es instantáneo; con 10.000, tu query «obvia» escanea la tabla"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+En dev tu lista de tareas vuela con 5 filas. En prod hay 500.000 y tu
+query "obvia" las lee *todas* para encontrar 20. Este capítulo enseña
+las tres herramientas del backend que no se pone lento: **índices**
+(el índice del libro que estás leyendo), **`EXPLAIN`** (preguntarle a la
+BD cómo piensa ejecutar tu query) y **paginación** (nunca traer todo).
+:::
 
 ## El problema
 
-En dev todo vuela. En prod, la lista de tareas tarda segundos. Necesitamos índices, planes de ejecución y paginación.
+`SELECT * FROM tasks WHERE user_id = 42` es correcto… y lento. Sin
+índice, Postgres hace un *sequential scan*: lee la tabla entera, fila a
+fila, buscando las de `user_id = 42`. Con 10.000 filas no lo notas; con
+10 millones tu endpoint tarda segundos y cada request hace un scan —
+la API muere de éxito. Mientras tanto, en otra parte del código hay un
+loop que ejecuta una query *por cada tarea* (el famoso N+1) y nadie lo
+ve porque en dev son 5.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+El método profesional es medir, no adivinar:
+
+1. **`EXPLAIN` la query lenta** — Postgres te dice su plan: "voy a hacer
+   Seq Scan" (malo, lee todo) o "voy a hacer Index Scan" (bueno).
+2. **Crear el índice** que convierte el scan en búsqueda directa.
+3. **Verificar con `EXPLAIN` otra vez** — el plan cambió o no hiciste
+   nada.
+
+Un índice es literalmente el índice de este libro: en vez de leer todas
+las páginas buscando "índice", vas a la lista ordenada del final que
+apunta directo. Postgres mantiene esa estructura (un árbol B-tree)
+actualizada en cada INSERT/UPDATE — **por eso los índices no son
+gratis**: aceleran lecturas y encarecen escrituras.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-d">D</span> Índices: qué son, qué cuestan (no son gratis), cuándo ponerlos
-- <span class="tag tag-d">D</span> `EXPLAIN`: leer el plan de ejecución como un backend dev
-- <span class="tag tag-d">D</span> El problema N+1: lista + loop de queries — se reproduce en los tres stacks
-- <span class="tag tag-d">D</span> Paginación: `LIMIT/OFFSET` vs cursor — por qué `?page=1` no siempre escala
-- <span class="tag tag-u">U</span> `SELECT *` en endpoints de lista: traer lo necesario
+- <span class="tag tag-d">D</span> Índices: qué son, qué aceleran, qué cuestan (cada write actualiza el árbol)
+- <span class="tag tag-d">D</span> `EXPLAIN` / `EXPLAIN ANALYZE`: el plan de ejecución — Seq Scan vs Index Scan
+- <span class="tag tag-d">D</span> El problema N+1: 1 query para la lista + N queries para los detalles
+- <span class="tag tag-d">D</span> Paginación: `LIMIT/OFFSET` vs cursor — por qué `?page=500` degrada
+- <span class="tag tag-u">U</span> `SELECT *`: traer 15 columnas para usar 4 también es performance
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  Q["WHERE user_id = 42"] --> S{"¿hay índice?"}
+  S -->|no| SS["Seq Scan:<br/>lee 10.000.000 de filas<br/>descarta 9.999.980"]
+  S -->|sí| IS["Index Scan:<br/>baja por el árbol<br/>directo a las 20"]
+```
 
 ## Implementación
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+**Paso 1 — ver el crimen.** `EXPLAIN ANALYZE` ejecuta la query de verdad
+y muestra el plan con tiempos:
 
-<!-- proyecto: lista paginada, filtrada, sin N+1 -->
+```sql
+EXPLAIN ANALYZE
+SELECT * FROM tasks WHERE user_id = 42 ORDER BY created_at DESC;
 
-## ¿Por qué cada stack lo hace así?
+-- Seq Scan on tasks (cost=0.00..18334.00 rows=20)   ← reads EVERYTHING
+--   Filter: (user_id = 42)
+--   Rows Removed by Filter: 999980
+-- Execution Time: 312.411 ms
+```
 
-<!-- TODO: la lección transferible tras el tabset -->
+`Rows Removed by Filter: 999980` — leyó un millón para entregar 20.
+
+**Paso 2 — el índice que falta:**
+
+```sql
+CREATE INDEX idx_tasks_user_done_created
+  ON tasks (user_id, done, created_at DESC);
+```
+
+Índice *compuesto*: columnas en el orden del query (igualdad primero,
+orden después). Ahora:
+
+```sql
+-- Index Scan using idx_tasks_user_done_created (rows=20)
+-- Execution Time: 0.041 ms        ← 312ms → 0.04ms
+```
+
+**Paso 3 — el N+1 que nadie ve.** Este código parece inocente:
+
+```python
+tasks = list_tasks(user_id)          # 1 query — returns 20 tasks
+for t in tasks:
+    t.tags = get_tags_for_task(t.id) # 20 MORE queries — one PER task
+# total: 21 round trips to the DB for one HTTP request
+```
+
+La cura: traerlo todo en **una** query (JOIN o `IN`):
+
+```sql
+SELECT t.id, t.title, tg.name
+FROM tasks t
+LEFT JOIN task_tags tt ON tt.task_id = t.id
+LEFT JOIN tags tg ON tg.id = tt.tag_id
+WHERE t.user_id = $1 AND t.done = FALSE;
+-- 1 query → group rows in code (3 rows per task if 3 tags)
+```
+
+**Paso 4 — paginar.** `?page=1&size=20` se traduce a
+`LIMIT 20 OFFSET 0` — bien hasta que `OFFSET 10000` obliga a la BD a
+contar y descartar 10.000 filas. La alternativa que escala es el
+**cursor**: recuerdas *dónde* quedaste y sigues desde ahí:
+
+```sql
+-- page 1
+SELECT public_id, title, created_at FROM tasks
+WHERE user_id = $1 ORDER BY created_at DESC, id DESC LIMIT 20;
+
+-- page 2: continue AFTER the last row you saw (the cursor)
+SELECT public_id, title, created_at FROM tasks
+WHERE user_id = $1 AND (created_at, id) < ($2, $3)
+ORDER BY created_at DESC, id DESC LIMIT 20;
+-- the index walks DIRECTLY to row 21 — no counting, no discarding
+```
+
+La API devuelve `next_cursor` (el `created_at,id` de la última fila) y el
+cliente lo devuelve en la siguiente llamada. Así paginan las APIs reales
+(Twitter, Stripe) — nunca `?page=`.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Mi endpoint GET /tasks está lento en producción. Contexto: tabla tasks
+con 500k filas, query actual SELECT * FROM tasks WHERE user_id=$1 AND
+done=FALSE, y además hago una query por tarea para traer sus tags (N+1).
+Dame: el CREATE INDEX correcto y por qué ese orden de columnas, la
+query única con JOIN que elimina el N+1, cómo leer el EXPLAIN ANALYZE
+antes y después, y la paginación por cursor (keyset) en vez de
+OFFSET con el campo next_cursor en la respuesta. Explícame también
+qué no debo indexar.
+```
+
+:::
+
+## ¿Por qué no indexar todo entonces?
+
+**Lo único que necesitas llevarte:** un índice es una *apuesta* — pagas
+costo de escritura y espacio a cambio de lecturas rápidas. Se indexa lo
+que los WHERE/JOIN/ORDER **realmente consultan**, se mide con `EXPLAIN`,
+y se borra lo que nadie usa. Performance no es adivinar: es
+preguntarle a la BD qué hizo.
+
+::: {.callout-note collapse="true" title="Detalle: cómo decide Postgres"}
+
+El planificador estima costos con estadísticas de tus datos — por eso
+la *misma* query puede elegir Seq Scan con 50 filas (correcto: el
+índice cuesta más que leer todo) e Index Scan con 5 millones. Un Seq
+Scan en `EXPLAIN` no siempre es un bug — lo es cuando la tabla crece y
+el plan no cambia. Y sí: a veces creas el índice perfecto y Postgres lo
+ignora porque estima que devuelves "casi toda la tabla" — entonces el
+scan es honestamente más barato.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| N+1 invisible | En dev son 5 filas; el ORM lo disfraza de "código limpio" | Log de queries en dev: 1 request = N queries es la alarma |
+| Índice en orden equivocado | `(created_at, user_id)` no sirve para `WHERE user_id=` | Igualdad primero, orden después — lee tu WHERE |
+| `OFFSET 100000` en prod | "La paginación funcionaba" | Cursor/keyset para listas que crecen |
+| `SELECT *` en endpoints de lista | Traes `password_hash` y 10 columnas que no usas | Las columnas del contrato, como en cap. 5 |
+| Índices "por si acaso" | Cada INSERT/UPDATE paga todos tus índices | `pg_stat_user_indexes` muestra los que nadie usa |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Log de queries en desarrollo** — ver "1 request → 21 queries" cura
+  el N+1 antes de que nazca.
+- **`EXPLAIN ANALYZE` con datos parecidos a prod** — explicar contra 5
+  filas miente: cualquier plan se ve rápido.
+- **Crea índices en migraciones** (cap. 11) — son parte del esquema,
+  versionados como todo.
+- **`CREATE INDEX CONCURRENTLY`** en tablas grandes de prod — no bloquea
+  escrituras mientras se construye.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
-
-## Mini reto
-
-Encontrar el N+1 en un fragmento de código que parece inocente.
+1. Escribe el `EXPLAIN` para `WHERE user_id = 7 AND done = FALSE ORDER
+   BY due_date` y diseña el índice compuesto ideal.
+2. Reescribe el N+1 de "listar usuarios con su conteo de tareas
+   abiertas" en una sola query.
+3. ¿Por qué el cursor `(created_at, id)` necesita *dos* columnas y no
+   solo `created_at`?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+1. ```sql
+   EXPLAIN ANALYZE SELECT * FROM tasks
+   WHERE user_id = 7 AND done = FALSE ORDER BY due_date;
 
-**Mini reto.** <!-- TODO -->
+   CREATE INDEX idx_tasks_user_done_due
+     ON tasks (user_id, done, due_date);
+   ```
+   Igualdad (`user_id`, `done`) primero, la de orden (`due_date`) al
+   final — el índice ya sale ordenado.
+2. ```sql
+   SELECT u.id, u.email, COUNT(t.id) AS open_tasks
+   FROM users u
+   LEFT JOIN tasks t ON t.user_id = u.id AND t.done = FALSE
+   GROUP BY u.id, u.email;
+   ```
+   Una query con `LEFT JOIN`+`COUNT` en vez de "usuarios" + una query
+   de conteo por cada uno.
+3. Porque `created_at` puede repetirse (dos tareas al mismo instante) —
+   el cursor debe ser *determinista*: `(created_at, id)` es único y la
+   paginación no se traga ni repite filas.
+
+:::
+
+## Mini reto
+
+Encontrar el N+1 en este fragmento que "parece inocente":
+
+```ts
+const projects = await listProjects();            // SELECT * FROM projects
+for (const p of projects) {
+  p.owner = await getUser(p.owner_id);            // one query per project
+  p.taskCount = await countTasks(p.id);           // and another one
+  p.tags = await getTags(p.id);                   // and ANOTHER one
+}
+// 20 projects → 1 + 60 queries. In dev you never noticed.
+```
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+Son **tres** N+1 anidados: por cada proyecto hay 3 queries
+(owner, count, tags) → 1 + 20×3 = 61 round trips. La cura es una query
+con JOINs y agregación:
+
+```sql
+SELECT p.*, u.email AS owner_email,
+       COUNT(DISTINCT t.id) AS task_count,
+       array_agg(DISTINCT tg.name) AS tags
+FROM projects p
+JOIN users u ON u.id = p.owner_id
+LEFT JOIN tasks t ON t.project_id = p.id
+LEFT JOIN project_tags pt ON pt.project_id = p.id
+LEFT JOIN tags tg ON tg.id = pt.tag_id
+GROUP BY p.id, u.email;
+```
+
+Una query, un viaje — y el log de queries en dev te lo habría mostrado
+el primer día.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Leer un `EXPLAIN` y distinguir Seq Scan de Index Scan
+- [ ] Crear índices compuestos en el orden correcto de columnas
+- [ ] Detectar y curar un N+1 con JOIN o `IN`
+- [ ] Implementar paginación por cursor y explicar por qué OFFSET degrada
+- [ ] Justificar qué indexar y qué no

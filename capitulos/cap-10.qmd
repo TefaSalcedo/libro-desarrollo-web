@@ -3,81 +3,273 @@ title: "10. Necesitamos conectar el lenguaje con Postgres"
 subtitle: "Drivers, pools y por qué no abres una conexión por request"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Tu código y Postgres hablan por cable de red — el **driver** es el
+traductor, el **pool** es el grupo de conexiones reutilizables, y los
+**parámetros** son cómo envías datos sin inyección. Al final del capítulo
+Taskflow guarda tareas de verdad: reinicias el servidor y siguen ahí.
+:::
 
 ## El problema
 
-El código necesita hablar con la BD: drivers, pools de conexiones, consultas parametrizadas y el mapeo de filas a estructuras.
+Las queries del cap. 9 existen en `psql`, escritas a mano. Pero el que
+necesita ejecutarlas es tu *código* — cuando llega `GET /tasks`, alguien
+tiene que traducir `listTasks()` a `SELECT ... WHERE user_id = $1`,
+enviarla por la red, y convertir las filas que vuelven en objetos de tu
+lenguaje. Ese "alguien" es el driver — y tiene trampas que no se ven en
+el tutorial de 5 líneas.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+La pieza conceptual nueva es el **pool de conexiones**. Abrir una
+conexión a Postgres cuesta: handshake TCP, autenticación, proceso nuevo
+en el servidor (~50ms y memoria). Si cada request abriera y cerrara una,
+la mitad de tu latencia sería *conectar*. El pool mantiene N conexiones
+abiertas y las presta: `pool.query()` toma una libre, la usa, la devuelve.
+Con 10 conexiones atiendes cientos de requests — porque un request usa
+la conexión unos milisegundos.
+
+El flujo completo del capítulo:
+
+```{mermaid}
+sequenceDiagram
+  participant H as Handler
+  participant P as Pool (10 conexiones)
+  participant DB as PostgreSQL
+  H->>P: query("SELECT ... WHERE user_id=$1", [42])
+  P->>DB: toma conexión libre, envía query + params por separado
+  DB-->>P: filas
+  P-->>H: filas → Task[] (mapeo a tu estructura)
+  Note over P: la conexión vuelve al pool, no se cierra
+```
 
 ## Conceptos nuevos
 
-- <span class="tag tag-d">D</span> Qué es un driver: `pg` vs `psycopg` vs `pgx` — todos envuelven el mismo protocolo
-- <span class="tag tag-d">D</span> El pool de conexiones: por qué no abres una conexión por request
-- <span class="tag tag-d">D</span> Consultas parametrizadas en los tres drivers (`$1` / `%s`)
-- <span class="tag tag-u">U</span> Mapear filas a estructuras: objetos vs clases vs `Scan()` a structs
-- <span class="tag tag-u">U</span> Cuándo (y si) usar ORM: SQLAlchemy / Prisma / sqlc como opciones — por qué el libro enseña SQL primero
+- <span class="tag tag-d">D</span> Driver: `pg` / `psycopg` / `pgx` — todos hablan el mismo protocolo de Postgres
+- <span class="tag tag-d">D</span> Pool de conexiones: N conexiones abiertas prestadas por milisegundos — nunca una por request
+- <span class="tag tag-d">D</span> Parámetros `$1`/`%s`: el dato viaja separado del SQL (la regla del cap. 9, ahora en código)
+- <span class="tag tag-u">U</span> Mapear filas a estructuras: objeto vs clase vs `Scan()` a struct
+- <span class="tag tag-u">U</span> ORM como *opción*: Prisma / SQLAlchemy / sqlc — y por qué el libro usa driver crudo primero
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+| Capa | Pieza | Análogo |
+|---|---|---|
+| Protocolo | Postgres wire protocol | El idioma del cable (igual para todos) |
+| Driver | `pg`, `psycopg`, `pgx` | El traductor: objetos ↔ protocolo |
+| Pool | `pg.Pool`, `psycopg_pool`, `pgxpool` | La flota de taxis: los prestas, no los compras |
+| Tu código | `query(sql, params)` → structs | El que pide y recibe |
 
 ## Implementación
 
+Taskflow persiste de verdad — `listTasks` con driver crudo en los tres
+stacks. Fíjate en las tres constantes: **pool creado una vez**, **params
+separados**, **filas mapeadas a tu estructura**.
+
 ::: {.panel-tabset}
 
-### TypeScript
+### TypeScript (`pg`)
+
 ```ts
-// TODO
+// db.ts — the pool is created ONCE, at startup
+import { Pool } from "pg";
+
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 10,                       // at most 10 open connections
+});
+
+// tasks.ts — service layer uses the pool
+export async function listTasks(userId: number): Promise<Task[]> {
+  const { rows } = await pool.query(
+    `SELECT public_id, title, priority, due_date, done
+     FROM tasks WHERE user_id = $1
+     ORDER BY priority ASC`,        // $1 — parameter, never `${userId}`
+    [userId],
+  );
+  return rows;                     // pg already maps rows → objects
+}
 ```
 
-### Python
+`pg` convierte cada fila en un objeto plano — el mapeo es automático,
+pero *los nombres de columna son tu contrato* (`public_id`, no `id`).
+
+### Python (`psycopg`)
+
 ```python
-# TODO
+# db.py — pool created once at startup
+from psycopg_pool import ConnectionPool
+
+pool = ConnectionPool(
+    conninfo=os.environ["DATABASE_URL"],
+    max_size=10,
+)
+
+# tasks.py — service layer
+def list_tasks(user_id: int) -> list[Task]:
+    with pool.connection() as conn:           # borrow one
+        rows = conn.execute(
+            """SELECT public_id, title, priority, due_date, done
+               FROM tasks WHERE user_id = %s   -- %s — parameter
+               ORDER BY priority ASC""",
+            (user_id,),
+        ).fetchall()
+    return [Task(**dict(r)) for r in rows]    # rows → Task objects
 ```
 
-### Go
+`with pool.connection()` presta la conexión y la devuelve sola — el
+context manager de Python haciendo lo suyo (como `with open()`).
+
+### Go (`pgx`)
+
 ```go
-// TODO
+// db.go — pool created once at startup
+pool, err := pgxpool.New(ctx, os.Getenv("DATABASE_URL"))
+// pgxpool defaults to sensible max connections
+
+// tasks.go — service layer
+func listTasks(ctx context.Context, userID int64) ([]Task, error) {
+    rows, err := pool.Query(ctx,
+        `SELECT public_id, title, priority, due_date, done
+         FROM tasks WHERE user_id = $1
+         ORDER BY priority ASC`, userID)      // $1 — parameter
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()                        // return the connection
+    // pgx maps each row into the struct via Scan / CollectRows
+    return pgx.CollectRows(rows, pgx.RowToStructByName[Task])
+}
+```
+
+Go explicita todo: `ctx` para cancelación, `defer rows.Close()` para
+devolver la conexión, y el mapeo a `Task` hecho por `CollectRows`.
+
+:::
+
+Lo que cambió en Taskflow: `storage/tasks.ts` ya no es un array — es el
+archivo que llama al pool. **El handler no se enteró** (cap. 7 pagando
+dividendos): `listTasks(userId)` devuelve `Task[]` igual que antes; solo
+cambia *dónde* viven los datos.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Conecta mi API de tareas [Express/FastAPI/Go] a PostgreSQL con el driver
+crudo [pg / psycopg+pool / pgx]. Requisitos: pool de conexiones creado
+UNA vez al arrancar con max ~10, DATABASE_URL desde variable de entorno,
+todas las queries parametrizadas ($1/%s — nunca concatenar), la capa de
+storage con las 4 funciones del CRUD (list/create/get/delete filtrando
+por user_id), y las filas mapeadas a mis structs existentes. El handler
+debe quedar idéntico — solo cambia el storage. Explícame por qué el pool
+va en un archivo separado y qué pasa si lo creo por request.
 ```
 
 :::
 
-<!-- proyecto: Taskflow persiste de verdad con driver crudo -->
-
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** los tres drivers hacen exactamente
+lo mismo — pool, query parametrizada, filas→estructura. Cambia la
+*ceremonia* (context managers, `defer`, async/await) no el modelo.
+Aprende uno y los otros dos son un fin de semana.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: driver crudo vs ORM vs query-builder"}
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| Driver crudo | Escribes SQL tú | Más líneas, pero control total | Este libro; queries que importan; aprendizaje |
+| Query builder (Knex, Kysely, sqlc) | SQL con autocompletado | Otra capa que aprender | Equipo que quiere SQL con tipos sin magia |
+| ORM (Prisma, SQLAlchemy, GORM) | Objetos que generan SQL | La query real se esconde; N+1 silencioso (cap. 12) | CRUDs simples, equipos que ya lo dominan |
+| sqlc (Go) | Escribes SQL, genera código Go tipado | Solo en Go | El punto dulce del ecosistema Go |
+
+El orden del libro no es casual: **SQL → driver → (opcional) ORM**. Un
+ORM sobre entendimiento es atajo; sobre ignorancia, es deuda.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Pool creado por request | `new Pool()` dentro del handler → 10 conexiones nuevas por request | Pool global, creado en el arranque |
+| `f"WHERE id = {id}"` | El f-string se ve inocente | `$1`/`%s` + array de params — siempre |
+| No devolver la conexión | `rows` sin cerrar / conn sin liberar → pool agotado y app colgada | `with`/`defer`/el driver devuelve tras `await` |
+| El `Task` del código ≠ la fila | Mapeaste `id` en vez de `public_id` y expusiste el interno | SELECT nombra columnas; el struct usa `public_id` |
+| Errores de BD llegando al cliente | El stack de Postgres en el JSON de error | El error mapper del cap. 6 los traduce a 500 genérico |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Un pool, un archivo, una instancia** — `db.ts` exporta el pool;
+  nadie más crea conexiones.
+- **`max` del pool < `max_connections` de Postgres** (default 100) —
+  deja margen para `psql`, migraciones y la réplica futura.
+- **Toda query parametrizada, sin excepciones** — incluso "valores que
+  yo controlo": el día que deje de controlarlos no habrá alerta.
+- **Cierra el pool al apagar** (`pool.end()` en el shutdown del
+  servidor) — las conexiones zombie son fugas reales.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
-
-## Mini reto
-
-Detectar la diferencia entre "objeto modificado en memoria" y "fila actualizada en BD".
+1. Escribe la función `createTask(userId, title)` de tu stack con
+   `INSERT ... RETURNING` parametrizada.
+2. Explica qué pasa, paso a paso, desde `pool.query(...)` hasta que
+   vuelven las filas.
+3. Tu pool tiene `max: 10` y llegan 50 requests simultáneos que hacen
+   una query cada uno. ¿Qué ocurre?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+1. TypeScript:
+   ```ts
+   export async function createTask(userId: number, title: string) {
+     const { rows } = await pool.query(
+       `INSERT INTO tasks (user_id, title)
+        VALUES ($1, $2)
+        RETURNING public_id, title, priority, done, created_at`,
+       [userId, title],
+     );
+     return rows[0];
+   }
+   ```
+2. `pool.query` toma una conexión libre del pool (o espera si todas
+   están ocupadas) → el driver serializa query+params en el protocolo
+   de Postgres → la BD ejecuta → devuelve filas → el driver las convierte
+   a objetos → la conexión vuelve al pool → tu función retorna.
+3. Los primeros 10 toman las conexiones; los otros 40 **esperan en cola**
+   dentro del pool (no fallan) y van entrando conforme se liberan — cada
+   query dura milisegundos, así que el drenaje es rápido. Por eso 10
+   conexiones atienden cientos de usuarios.
 
-**Mini reto.** <!-- TODO -->
+:::
+
+## Mini reto
+
+Detectar la diferencia entre "objeto modificado en memoria" y "fila
+actualizada en BD" — este código compila y *parece* funcionar:
+
+```python
+task = get_task(42)          # reads the row into an object
+task.done = True             # updates... what exactly?
+return task                  # the API says "done", but...
+```
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+`task.done = True` solo cambió **el objeto en memoria** — la fila en
+Postgres sigue intacta. El siguiente request lee `done = FALSE` otra
+vez. Este es el bug fantasma de quien viene de ORMs que "sincronizan":
+con driver crudo *tú* eres la sincronización — falta el
+`UPDATE tasks SET done=TRUE WHERE id=$1`. Regla mental: **el objeto es
+una foto de la fila, no la fila** — editar la foto no edita el archivo.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Explicar qué hacen el driver y el pool, y por qué el pool es uno solo
+- [ ] Escribir CRUD con queries parametrizadas en tu stack
+- [ ] Mapear filas a estructuras sin exponer el `id` interno
+- [ ] Decidir cuándo un ORM suma y cuándo estorba

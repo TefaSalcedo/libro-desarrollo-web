@@ -3,64 +3,218 @@ title: "11. Necesitamos cambiar el esquema sin rezar"
 subtitle: "La BD de producción ya tiene datos; DROP TABLE no es una opción"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Hay que agregar `due_date` a `tasks` — pero la BD de producción ya tiene
+50.000 filas y no puedes recrearla. La respuesta de la industria:
+**migraciones** — el esquema como archivos de código versionados que se
+aplican en orden, uno por uno, y nunca se editan una vez aplicados.
+:::
 
 ## El problema
 
-Hay que agregar `tasks.due_date`. En producción ya hay filas. Necesitamos el esquema como código versionado.
+En dev borras la tabla y la recreas — total, los datos eran de prueba.
+En producción eso es un despido: la tabla tiene datos *reales* que no
+puedes perder. Necesitas **cambiar la forma sin destruir el contenido**:
+`ALTER TABLE` en vez de `DROP TABLE`. Y necesitas que ese cambio sea
+repetible — que la BD de Ana, la de CI y la de producción evolucionen
+*exactamente igual*.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+El patrón universal: cada cambio de esquema es **un archivo con
+timestamp**, guardado en el repo junto al código, que se aplica una sola
+vez y en orden:
+
+```
+migrations/
+  20240101000000_initial.up.sql      -- create users, tasks, tags, task_tags
+  20240101000000_initial.down.sql    -- how to undo it
+  20240115000000_add_due_date.up.sql -- ALTER TABLE tasks ADD due_date
+  20240115000000_add_due_date.down.sql
+```
+
+La herramienta (`golang-migrate`, `alembic`, `prisma migrate`, `goose`)
+lleva una tabla especial en la propia BD — `schema_migrations` — que
+registra *qué archivos ya se aplicaron*. Correr `migrate up` aplica solo
+los pendientes, en orden. Así las tres BDs (dev, CI, prod) convergen al
+mismo esquema sin que nadie recuerde qué corrió a mano.
+
+**El flujo profesional:** generar migración → revisarla como código (PR)
+→ CI la aplica a la BD de pruebas → deploy la aplica a producción. La
+migración viaja con el código que la necesita — mismo commit.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-d">D</span> Qué es una migración: `upgrade()`/`downgrade()`, diffs del esquema como código
-- <span class="tag tag-d">D</span> `golang-migrate` con `.sql` plano — las migraciones son de la BD, no del framework
-- <span class="tag tag-u">U</span> Migraciones en equipo: generar → revisar → aplicar en CI → aplicar en prod
-- <span class="tag tag-u">U</span> Errores clásicos: editar una migración ya aplicada, migraciones destructivas sin plan
-- <span class="tag tag-d">D</span> Caja comparativa: Alembic (autogenerate), `prisma migrate`, `goose`
+- <span class="tag tag-d">D</span> Migración: `up`/`down`, diffs del esquema como código versionado
+- <span class="tag tag-d">D</span> `golang-migrate` con `.sql` plano — las migraciones son *de la BD*, no del framework (los tres stacks las comparten)
+- <span class="tag tag-u">U</span> `schema_migrations`: la tabla que registra qué se aplicó
+- <span class="tag tag-u">U</span> Regla de oro: una migración aplicada **no se edita jamás** — se crea otra que la corrige
+- <span class="tag tag-d">D</span> Migraciones destructivas: `ALTER ... TYPE`, `DROP COLUMN` — cómo se hacen en prod sin perder datos
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  R["Repo<br/>migrations/*.sql<br/><i>versionados con el código</i>"] --> M["herramienta migrate"]
+  M --> SM["tabla schema_migrations<br/><i>¿qué ya se aplicó?</i>"]
+  SM -->|pendientes, en orden| DB[("PostgreSQL<br/>esquema evoluciona<br/>sin perder datos")]
+```
 
 ## Implementación
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+Con `golang-migrate` (la misma herramienta sirve para los tres stacks —
+lee `.sql` plano, no es de Go aunque el nombre confunda):
 
-<!-- proyecto: migración inicial + migración de evolución de Taskflow -->
+```bash
+# create a migration pair
+migrate create -ext sql -dir migrations -seq add_tasks_due_date
+# → migrations/000002_add_tasks_due_date.up.sql
+# → migrations/000002_add_tasks_due_date.down.sql
+```
 
-## ¿Por qué cada stack lo hace así?
+```sql
+-- 000002_add_tasks_due_date.up.sql
+ALTER TABLE tasks ADD COLUMN due_date TIMESTAMPTZ;
+-- additive and safe: existing rows get NULL, nothing breaks
+```
 
-<!-- TODO: la lección transferible tras el tabset -->
+```sql
+-- 000002_add_tasks_due_date.down.sql
+ALTER TABLE tasks DROP COLUMN due_date;
+```
+
+```bash
+# apply everything pending — to any environment
+migrate -path migrations -database "$DATABASE_URL" up
+migrate -path migrations -database "$DATABASE_URL" version   # where am I?
+```
+
+¿Y el cambio *peligroso*? Renombrar una columna o cambiar su tipo en una
+tabla con millones de filas no cabe en un `ALTER` directo (bloquea la
+tabla). La técnica profesional es **expand-contract**: agregar la columna
+nueva → escribir en ambas → migrar datos en lotes → borrar la vieja.
+Varias migraciones pequeñas y seguras en vez de una grande y
+bloqueante.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Quiero migraciones versionadas para mi esquema PostgreSQL con
+golang-migrate (SQL plano, independiente del lenguaje de mi app). Dame:
+la migración inicial con mis tablas (users, tasks, tags, task_tags con
+sus constraints), una segunda migración que agregue tasks.due_date, los
+archivos .down correspondientes, y los comandos para crear/aplicar/
+revertir/ver versión. Además explícame cómo haría un cambio destructivo
+(renombrar tasks.title → tasks.name) en producción sin downtime con la
+técnica expand-contract, en varias migraciones.
+```
+
+:::
+
+## ¿Por qué el esquema va en el repo?
+
+**Lo único que necesitas llevarte:** la BD es estado que el código
+*asume* — si el código dice `tasks.due_date` y la BD no la tiene, todo
+rompe. Versionar el esquema con el código significa que **commit X +
+migraciones hasta X = estado reproducible** en cualquier máquina. La BD
+deja de ser un artefacto misterioso y pasa a ser parte del proyecto.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: herramientas de migración"}
+
+| Alternativa | Cómo trabaja | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| golang-migrate (`.sql` plano) | Tú escribes SQL up/down | Escribes el SQL tú (¿y eso es malo?) | Stacks mixtos, control total — el del libro |
+| Alembic (Python) | Autogenera diff comparando modelos vs BD | El autogenerate a veces miente — hay que revisar | Proyectos Python/SQLAlchemy |
+| `prisma migrate` (TS) | Migra desde el schema.prisma | Casada con Prisma | Si ya elegiste Prisma como ORM |
+| `goose` / `dbmate` | `.sql` con pragmas en comentarios | Similar a migrate | Alternativas igual de sanas |
+
+Patrón: las herramientas *framework* migran "desde el modelo" (la BD
+adivina el diff); las de `.sql` plano te hacen escribirlo — y escribirlo
+es saber qué le pasa a tus datos.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Editar una migración ya aplicada | "Era solo un typo" → dev y prod divergen | Nueva migración que corrige — el historial es inmutable |
+| `ALTER` destructivo directo en prod | Bloquea la tabla minutos/horas | Expand-contract en pasos |
+| Migración sin `.down` | "Nunca se revierte" — hasta el día que sí | Toda migración tiene su undo (aunque sea `SELECT 1` documentado) |
+| Correr migraciones a mano en prod | "Yo lo hice" no es un proceso | Las aplica el deploy/CI, mismo comando en todos lados |
+| Código nuevo antes de migración | El handler usa `due_date` que aún no existe | Orden: migrar → deployar código |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Migración y código en el mismo PR** — la columna viaja con el
+  handler que la usa.
+- **Solo aditivas mientras puedas:** `ADD COLUMN` y `CREATE TABLE` son
+  seguras; `DROP`/`ALTER TYPE` son las que piden expand-contract.
+- **Revisa el SQL del autogenerate** — Alembic/Prisma generan SQL que
+  *casi* siempre está bien; "casi" en producción es un incidente.
+- **Practica el `down`** — aplicar y revertir en dev antes de prod.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
-
-## Mini reto
-
-Agregar una columna con default a una tabla "con millones de filas" — ¿qué consideraciones tiene?
+1. Escribe el par up/down de la migración "agregar tabla `comments`"
+   del ejercicio del cap. 8.
+2. Ordena este deploy: (a) correr migración, (b) deployar código que
+   usa la columna nueva, (c) deployar código que deja de usar la vieja.
+3. ¿Por qué `migrate` guarda `schema_migrations` en la propia BD en vez
+   de un archivo?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+1. ```sql
+   -- up
+   CREATE TABLE comments (
+     id BIGSERIAL PRIMARY KEY,
+     public_id UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+     task_id BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     body TEXT NOT NULL CHECK (char_length(body) BETWEEN 1 AND 2000),
+     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   );
+   -- down
+   DROP TABLE comments;
+   ```
+2. (a) → (b) → (c): primero la migración aditiva (la columna existe,
+   nada la usa aún — seguro), luego el código que la usa, y *en otro
+   deploy posterior* el código/migración que retira la vieja. El orden
+   evita la ventana donde el código pide columnas inexistentes.
+3. Porque el registro debe vivir *con la BD a la que describe*: si
+   fuera un archivo, cada entorno necesitaría el suyo sincronizado y
+   cualquiera podría editarlo. En la tabla, la propia BD dice "estoy en
+   la versión 7" — inambiguo y viajero (un dump la incluye).
 
-**Mini reto.** <!-- TODO -->
+:::
+
+## Mini reto
+
+Agregar una columna con `DEFAULT` a una tabla "con millones de filas" —
+¿qué consideraciones tiene en Postgres moderno?
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+Desde Postgres 11, `ADD COLUMN ... DEFAULT x` es **instantáneo** — la BD
+guarda el default como metadato y no reescribe las filas. La trampa
+histórica (versiones viejas reescribían toda la tabla: minutos de
+bloqueo) sobrevive en la memoria colectiva. Lo que *sí* sigue siendo
+caro: una columna con default *volátil* (`DEFAULT now()` evaluado por
+fila), un `NOT NULL` sin default (obliga a reescritura/validación), o un
+`ALTER TYPE` que cambia el formato de almacenamiento. Pregunta de
+entrevista disfrazada de mini reto: "¿cuánto tarda?" → depende de la
+versión y del tipo de default — por eso se prueba en staging con datos
+reales.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Explicar qué es una migración y por qué el esquema vive en el repo
+- [ ] Crear pares up/down con una herramienta de `.sql` plano
+- [ ] Aplicar y verificar versiones con `migrate`
+- [ ] Distinguir migraciones seguras (aditivas) de destructivas y planear expand-contract
+- [ ] Respetar la regla: migración aplicada = inmutable

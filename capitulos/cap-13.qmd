@@ -3,80 +3,316 @@ title: "13. Necesitamos que dos cosas pasen juntas o ninguna"
 subtitle: "Si falla el paso 2, la BD queda mentirosa"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+"Crear tarea + registrar evento + actualizar contador": tres writes que
+deben pasar **juntos o ninguno**. Si el paso 2 falla, la BD queda
+inconsistente — la tarea existe pero el evento no, el contador dice 5 y
+hay 4. La herramienta es la **transacción**: `BEGIN` abre, `COMMIT`
+confirma todo, `ROLLBACK` deshace todo. La BD promete: nunca un estado
+a medias.
+:::
 
 ## El problema
 
-"Crear tarea + registrar evento + actualizar contador": si algo falla a la mitad, la BD queda inconsistente. Necesitamos transacciones.
+Cada `INSERT`/`UPDATE` que envías al pool se confirma *al instante* —
+es el modo "autocommit". Perfecto para una query; peligroso para tres.
+Imagina "crear la tarea y descontar un crédito del usuario":
+
+```python
+insert_task(...)              # ✅ committed — the task EXISTS now
+charge_credit(user_id)        # 💥 crashes — but the task is already saved
+# the DB now lies: task created, credit never charged
+```
+
+No hay código que resuelva esto *después* — la tarea fantasma ya está
+confirmada. La única solución es que la BD entienda "estas operaciones
+son UNA".
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+ACID en una frase por letra, con dinero (la metáfora original — mover
+\$100 entre cuentas):
+
+- **Atomicidad:** todo o nada — la transacción es indivisible.
+- **Consistencia:** la BD nunca queda violando sus reglas (constraints).
+- **Aislamiento:** dos transacciones simultáneas no se ven a medias.
+- **Durabilidad:** lo confirmado sobrevive al crash — está en disco.
+
+El patrón de código es idéntico en todos los stacks: **tomar UNA
+conexión del pool** (no el pool entero — la transacción vive en una
+conexión), `BEGIN`, ejecutar todas las queries ahí, `COMMIT` si todo
+bien, `ROLLBACK` si algo falla. Y la pregunta de arquitectura que lo
+hace interesante: ¿en qué capa vive la frontera de la transacción?
+
+Respuesta: en el **servicio** (cap. 7). El handler no sabe de
+transacciones; el repositorio no decide cuándo empieza una — el
+servicio agrupa las operaciones que son *un hecho de negocio*.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-d">D</span> Transacciones y ACID, explicado con dinero
-- <span class="tag tag-d">D</span> `BEGIN`/`COMMIT`/`ROLLBACK` en cada driver — y dónde vive la frontera en una arquitectura por capas
-- <span class="tag tag-u">U</span> `try-finally` vs `defer` vs context managers: tres formas de garantizar limpieza
-- <span class="tag tag-d">D</span> Concurrencia mínima: `SELECT ... FOR UPDATE` contra doble-submit y pestañas paralelas
+- <span class="tag tag-d">D</span> Transacción y ACID, explicado con dinero
+- <span class="tag tag-d">D</span> `BEGIN`/`COMMIT`/`ROLLBACK` en cada driver — la transacción vive en *una* conexión, no en el pool
+- <span class="tag tag-u">U</span> `try/finally` vs `defer` vs context manager: tres formas de garantizar el ROLLBACK
+- <span class="tag tag-d">D</span> `SELECT ... FOR UPDATE`: bloquear la fila que vas a modificar — contra el doble-submit
+- <span class="tag tag-u">U</span> Dónde vive la frontera transaccional en una arquitectura por capas
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+sequenceDiagram
+  participant S as Service
+  participant C as Connection (1 del pool)
+  participant DB as PostgreSQL
+  S->>C: BEGIN
+  S->>C: INSERT task
+  S->>C: INSERT event
+  S->>C: UPDATE counter
+  alt todo bien
+    S->>C: COMMIT
+    C->>DB: las 3 se confirman JUNTAS
+  else algo falla
+    S->>C: ROLLBACK
+    C->>DB: las 3 desaparecen — nada pasó
+  end
+```
 
 ## Implementación
 
+"Crear tarea + registrar evento + descontar crédito" atómico en los tres
+stacks. Observa la constante: **conexión individual**, `BEGIN`…`COMMIT`,
+y el `ROLLBACK` garantizado por el mecanismo de limpieza del lenguaje.
+
 ::: {.panel-tabset}
 
-### TypeScript
+### TypeScript (`pg`)
+
 ```ts
-// TODO
+export async function createTaskWithEvent(userId: number, title: string) {
+  const client = await pool.connect();       // borrow ONE connection
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `INSERT INTO tasks (user_id, title) VALUES ($1, $2)
+       RETURNING public_id, title`,
+      [userId, title],
+    );
+    await client.query(
+      `INSERT INTO events (user_id, type, ref) VALUES ($1, 'task.created', $2)`,
+      [userId, rows[0].public_id],
+    );
+    await client.query(
+      `UPDATE users SET credits = credits - 1 WHERE id = $1`,
+      [userId],
+    );
+    await client.query("COMMIT");            // all three land together
+    return rows[0];
+  } catch (err) {
+    await client.query("ROLLBACK");          // all three vanish together
+    throw err;                               // the error mapper (cap. 6) handles it
+  } finally {
+    client.release();                        // ALWAYS return the connection
+  }
+}
 ```
 
-### Python
+### Python (`psycopg`)
+
 ```python
-# TODO
+def create_task_with_event(user_id: int, title: str) -> dict:
+    with pool.connection() as conn:          # borrow ONE connection
+        with conn.transaction():             # BEGIN...COMMIT or auto-ROLLBACK
+            row = conn.execute(
+                """INSERT INTO tasks (user_id, title) VALUES (%s, %s)
+                   RETURNING public_id, title""",
+                (user_id, title),
+            ).fetchone()
+            conn.execute(
+                """INSERT INTO events (user_id, type, ref)
+                   VALUES (%s, 'task.created', %s)""",
+                (user_id, row["public_id"]),
+            )
+            conn.execute(
+                "UPDATE users SET credits = credits - 1 WHERE id = %s",
+                (user_id,),
+            )
+        return row                           # exiting = COMMIT; exception = ROLLBACK
 ```
 
-### Go
+El `with conn.transaction()` de psycopg *es* el try/finally — si algo
+lanza excepción adentro, el ROLLBACK se ejecuta solo.
+
+### Go (`pgx`)
+
 ```go
-// TODO
+func createTaskWithEvent(ctx context.Context, userID int64, title string) (Task, error) {
+    tx, err := pool.Begin(ctx)               // BEGIN on one pooled connection
+    if err != nil {
+        return Task{}, err
+    }
+    defer tx.Rollback(ctx)                   // no-op if COMMIT succeeded
+
+    var t Task
+    err = tx.QueryRow(ctx,
+        `INSERT INTO tasks (user_id, title) VALUES ($1, $2)
+         RETURNING public_id, title`, userID, title).Scan(&t.PublicID, &t.Title)
+    if err != nil {
+        return Task{}, err
+    }
+    if _, err = tx.Exec(ctx,
+        `INSERT INTO events (user_id, type, ref) VALUES ($1, 'task.created', $2)`,
+        userID, t.PublicID); err != nil {
+        return Task{}, err
+    }
+    if _, err = tx.Exec(ctx,
+        `UPDATE users SET credits = credits - 1 WHERE id = $1`, userID); err != nil {
+        return Task{}, err
+    }
+    return t, tx.Commit(ctx)                 // all three land together
+}
+```
+
+El `defer tx.Rollback()` de Go es elegante: si `Commit` ya corrió, el
+rollback es no-op; si saliste por error, el rollback se ejecuta al
+salir — imposible olvidarlo.
+
+:::
+
+**El doble-submit:** dos clicks rápidos en "crear tarea" = dos requests
+casi simultáneos. Si ambos leen `credits = 5` antes de escribir, ambos
+descuentan → cobraste dos veces la misma operación. La cura es bloquear
+la fila mientras la transacción vive:
+
+```sql
+SELECT credits FROM users WHERE id = $1 FOR UPDATE;
+-- any other transaction touching this row WAITS until you COMMIT
+```
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Implementa una operación atómica en mi API de tareas
+[pg / psycopg / pgx]: crear tarea + insertar evento 'task.created' +
+descontar 1 crédito del usuario. Requisitos: UNA conexión del pool para
+toda la transacción (no el pool), BEGIN/COMMIT explícitos con ROLLBACK
+garantizado por el mecanismo del lenguaje (try/finally, context manager
+o defer), la frontera de la transacción en la capa de servicio, la
+conexión devuelta siempre al pool, y el bloqueo FOR UPDATE en la lectura
+de créditos para evitar el doble-submit. Explícame qué pasa si uso el
+pool directo en vez de una conexión.
 ```
 
 :::
 
-<!-- proyecto: operación multi-paso atómica -->
-
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** la semántica es idéntica — BEGIN,
+queries en *una* conexión, COMMIT/ROLLBACK. Lo que cambia es **quién te
+obliga a limpiar**: en TS tú escribes `finally`; en Python el `with` lo
+hace por contrato; en Go el `defer` lo hace imposible de olvidar. El
+lenguaje decide cuánta disciplina te regala.
+
+::: {.callout-note collapse="true" title="Detalle: por qué una conexión y no el pool"}
+
+Una transacción es un estado *de la conexión*: `BEGIN` la abre en ese
+cable concreto, y todas las queries deben ir por ese mismo cable para
+estar adentro. Si usaras `pool.query()` para cada una, cada query podría
+viajar por una conexión *distinta* — y la transacción no existiría:
+tres autocommits sueltos. Por eso el patrón es siempre "pedir prestada
+una conexión, hacer todo ahí, devolverla".
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Queries sueltas en vez de transacción | Autocommit invisible | Cualquier multi-write de negocio = `BEGIN` |
+| `pool.query` dentro de la transacción | Cada query puede tomar otra conexión | `client`/`conn`/`tx` — una sola |
+| Olvidar `client.release()` | Conexión prestada para siempre → pool vacío → app colgada | `finally`/`defer`/`with` la devuelve |
+| Transacciones largas | Una tx que espera input del usuario bloquea filas | La tx dura milisegundos: leer → decidir → tx corta |
+| ROLLBACK que traga el error | `catch` hace rollback y `return null` | Rollback y *relanza* — el mapper decide el HTTP |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **La transacción es un hecho de negocio:** si dos writes deben ser
+  verdad a la vez (o falso a la vez), van juntos — y eso lo decide el
+  servicio, no el handler.
+- **Corta y caliente:** la transacción contiene solo los writes —
+  validaciones y lecturas lentas fuera.
+- **`FOR UPDATE` solo donde haga falta:** bloquear la fila que vas a
+  modificar (créditos, stock, contadores); no todas las lecturas.
+- **El error siempre sube:** ROLLBACK silencioso + respuesta "ok" es la
+  peor mentira del backend.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
-
-## Mini reto
-
-Diseñar qué debería pasar si dos usuarios completan la misma tarea "a la vez".
+1. Escribe en tu stack la operación "completar tarea + sumar 1 punto al
+   usuario" como transacción.
+2. Explica por qué `FOR UPDATE` en la lectura de `credits` evita el
+   doble-submit.
+3. ¿Qué le pasa a la conexión si tu código lanza excepción a mitad de la
+   transacción y no usas `finally`/`with`/`defer`?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+1. Python:
+   ```python
+   def complete_task(user_id: int, task_id: int) -> None:
+       with pool.connection() as conn:
+           with conn.transaction():
+               conn.execute(
+                   "UPDATE tasks SET done = TRUE WHERE public_id = %s AND user_id = %s",
+                   (task_id, user_id),
+               )
+               conn.execute(
+                   "UPDATE users SET points = points + 1 WHERE id = %s",
+                   (user_id,),
+               )
+   ```
+2. Sin `FOR UPDATE`: dos transacciones leen `credits = 5` a la vez,
+   ambas calculan `5-1`, ambas escriben `4` — un descuento se pierde.
+   Con `FOR UPDATE`, la segunda *espera* a que la primera haga COMMIT:
+   lee el `4` ya actualizado y escribe `3`. El bloqueo convierte la
+   lectura+escritura en algo atómico.
+3. La conexión queda **prestada para siempre** con una transacción
+   abierta — el pool se vacía conexión a conexión hasta que la app se
+   cuelga esperando una libre. Por eso la devolución vive en el mecanismo
+   de limpieza garantizada del lenguaje.
 
-**Mini reto.** <!-- TODO -->
+:::
+
+## Mini reto
+
+Diseñar qué debería pasar si dos usuarios completan la misma tarea "a la
+vez" — hay requisito: solo el primero debe ganar puntos.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+Sin protección, ambos leen `done = FALSE`, ambos marcan `TRUE`, ambos
+ganan el punto. La solución no es `FOR UPDATE` sino un **UPDATE
+condicional** — la BD misma decide:
+
+```sql
+UPDATE tasks SET done = TRUE
+WHERE public_id = $1 AND done = FALSE
+RETURNING id;
+-- returns 1 row ONLY to the first transaction;
+-- the second gets 0 rows → "already completed" → no points
+```
+
+Lección: el `WHERE done = FALSE` convierte el "check then act" (que tiene
+ventana de carrera) en un solo acto atómico — el patrón se llama
+*compare-and-set* y resuelve la mitad de los problemas de concurrencia
+sin bloqueos.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Explicar ACID con el ejemplo del dinero
+- [ ] Escribir una transacción multi-write en tu stack (una conexión, ROLLBACK garantizado)
+- [ ] Ubicar la frontera transaccional en la capa de servicio
+- [ ] Usar `FOR UPDATE` y el UPDATE condicional contra el doble-submit
+- [ ] Decir qué pasa con la conexión si olvidas devolverla

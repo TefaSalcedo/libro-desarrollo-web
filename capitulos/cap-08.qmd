@@ -5,52 +5,240 @@ subtitle: "La memoria no es un plan"
 
 ![Parte 2 — PostgreSQL](../imagenes/parte-02.png)
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+El array en memoria de la Parte 1 muere cada vez que reinicias el
+servidor. Ahora Taskflow necesita una **base de datos de verdad** — y
+antes de escribir una línea de código, hay que *diseñarla*: qué tablas,
+qué columnas, qué tipos, cómo se relacionan. La mitad de este capítulo
+no es código: es pensar.
+:::
 
 ## El problema
 
-La lista en memoria muere con el proceso. Necesitamos una base de datos — y diseñarla antes de escribir código.
+`let tasks = []` funcionó perfecto… hasta que el proceso reinició y las
+200 tareas del cliente desaparecieron. La memoria RAM es volátil *por
+diseño* — es el escritorio donde trabajas, no el archivero donde guardas.
+Necesitamos algo que sobreviva: a reinicios, a crashes, a deploys.
+
+¿Por qué no un archivo JSON en disco? Porque la siguiente pregunta llega
+inmediata: ¿cómo busco "las tareas pendientes del usuario 42" sin leer
+todo el archivo? ¿Qué pasa si dos requests escriben a la vez? Eso es
+exactamente lo que una **base de datos** resuelve desde 1970: guardar
+datos estructurados, consultarlos rápido, y sobrevivir a la concurrencia.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio **diseña antes de crear**. La conversación real suena
+así: "¿qué *cosas* existen en Taskflow?" → usuarios, tareas, etiquetas.
+"¿Cómo se relacionan?" → un usuario tiene muchas tareas; una tarea puede
+tener varias etiquetas. "¿Qué no puede ser nulo?" → toda tarea tiene
+título. Esa conversación se dibuja en un **diagrama ER** (entidad-
+relación: cajas y líneas, nada más) y *después* se traduce a SQL.
+
+Elegimos **PostgreSQL** por razones concretas, no por moda: es relacional
+(los datos de Taskflow *son* relaciones — tareas de usuarios), open
+source, el estándar de facto, y sus `JSONB` te dan lo flexible cuando lo
+necesites. "MongoDB porque mi dato ya es JSON" es el atajo que revisamos
+en *Otras cimentaciones*.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-d">D</span> Qué es una base de datos relacional y por qué PostgreSQL (y no "MongoDB porque JSON")
-- <span class="tag tag-d">D</span> Entidades, atributos, tipos de columna, `NOT NULL`, defaults
-- <span class="tag tag-d">D</span> Claves primarias: `SERIAL` vs `UUID` vs id público corto — qué va en la URL
-- <span class="tag tag-d">D</span> Claves foráneas: `ON DELETE CASCADE` vs `SET NULL`
-- <span class="tag tag-d">D</span> Diagramas ER: dibujar el modelo antes de crearlo
-- <span class="tag tag-u">U</span> Capítulo agnóstico: la mitad del backend no es código
+- <span class="tag tag-d">D</span> Base de datos relacional: tablas (entidades), filas (registros), columnas (atributos) — y *relaciones* entre ellas
+- <span class="tag tag-d">D</span> Tipos de columna, `NOT NULL`, valores por defecto — la BD como *guardiana* de tus invariantes
+- <span class="tag tag-d">D</span> Clave primaria: `SERIAL` vs `UUID` — y por qué exponer el id interno en la URL es una decisión, no un default
+- <span class="tag tag-d">D</span> Clave foránea + `ON DELETE CASCADE` vs `SET NULL` — qué le pasa a los hijos cuando muere el padre
+- <span class="tag tag-d">D</span> Diagrama ER: dibujar el modelo antes de crearlo
+- <span class="tag tag-u">U</span> Capítulo agnóstico: SQL es el mismo en los tres stacks
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+El modelo de Taskflow dibujado — esto es el diagrama ER:
+
+```{mermaid}
+erDiagram
+  USERS ||--o{ TASKS : "owns"
+  TASKS }o--o{ TAGS : "labeled with"
+  USERS {
+    bigint id PK
+    text email
+    text password_hash
+    timestamptz created_at
+  }
+  TASKS {
+    bigint id PK
+    bigint user_id FK
+    text title
+    int priority
+    timestamptz due_date
+    boolean done
+    timestamptz created_at
+  }
+  TAGS {
+    bigint id PK
+    text name
+  }
+  TASK_TAGS {
+    bigint task_id FK
+    bigint tag_id FK
+  }
+```
+
+Cómo se lee: `USERS ||--o{ TASKS` = *un usuario tiene cero o muchas
+tareas*. `TASKS }o--o{ TAGS` = *muchos a muchos* — y como una tabla no
+puede tener "listas" dentro, esa relación vive en `task_tags`, la tabla
+puente. **Toda decisión del dibujo se convierte en una línea de SQL.**
 
 ## Implementación
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+El diagrama traducido a `CREATE TABLE` — SQL puro, idéntico para los
+tres stacks (los drivers del cap. 10 ejecutarán esto mismo):
 
-<!-- proyecto: diseño en papel de la BD de Taskflow (users, tasks, tags) -->
+```sql
+-- 001_initial.sql — the ER diagram as DDL
+CREATE TABLE users (
+  id            BIGSERIAL PRIMARY KEY,          -- auto-increment internal id
+  public_id     UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+  email         TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
-## ¿Por qué cada stack lo hace así?
+CREATE TABLE tasks (
+  id         BIGSERIAL PRIMARY KEY,
+  public_id  UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+  user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title      TEXT NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
+  priority   INT NOT NULL DEFAULT 3 CHECK (priority BETWEEN 1 AND 5),
+  due_date   TIMESTAMPTZ,
+  done       BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
-<!-- TODO: la lección transferible tras el tabset -->
+CREATE TABLE tags (
+  id   BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE
+);
+
+-- the many-to-many bridge: no data of its own, only pairs
+CREATE TABLE task_tags (
+  task_id BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  tag_id  BIGINT NOT NULL REFERENCES tags(id)  ON DELETE CASCADE,
+  PRIMARY KEY (task_id, tag_id)                -- the pair IS the key
+);
+```
+
+Lee esto como **invariantes escritos en piedra**: la validación del cap.
+4 protege la API; estos `NOT NULL`/`UNIQUE`/`CHECK`/`REFERENCES`
+protegen el *dato* — la última frontera, la que no puedes saltarte ni
+con un bug en el handler ni con un script manual.
+
+Tres decisiones que merecen una pausa:
+
+1. **`id` interno (`BIGSERIAL`) vs `public_id` (`UUID`).** El id interno
+   es para los JOINs (rápido, ordenado); el UUID es el que viaja en la
+   URL `/tasks/7f3a...`. Exponer `id=42` le dice al mundo "hay ~42
+   tareas" e invita a probar `id=41` — el UUID no revela ni permite
+   adivinar.
+2. **`ON DELETE CASCADE`:** borrar un usuario borra sus tareas — *elegido,
+   no default*. La alternativa `SET NULL` dejaría tareas huérfanas.
+3. **`task_tags` con PK compuesta:** el par `(task_id, tag_id)` *es* la
+   clave — no puede repetirse, y no necesita id propio.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Diseña el esquema PostgreSQL para mi app de tareas. Entidades: users,
+tasks (title, priority 1-5, due_date, done), tags (many-to-many con
+tasks). Requisitos: id interno BIGSERIAL + public_id UUID (el UUID es
+el que se expone en la API), constraints NOT NULL/UNIQUE/CHECK donde
+correspondan, FKs con ON DELETE pensado y justificado, y una tabla
+puente para la relación N:M. Dame el SQL completo más un diagrama ER
+en texto, y explícame cada decisión de diseño.
+```
+
+:::
+
+## ¿Por qué relacional y no "JSON en una base"?
+
+**Lo único que necesitas llevarte:** tus datos de Taskflow *son*
+relaciones — tareas *de* usuarios, etiquetas *de* tareas. Una base
+relacional no solo los guarda: **hace cumplir** esas relaciones
+(`REFERENCES` impide una tarea huérfana de usuario inexistente). El
+modelo documento guarda; el relacional *protege*.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: dónde viven tus datos"}
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| PostgreSQL | Relacional + JSONB | Aprender SQL y diseño | El default para casi todo producto |
+| SQLite | Relacional en un archivo | Concurrencia de escritura limitada | Apps locales, embebidas, prototipos, tests |
+| MySQL | Relacional igual de capaz | Comunidad/features distintas | Equipo que ya lo usa; hosting legacy |
+| Documento (MongoDB) | JSON flexible | Las relaciones las haces tú en código; esquema sin enforcer | Datos realmente sin forma, catálogos variables |
+| KV (Redis) | Clave→valor en memoria | No es BD principal: volátil, sin relaciones | Caché, sesiones, colas — *complemento* |
+
+La regla honesta: **empieza relacional**. El 90% de los datos de negocio
+son relacionales aunque no lo parezca, y PostgreSQL tiene `JSONB` para el
+10% rebelde.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Diseñar "sobre la marcha" | Crear tablas cuando ya hace falta el endpoint | Dibujo ER primero; SQL después |
+| Exponer `id` secuencial en URLs | Es lo que el ORM da por defecto | `public_id` UUID para lo externo |
+| `ON DELETE` por accidente | El framework eligió CASCADE sin que lo decidieras | Decidirlo por relación, escribirlo explícito |
+| Validar solo en la API | "Ya lo valida el schema de Zod/Pydantic" | Constraints en la BD — la API es *una* entrada de muchas |
+| Tablas sin `created_at` | "No lo necesito ahora" | Barato de añadir hoy, imposible de reconstruir mañana |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Dibuja el ER antes del primer `CREATE TABLE`** — cambiar una línea
+  en el dibujo cuesta segundos; cambiar una tabla con datos cuesta una
+  migración.
+- **La BD es la última guardiana:** todo lo que *siempre* debe ser
+  cierto (email único, prioridad 1–5, tarea con dueño) merece un
+  constraint, no solo validación en el handler.
+- **`id` interno para JOINs, `public_id` para el mundo** — separa la
+  identidad interna de la expuesta.
+- **Nombres consistentes:** tablas en plural y minúscula (`tasks`),
+  snake_case en columnas (`due_date`), PK llamada `id`, FK llamada
+  `tabla_id` (`user_id`). La convención evita mil decisiones pequeñas.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Dibuja (en papel o texto) el ER si Taskflow agrega **comentarios** en
+   las tareas: un usuario comenta en una tarea.
+2. Escribe el `CREATE TABLE comments` correspondiente con sus FKs y
+   decide el `ON DELETE`.
+3. ¿Por qué `task_tags` no necesita una columna `id` propia?
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+1. `USERS ||--o{ COMMENTS` y `TASKS ||--o{ COMMENTS` — un comentario
+   pertenece a un usuario y a una tarea (dos FKs).
+2. ```sql
+   CREATE TABLE comments (
+     id         BIGSERIAL PRIMARY KEY,
+     public_id  UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+     task_id    BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+     user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     body       TEXT NOT NULL CHECK (char_length(body) BETWEEN 1 AND 2000),
+     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   );
+   ```
+   CASCADE en ambos: un comentario sin tarea o sin autor no tiene
+   sentido. (Alternativa defendible: `ON DELETE SET NULL` en `user_id`
+   si quisieras conservar comentarios de usuarios borrados — entonces
+   la columna sería nullable. Lo importante es que sea *decisión*.)
+3. Porque su PK compuesta `(task_id, tag_id)` ya es única y es toda la
+   identidad que necesita: la fila *es* el vínculo. Un `id` extra sería
+   una columna sin trabajo.
+
+:::
 
 ## Mini reto
 
@@ -58,12 +246,19 @@ Decidir qué pasa con las tareas cuando se borra su usuario — y defenderlo.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
-
-**Mini reto.** <!-- TODO -->
+Con `ON DELETE CASCADE` (lo elegido): el usuario se va con sus tareas —
+correcto para datos personales (y GDPR-friendly: "borrar mi cuenta"
+borra *mis* datos). Alternativas: `SET NULL` solo si las tareas tienen
+valor histórico sin dueño (requeriría `user_id` nullable), o soft-delete
+(`deleted_at`) si la regulación exige retener. Para Taskflow, CASCADE es
+la defensiva: dato personal huérfano es peor que dato borrado.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Dibujar el ER de un dominio pequeño antes de escribir SQL
+- [ ] Escribir `CREATE TABLE` con PK, FKs, `NOT NULL`, `CHECK`, `UNIQUE`
+- [ ] Justificar `id` interno vs `public_id` expuesto
+- [ ] Elegir `ON DELETE CASCADE/SET NULL` como decisión, no default
+- [ ] Modelar una relación muchos-a-muchos con tabla puente
