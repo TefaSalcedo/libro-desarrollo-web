@@ -3,68 +3,297 @@ title: "17. Necesitamos que autenticado no signifique puede todo"
 subtitle: "Autenticación ≠ autorización"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+El cap. 16 respondió *quién eres*; falta *qué puedes tocar*. Ahora mismo
+cualquier usuario logueado puede `DELETE /tasks/{id}` de otro — autenticado
+sí, autorizado no. Este capítulo implementa **ownership** ("¿esta tarea
+es tuya?") y **roles** (viewer/editor/admin), y la decisión fina: cuándo
+responder 403 y cuándo responder 404 *a propósito*.
+:::
 
 ## El problema
 
-Cualquier usuario logueado puede borrar las tareas de otro. Necesitamos ownership, roles y las respuestas correctas.
+Autenticación y autorización se confunden porque suenan parecido — son
+dos preguntas distintas:
+
+- **Autenticación (cap. 15–16):** ¿quién eres? → 401 si no sabemos.
+- **Autorización (este cap.):** ya sé quién eres — ¿esto es tuyo? →
+  403 si sabemos y no puedes; **404 si ni siquiera debes saber que existe**.
+
+El bug clásico se llama **IDOR** (Insecure Direct Object Reference): la
+URL dice `/tasks/41`, cambias a `42`, y ves la tarea de otro. La API
+verificó *quién eres* pero nunca *de quién es eso*. En Taskflow: Ana
+abre DevTools, cambia el id, borra las tareas de Bruno. La autenticación
+funcionó perfecto — eso es lo que la hace peligrosa.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Dos niveles, en orden de lo que Taskflow necesita:
+
+1. **Ownership:** la regla `task.user_id == current_user.id`. El 90% de
+   la autorización real es esto — "solo tocas lo tuyo". Y la forma más
+   robusta no es `if task.user_id != user.id: raise 404` *después* de
+   leerla: es **que la query misma filtre por dueño** —
+   `WHERE public_id = $1 AND user_id = $2`. Si no es tuya, la query
+   devuelve cero filas: para ti, esa tarea *no existe* → 404.
+2. **Roles:** cuando recursos se *comparten* (un proyecto con
+   colaboradores), ownership no basta — se modela en la **relación**:
+   `project_members(user_id, project_id, role)` con `viewer/editor/admin`.
+   El rol no vive en el usuario (sería global: "eres admin de TODO"),
+   vive en la membresía: eres editor *de este* proyecto.
+
+Y la regla de seguridad que cuesta entender: **recursos ajenos
+responden 404, no 403.** Si devuelves 403 confirmas "existe pero no es
+tuyo" — el atacante acaba de aprender que `task/42` existe y puede
+enumerar cuántas hay. Con 404, la respuesta es idéntica a "no existe":
+no hay nada que enumerar.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-u">U</span> Ownership: "¿esta tarea es tuya?" — el nivel de permiso más común
-- <span class="tag tag-u">U</span> Roles: `admin/editor/viewer` — modelado en la relación, no en el usuario
-- <span class="tag tag-u">U</span> 401 vs 403 vs 404: por qué devolver 404 en recursos ajenos es seguridad, no un bug
-- <span class="tag tag-u">U</span> Enumeración de recursos: qué filtra un atacante cuando devuelves 403
-- <span class="tag tag-ts">TS</span> <span class="tag tag-py">Py</span> <span class="tag tag-go">Go</span> Factories de middleware/dependencies/wrappers — funciones que devuelven funciones
+- <span class="tag tag-u">U</span> Ownership: "¿esta tarea es tuya?" — filtrado en la query, no en el if
+- <span class="tag tag-u">U</span> Roles en la relación: `project_members.role` — editor *de esto*, no admin *de todo*
+- <span class="tag tag-u">U</span> 401 vs 403 vs 404: quién eres / lo sé y no puedes / no debes saber que existe
+- <span class="tag tag-u">U</span> Enumeración: qué le regala un 403 al atacante
+- <span class="tag tag-ts">TS</span> <span class="tag tag-py">Py</span> <span class="tag tag-go">Go</span> Factories: `requireRole("editor")` — funciones que devuelven middleware
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart TD
+  R["Request GET /tasks/42"] --> A{"¿token válido?<br/><i>autenticación</i>"}
+  A -->|no| E1["401"]
+  A -->|sí| O{"¿la tarea es tuya?<br/><i>autorización</i>"}
+  O -->|"no existe O no es tuya"| E4["404<br/><i>indistinguibles a propósito</i>"]
+  O -->|sí| R2{"¿rol suficiente?<br/><i>viewer no muta</i>"}
+  R2 -->|viewer intenta DELETE| E3["403<br/><i>sí la ves, no la tocas</i>"]
+  R2 -->|editor/admin| H["handler"]
+```
+
+Fíjate: 404 y 403 *no* son intercambiables — comunican cosas distintas
+a propósito.
 
 ## Implementación
+
+Taskflow agrega proyectos compartidos: `project_members` define tu rol
+*en ese proyecto*. La protección es un **factory**: `requireRole("editor")`
+devuelve el middleware/dependency que comprueba ese rol — así la misma
+lógica sirve para viewer, editor y admin.
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+// ownership — the QUERY enforces it, not an if
+export async function getTask(userId: number, publicId: string) {
+  const { rows } = await pool.query(
+    `SELECT public_id, title, done FROM tasks
+     WHERE public_id = $1 AND user_id = $2`,   // not yours → zero rows
+    [publicId, userId],
+  );
+  if (!rows[0]) throw new NotFoundError("task not found");  // 404, even if it exists
+  return rows[0];
+}
+
+// roles — a factory that returns middleware
+export function requireRole(minRole: "viewer" | "editor" | "admin") {
+  const rank = { viewer: 1, editor: 2, admin: 3 };
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const { rows } = await pool.query(
+      `SELECT role FROM project_members
+       WHERE project_id = $1 AND user_id = $2`,
+      [req.params.projectId, res.locals.user.id],
+    );
+    if (!rows[0]) throw new NotFoundError("project not found");      // not a member → 404
+    if (rank[rows[0].role] < rank[minRole])
+      throw new ForbiddenError("insufficient role");                  // member but weak → 403
+    next();
+  };
+}
+
+app.delete("/projects/:projectId/tasks/:id",
+  auth, requireRole("editor"), deleteTask);
+// viewer sees (GET needs only "viewer"), only editor+ mutates
 ```
 
 ### Python
+
 ```python
-# TODO
+# ownership — the query enforces it
+def get_task(user_id: int, public_id: str) -> Task:
+    row = conn.execute(
+        """SELECT public_id, title, done FROM tasks
+           WHERE public_id = %s AND user_id = %s""",
+        (public_id, user_id),
+    ).fetchone()
+    if not row:
+        raise NotFoundError("task not found")     # 404, even if it exists
+    return row
+
+# roles — a dependency factory
+RANK = {"viewer": 1, "editor": 2, "admin": 3}
+
+def require_role(min_role: str):
+    def dep(project_id: str, user: User = Depends(get_current_user)) -> User:
+        row = conn.execute(
+            """SELECT role FROM project_members
+               WHERE project_id = %s AND user_id = %s""",
+            (project_id, user.id),
+        ).fetchone()
+        if not row:
+            raise NotFoundError("project not found")          # not a member → 404
+        if RANK[row["role"]] < RANK[min_role]:
+            raise ForbiddenError("insufficient role")          # member but weak → 403
+        return user
+    return dep
+
+@app.delete("/projects/{project_id}/tasks/{task_id}")
+def delete_task(project_id: str, task_id: str,
+                user: User = Depends(require_role("editor"))):
+    ...
 ```
 
 ### Go
+
 ```go
-// TODO
+// ownership — the query enforces it
+func getTask(ctx context.Context, userID int64, publicID string) (Task, error) {
+    var t Task
+    err := pool.QueryRow(ctx,
+        `SELECT public_id, title, done FROM tasks
+         WHERE public_id = $1 AND user_id = $2`, publicID, userID,
+    ).Scan(&t.PublicID, &t.Title, &t.Done)
+    if errors.Is(err, pgx.ErrNoRows) {
+        return Task{}, NotFoundError{"task not found"}    // 404, even if it exists
+    }
+    return t, err
+}
+
+// roles — a function returning middleware
+var rank = map[string]int{"viewer": 1, "editor": 2, "admin": 3}
+
+func requireRole(minRole string) func(http.HandlerFunc) http.HandlerFunc {
+    return func(next http.HandlerFunc) http.HandlerFunc {
+        return func(w http.ResponseWriter, r *http.Request) {
+            user := r.Context().Value(userKey).(*User)
+            var role string
+            err := pool.QueryRow(r.Context(),
+                `SELECT role FROM project_members
+                 WHERE project_id = $1 AND user_id = $2`,
+                r.PathValue("projectId"), user.ID).Scan(&role)
+            if errors.Is(err, pgx.ErrNoRows) {
+                writeError(w, 404, "project not found")          // not a member → 404
+                return
+            }
+            if rank[role] < rank[minRole] {
+                writeError(w, 403, "insufficient role")          // member but weak → 403
+                return
+            }
+            next(w, r)
+        }
+    }
+}
+
+mux.HandleFunc("DELETE /projects/{projectId}/tasks/{id}",
+    auth(requireRole("editor")(deleteTask)))
 ```
 
 :::
 
-<!-- proyecto: proyectos compartidos con roles (viewer ve pero no muta) -->
+La pieza que merece quedarse: **`requireRole("editor")` es una función
+que devuelve una función.** En los tres dialectos la misma idea —
+parametrizas *qué* rol sin duplicar *cómo* se comprueba. Es el factory
+pattern aplicado al middleware, y la primera vez que funciones-que-
+devuelven-funciones dejan de ser un truco y se vuelven herramienta.
 
-## ¿Por qué cada stack lo hace así?
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
-<!-- TODO: la lección transferible tras el tabset -->
+```text
+Implementa autorización en mi API [Express / FastAPI / Go] sobre la auth
+del cap anterior. Requisitos: (1) ownership por query — todas las queries
+de tasks filtran WHERE user_id, lo ajeno devuelve 404 indistinguible de
+inexistente (nunca 403 en recursos ajenos); (2) roles por proyecto en
+tabla project_members(user_id, project_id, role viewer|editor|admin) con
+un factory requireRole(minRole) reutilizable; (3) viewer puede leer,
+solo editor+ muta, no-miembro ni siquiera ve el 404; (4) el 403 reservado
+para miembros con rol insuficiente. Dame el código y la tabla de qué
+status devuelve cada caso.
+```
+
+:::
+
+## ¿Por qué la autorización vive en dos sitios?
+
+**Lo único que necesitas llevarte:** hay dos fronteras — *la query* (que
+filtra por dueño, tu primera línea y la más barata) y *el middleware de
+rol* (que decide capacidades en recursos compartidos). Juntas forman la
+regla: **nunca confíes en que el cliente no mandará el id de otro** — la
+autorización es del servidor, siempre, en cada request.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: modelos de autorización"}
+
+| Modelo | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| Ownership (user_id) | "Solo lo tuyo" | Nada — una columna y un WHERE | El 90% de los casos; Taskflow hoy |
+| Roles por recurso | `members.role` | Una tabla + checks | Compartir proyectos (este cap.) |
+| Roles globales | `users.role = 'admin'` | Granularidad nula — es todo o nada | Un panel admin, pocos roles |
+| RBAC/permisos | roles → conjuntos de permisos | Tablas de permisos, matriz | Muchos roles, enterprise |
+| ABAC / policies | "puede editar SI es suyo Y está publicado" | Motor de políticas (OPA, Casbin) | Reglas complejas y combinables |
+| OAuth scopes | Permisos en el token de terceros | Delegas el modelo | APIs públicas (cap. 19) |
+
+La escalera honesta: ownership → roles por recurso → (si la empresa
+crece) RBAC/ABAC. No construyas el último escalón primero.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| IDOR: el id de la URL no se verifica | "Está autenticado, qué más" | `WHERE user_id = $2` en TODA query de recursos |
+| 403 en recursos ajenos | "No es tuyo, te aviso" → confirmas que existe | 404 — indistinguible de inexistente |
+| Rol global para permisos por recurso | `user.role = 'editor'` edita TODOS los proyectos | El rol vive en la membresía |
+| Chequeo solo en el frontend | El botón "borrar" oculto para viewers — la API sigue abierta | La UI oculta; el servidor *enforcea* |
+| `if task.user_id != user.id` después de leer | Funciona, pero leíste lo ajeno y es un `if` olvidable | La query filtra — el error es estructural, no de memoria |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Autorización en la query primero** — `WHERE user_id` es gratis y
+  estructural; los `if` posteriores son plan B.
+- **404 para lo ajeno, 403 para lo insuficiente** — aprende la
+  diferencia; es de las pocas decisiones de API que también es seguridad.
+- **Roles pequeños y legibles** (`viewer < editor < admin` con ranking)
+  antes que strings sueltos comparados a mano.
+- **Audita endpoints al crecer:** cada ruta nueva pasa por el checklist
+  "¿quién puede hacer esto?" — el mini reto formaliza el hábito.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Escribe la query de `deleteTask` con ownership por filtro (no por if).
+2. Un `viewer` comparte proyecto contigo e intenta `DELETE
+   /projects/5/tasks/9`. ¿Qué responde tu API y por qué 403 y no 404
+   aquí?
+3. Un extraño (no miembro) intenta el mismo DELETE. ¿Por qué ahora sí
+   es 404?
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+1. ```sql
+   DELETE FROM tasks WHERE public_id = $1 AND user_id = $2;
+   -- check rows affected: 0 → NotFoundError (not yours OR doesn't exist)
+   ```
+2. **403**: es miembro del proyecto — ya sabes que el proyecto existe y
+   que él pertenece; ocultar la existencia no aplica. Lo que falla es el
+   *nivel*: viewer no basta para mutar. El 403 dice "te conozco, sé que
+   ves esto, pero tu rol no alcanza".
+3. **404**: no siendo miembro, ni siquiera debe confirmar que el
+   proyecto 5 existe — para él la respuesta es idéntica a "proyecto
+   inexistente". Si devolvieras 403, acabas de confirmarle que el
+   proyecto existe: enumeración gratuita.
+
+:::
 
 ## Mini reto
 
@@ -72,12 +301,26 @@ Auditar tus endpoints: ¿cuáles dejan adivinar que un recurso existe?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+La auditoría pregunta por cada endpoint con `{id}`: *¿qué responde cuando
+el recurso existe pero no es tuyo?* Endpoints sospechosos típicos:
 
-**Mini reto.** <!-- TODO -->
+- `GET /tasks/42` → 403 "forbidden" en vez de 404 → acabas de confirmar
+  que la tarea 42 existe.
+- `POST /projects/5/join` → 403 vs 404 distinguibles → sabes qué
+  proyectos existen aunque no puedas entrar.
+- Mensajes de error distintos: "task not found" vs "not your task" —
+  diferencia de texto = diferencia de información.
+
+Regla de la auditoría: para un recurso privado, **"no existe" y "no es
+tuyo" deben producir respuestas byte a byte idénticas** — mismo status,
+mismo body. Si puedes distinguirlas, un atacante también.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Separar autenticación (401) de autorización (403/404)
+- [ ] Enforzar ownership en la query, no en el if
+- [ ] Modelar roles por recurso con tabla de membresía
+- [ ] Construir un factory `requireRole` en tu stack
+- [ ] Justificar cuándo 403 y cuándo 404 (anti-enumeración)

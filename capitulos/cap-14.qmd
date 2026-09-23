@@ -5,67 +5,277 @@ subtitle: "Texto plano nunca; cifrado tampoco. ¿Entonces qué?"
 
 ![Parte 3 — Usuarios, autenticación y permisos](../imagenes/parte-03.png)
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Taskflow va a tener usuarios — y la primera decisión de seguridad del
+libro: **las contraseñas no se guardan, se hashean**. Ni texto plano (una
+filtración = todas las claves expuestas) ni cifradas (la clave que las
+descifra también puede filtrarse). Se guarda un hash bcrypt — *lento a
+propósito* — y al hacer login se hashea lo que escribió el usuario y se
+comparan. La BD jamás conoce la contraseña real.
+:::
 
 ## El problema
 
-El sistema de usuarios empieza por la pregunta más delicada: ¿qué guardamos en la columna `password`?
+`users.password TEXT` con la contraseña dentro es una bomba de tiempo:
+las bases de datos se filtran (backups perdidos, inyección SQL, un
+empleado descontento). Cuando pase — *cuando*, no *si* — todo usuario
+queda desnudo, y como la gente **reutiliza contraseñas**, tu filtración
+abre sus cuentas en otros sitios. Tu falla se convierte en la de todos.
+
+¿Cifrarla entonces? Peor trampa: el cifrado es *reversible por diseño* —
+existe una clave que lo deshace, y esa clave vive en tu servidor. Quien
+robe la BD probablemente robe también la clave. Necesitas algo
+**irreversible**: una función que transforma `micontraseña123` en
+`$2b$10$N9qo8uLO...` de tal forma que no hay camino de regreso. Eso es
+un **hash**.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+El flujo universal (idéntico en los tres stacks):
+
+1. **Registro:** el usuario manda su contraseña → el servidor la hashea →
+   guarda el hash. La contraseña en claro existe solo durante ese request.
+2. **Login:** el usuario manda su contraseña → el servidor hashea lo
+   recibido → compara con el hash guardado → coinciden = es él.
+3. La BD almacena `password_hash` — y el contrato de salida del cap. 5
+   se asegura de que nunca salga en un JSON.
+
+¿Y qué impide que el atacante *también* hashee un diccionario de
+contraseñas comunes y compare? **El salt y el costo.** bcrypt agrega un
+salt aleatorio por usuario (dos usuarios con la misma clave tienen hashes
+distintos) y es deliberadamente *lento* (~100ms por intento): para tu
+login es imperceptible; para quien prueba mil millones de combinaciones
+es una eternidad. MD5 y SHA256 son hashes rápidos — rápidos para ti *y
+para el atacante*. Por eso no sirven para contraseñas.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-u">U</span> Hash ≠ cifrado: irreversible vs reversible — la pregunta de entrevista
-- <span class="tag tag-u">U</span> bcrypt: por qué "lento" es una característica — salt, costo, fuerza bruta
-- <span class="tag tag-ts">TS</span> `bcrypt` npm · <span class="tag tag-py">Py</span> `bcrypt` pip · <span class="tag tag-go">Go</span> `x/crypto/bcrypt` — librerías distintas, algoritmo idéntico
-- <span class="tag tag-u">U</span> Qué se guarda en la tabla y qué nunca aparece en el contrato de salida
+- <span class="tag tag-u">U</span> Hash ≠ cifrado: irreversible vs reversible — *la* pregunta de entrevista
+- <span class="tag tag-u">U</span> bcrypt: salt incorporado, factor de costo, "lento" como característica de seguridad
+- <span class="tag tag-ts">TS</span> `bcrypt` npm · <span class="tag tag-py">Py</span> `bcrypt` pip · <span class="tag tag-go">Go</span> `golang.org/x/crypto/bcrypt` — librerías distintas, algoritmo idéntico
+- <span class="tag tag-u">U</span> Qué se guarda (`password_hash`) y qué jamás aparece en el contrato de salida
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  subgraph Reg["Registro"]
+    P1["contraseña<br/><i>existe 200ms en memoria</i>"] --> H1["bcrypt<br/>+ salt aleatorio<br/>+ costo 10"] --> DB[("users.password_hash<br/><i>$2b$10$N9qo8uLO...</i>")]
+  end
+  subgraph Login["Login"]
+    P2["contraseña escrita"] --> H2["bcrypt.compare<br/>(mismo salt, mismo costo)"] --> Q{"¿coincide<br/>con el hash?"}
+    Q -->|sí| OK["login"]
+    Q -->|no| N["401 genérico:<br/>'credenciales inválidas'"]
+  end
+```
+
+El hash contiene *todo* empaquetado: `$2b$10$` dice "bcrypt, costo 10" y
+el salt va embebido — una sola columna basta.
 
 ## Implementación
 
+`POST /auth/register` real: validar (cap. 4) → hashear → persistir
+(cap. 10). La línea importante en cada stack es **una sola**.
+
 ::: {.panel-tabset}
 
-### TypeScript
+### TypeScript (`bcrypt`)
+
 ```ts
-// TODO
+import bcrypt from "bcrypt";
+
+// register — hash before persisting, the plaintext dies here
+export async function registerUser(email: string, password: string) {
+  const passwordHash = await bcrypt.hash(password, 10);  // cost factor 10
+  const { rows } = await pool.query(
+    `INSERT INTO users (email, password_hash) VALUES ($1, $2)
+     RETURNING public_id, email`,          // never RETURNING password_hash
+    [email, passwordHash],
+  );
+  return rows[0];
+}
+
+// login — compare what they typed against the stored hash
+export async function verifyUser(email: string, password: string) {
+  const { rows } = await pool.query(
+    "SELECT id, password_hash FROM users WHERE email = $1", [email],
+  );
+  const user = rows[0];
+  if (!user) return null;                                  // no user → null
+  const ok = await bcrypt.compare(password, user.password_hash);
+  return ok ? user : null;                                 // same answer either way
+}
 ```
 
-### Python
+### Python (`bcrypt`)
+
 ```python
-# TODO
+import bcrypt
+
+def register_user(email: str, password: str) -> dict:
+    password_hash = bcrypt.hashpw(
+        password.encode(), bcrypt.gensalt(rounds=10)   # salt + cost built in
+    ).decode()
+    row = conn.execute(
+        """INSERT INTO users (email, password_hash) VALUES (%s, %s)
+           RETURNING public_id, email""",              # never the hash
+        (email, password_hash),
+    ).fetchone()
+    return row
+
+def verify_user(email: str, password: str):
+    user = conn.execute(
+        "SELECT id, password_hash FROM users WHERE email = %s", (email,),
+    ).fetchone()
+    if not user:
+        return None
+    ok = bcrypt.checkpw(password.encode(), user["password_hash"].encode())
+    return user if ok else None                        # same answer either way
 ```
 
-### Go
+### Go (`x/crypto/bcrypt`)
+
 ```go
-// TODO
+func registerUser(ctx context.Context, email, password string) (User, error) {
+    hash, err := bcrypt.GenerateFromPassword([]byte(password), 10) // cost 10
+    if err != nil {
+        return User{}, err
+    }
+    var u User
+    err = pool.QueryRow(ctx,
+        `INSERT INTO users (email, password_hash) VALUES ($1, $2)
+         RETURNING public_id, email`, email, string(hash),  // never the hash
+    ).Scan(&u.PublicID, &u.Email)
+    return u, err
+}
+
+func verifyUser(ctx context.Context, email, password string) (*User, error) {
+    var u User
+    err := pool.QueryRow(ctx,
+        "SELECT id, password_hash FROM users WHERE email = $1", email,
+    ).Scan(&u.ID, &u.PasswordHash)
+    if err != nil {
+        return nil, nil                                  // no user → nil
+    }
+    if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)) != nil {
+        return nil, nil                                  // same answer either way
+    }
+    return &u, nil
+}
 ```
 
 :::
 
-<!-- proyecto: register real: validar → hashear → persistir -->
+Tres detalles que valen oro:
 
-## ¿Por qué cada stack lo hace así?
+1. **El handler solo ve éxito/fracaso.** `verifyUser` devuelve el usuario
+   o `null` — *nunca* "usuario no existe" vs "contraseña mala" por
+   separado. Esa distinción le dice al atacante qué emails están
+   registrados (enumeración de usuarios, cap. 17).
+2. **`RETURNING`/`SELECT` jamás incluye `password_hash` hacia afuera.**
+   Se lee para comparar y muere en el servicio — el `UserPublic` del
+   contrato no tiene esa columna.
+3. **Costo 10 hoy.** El factor es configurable: súbelo cuando el hardware
+   lo tolere (cada +1 duplica el trabajo). Se cronometra en el mini reto.
 
-<!-- TODO: la lección transferible tras el tabset -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Implementa registro y verificación de contraseña en mi API
+[Express / FastAPI / Go]. Requisitos: bcrypt con costo 10 (hashpw/
+GenerateFromPassword, NO sha256 ni MD5), la contraseña en claro nunca
+se guarda ni se loguea, password_hash nunca sale en ninguna respuesta
+JSON, el login devuelve el mismo error genérico para "usuario no existe"
+y "contraseña incorrecta" (sin enumeración de usuarios), y las queries
+van parametrizadas. Explícame por qué bcrypt lento es mejor que un hash
+rápido para este caso.
+```
+
+:::
+
+## ¿Por qué bcrypt y no otra cosa?
+
+**Lo único que necesitas llevarte:** guardar contraseñas = guardar
+*verificadores*, no secretos. El hash bcrypt es un verificador: sirve
+para comprobar, no para recuperar. Tu base de datos puede publicarse
+entera mañana y las contraseñas siguen protegidas por el costo de
+calcularlas una a una.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: algoritmos de hashing"}
+
+| Algoritmo | Qué es | Estado |
+|---|---|---|
+| bcrypt | El clásico probado (1999), salt+costo | Default sano — el del libro |
+| argon2 | El moderno: también resiste GPU (memoria dura) | Recomendado OWASP; librerías menos universales |
+| scrypt | Similar a argon2, memoria dura | Sólido, menos común |
+| PBKDF2 | Iteraciones de hash estándar NIST | Aceptable; para compliance |
+| MD5/SHA-256 solo | Hash rápido sin salt | **Prohibido para contraseñas** — GPUs los muelen |
+
+Si tu stack tiene argon2 maduro, es la elección 2024+. bcrypt sigue
+siendo defendible y omnipresente — lo que NO se debate es "hash lento
+con salt" vs cualquier otra cosa.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Contraseña en claro en la tabla | "Es la forma obvia" | `password_hash` bcrypt — la clave nunca persiste |
+| `sha256(password)` | "Es un hash" — sí, rápido: 10^9 intentos/segundo en GPU | bcrypt/argon2: lento *es* el punto |
+| Mismo salt para todos / sin salt | Rainbow tables lo resuelven en una query | bcrypt genera salt por usuario automáticamente |
+| Error distinto para email vs password | "Email no registrado" confirma qué emails existen | Mismo "credenciales inválidas" para ambos casos |
+| `password_hash` en el JSON del usuario | El SELECT * del cap. 9 | Columnas explícitas + contrato de salida (cap. 5) |
+| Loguear la contraseña "para debug" | El log vive para siempre y lo lee medio equipo | La contraseña no toca `console.log` jamás |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **El hash se calcula en el servicio, no en el handler** — el handler
+  traduce HTTP; la regla "nunca persistir en claro" es de negocio.
+- **Compara, no decidas:** `bcrypt.compare` maneja timing seguro — no
+  compares hashes con `===` (timing attacks son reales en teoría;
+  usar `compare` cuesta lo mismo).
+- **Costo ajustable por config**, no quemado en código — subirlo en prod
+  no debería requerir refactor.
+- **Límite de longitud razonable** (ej. 72 bytes es el máximo real de
+  bcrypt): valida `password.length <= 72` o trunca conscientemente.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Explica en una frase por qué cifrar contraseñas es *peor* que
+   hashearlas, aunque el cifrado suene más seguro.
+2. Dos usuarios eligen la misma contraseña `hunter2`. ¿Qué ven en la
+   columna `password_hash`? ¿Por qué?
+3. Escribe el `verify` de tu stack que devuelva la *misma* respuesta
+   para usuario inexistente y contraseña mala.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+1. El cifrado es reversible: existe una clave que deshace todo — y quien
+   roba tu BD probablemente roba también esa clave del servidor. El
+   hash no tiene clave que robar: la única forma de "romperlo" es
+   adivinar la contraseña original, intento a intento.
+2. Dos hashes **completamente distintos** — bcrypt genera un salt
+   aleatorio por cada `hash`/`hashpw`/`GenerateFromPassword`. Dos claves
+   iguales producen hashes irreconocibles entre sí, así que la filtración
+   no revela quiénes comparten contraseña.
+3. TypeScript:
+   ```ts
+   export async function verifyUser(email: string, password: string) {
+     const { rows } = await pool.query(
+       "SELECT id, password_hash FROM users WHERE email = $1", [email]);
+     const user = rows[0];
+     if (!user) return null;
+     const ok = await bcrypt.compare(password, user.password_hash);
+     return ok ? user : null;   // both failures return null
+   }
+   ```
+   El handler responde `401 {error: "invalid credentials"}` en ambos
+   casos — el atacante no puede distinguirlos.
+
+:::
 
 ## Mini reto
 
@@ -73,12 +283,28 @@ Cronometrar bcrypt con distintos costos y justificar la elección.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+```ts
+// time each cost factor — run once, pick deliberately
+for (const cost of [8, 10, 12, 14]) {
+  const t = Date.now();
+  await bcrypt.hash("benchmark", cost);
+  console.log(cost, Date.now() - t, "ms");
+}
+// typical: 8≈25ms  10≈80ms  12≈320ms  14≈1.3s
+```
 
-**Mini reto.** <!-- TODO -->
+La justificación: busca el costo donde **tu login siga siendo instantáneo
+para un humano (~100-300ms) pero cada intento del atacante cueste
+máximo**. Costo 10-12 es el punto dulce actual. Detalle importante: el
+costo va *embebido en el hash* (`$2b$10$...`), así que hashes viejos
+siguen verificando aunque subas el factor — y puedes rehashear en el
+próximo login exitoso del usuario.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Explicar hash vs cifrado y por qué "lento" es la característica
+- [ ] Implementar register + verify con bcrypt en tu stack
+- [ ] Mantener `password_hash` fuera de todo contrato de salida
+- [ ] Dar el mismo error para usuario inexistente y clave mala

@@ -3,82 +3,290 @@ title: "15. Necesitamos que el servidor recuerde quién eres"
 subtitle: "HTTP no tiene memoria: cada request es un extraño"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+El login funcionó — y el siguiente request llega como de un extraño:
+**HTTP no tiene memoria**. La solución es un *token*: tras el login el
+servidor emite una credencial que el cliente presenta en cada request.
+Este capítulo construye el login de Taskflow: JWT firmado viajando en
+cookie httpOnly, con access corto + refresh largo.
+:::
 
 ## El problema
 
-Tras el login, el siguiente request vuelve a ser anónimo. Necesitamos tokens, cookies y una política de expiración.
+El usuario hizo `POST /auth/login` con su email y clave — respondiste
+200. Ahora pide `GET /tasks`. ¿Quién es? El request no trae memoria del
+anterior: HTTP es *stateless* por diseño (cada petición es
+independiente — es lo que hace que escale). Algo tiene que decir "soy
+yo, el del login de hace un segundo". Dos modelos clásicos:
+
+- **Sesión con estado:** el servidor genera un id (`sess_abc123`), lo
+  guarda en una tabla `sessions`, y el cliente lo presenta como una
+  *pulsera de discoteca*. El servidor consulta la tabla cada vez.
+- **Token sin estado (JWT):** el servidor firma una credencial que dice
+  *quién eres* dentro — el cliente la lleva, el servidor solo verifica
+  la firma. No hay tabla que consultar.
+
+El trade-off real: el JWT no necesita consulta (escala gratis) pero **no
+se puede revocar** — quien lo roba lo usa hasta que expire. La sesión en
+BD se revoca con `DELETE`, pero cuesta una query por request. El cap. 18
+combina ambos; aquí entendemos el JWT primero.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+El flujo completo que construye este capítulo:
+
+```{mermaid}
+sequenceDiagram
+  participant C as Cliente
+  participant S as Servidor
+  C->>S: POST /auth/login {email, password}
+  S->>S: bcrypt.compare (cap. 14)
+  S-->>C: Set-Cookie: token=JWT; HttpOnly; Secure; SameSite
+  Note over C: el navegador guarda la cookie solo
+  C->>S: GET /tasks (cookie viaja automática)
+  S->>S: verifica firma del JWT → extrae sub=user_id
+  S-->>C: 200 {tasks: [...]}
+```
 
 ## Conceptos nuevos
 
-- <span class="tag tag-u">U</span> Sesiones con estado vs tokens sin estado: el trade-off real
-- <span class="tag tag-u">U</span> JWT por dentro: header.payload.signature — firmado, NO cifrado (el payload se lee)
-- <span class="tag tag-u">U</span> Claims: `sub`, `exp`, `iat` — qué va dentro del token y qué no
-- <span class="tag tag-u">U</span> Cookie httpOnly vs localStorage: XSS, CSRF, SameSite, Secure
-- <span class="tag tag-u">U</span> Access vs refresh: expiración corta + renovación larga
-- <span class="tag tag-ts">TS</span> `jose` · <span class="tag tag-py">Py</span> `python-jose` · <span class="tag tag-go">Go</span> `golang-jwt` — claims idénticos
+- <span class="tag tag-u">U</span> JWT por dentro: `header.payload.signature` — **firmado, NO cifrado** (cualquiera lo lee, nadie lo falsifica)
+- <span class="tag tag-u">U</span> Claims: `sub` (quién), `exp` (cuándo muere), `iat` (cuándo nació) — el payload es público
+- <span class="tag tag-u">U</span> Cookie `httpOnly` vs `localStorage`: XSS, CSRF, `SameSite`, `Secure`
+- <span class="tag tag-u">U</span> Access token corto (15min) + refresh token largo (30d): expiración corta sin re-login constante
+- <span class="tag tag-ts">TS</span> `jose` · <span class="tag tag-py">Py</span> `python-jose` · <span class="tag tag-go">Go</span> `golang-jwt` — claims idénticos en los tres
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+Un JWT real son tres segmentos base64 separados por puntos:
+
+```text
+eyJhbGciOiJIUzI1NiJ9 . eyJzdWIiOiI0MiIsImV4cCI6MTcxNzAwMDAwMH0 . SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJVadQssw5c
+└─ header ──────────┘   └─ payload (claims) ──────────────┘   └─ signature ──────────────────────┘
+ {"alg":"HS256"}         {"sub":"42","exp":...,"iat":...}        HMAC(secret, header.payload)
+```
+
+Pégalo en jwt.io y lo lees entero — **sin la clave**. La firma no oculta
+el contenido; garantiza que *nadie lo modificó*. Por eso la regla: el
+payload nunca lleva contraseñas ni datos sensibles — es una tarjeta de
+identidad legible, no un sobre sellado.
 
 ## Implementación
 
+Login que emite el JWT en cookie `httpOnly` + `GET /me` que lo verifica:
+
 ::: {.panel-tabset}
 
-### TypeScript
+### TypeScript (`jose`)
+
 ```ts
-// TODO
+import { SignJWT, jwtVerify } from "jose";
+const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+
+// login → set the cookie
+app.post("/auth/login", async (req, res) => {
+  const user = await verifyUser(req.body.email, req.body.password); // cap. 14
+  if (!user) throw new UnauthorizedError("invalid credentials");
+
+  const token = await new SignJWT({})               // payload = claims
+    .setSubject(String(user.id))                    // sub: who
+    .setIssuedAt()                                  // iat: when born
+    .setExpirationTime("15m")                       // exp: when it dies
+    .sign(secret);
+
+  res.cookie("token", token, {
+    httpOnly: true,     // JS can't read it → XSS can't steal it
+    secure: true,       // HTTPS only
+    sameSite: "lax",    // not sent cross-site → CSRF barrier
+    maxAge: 15 * 60 * 1000,
+  });
+  res.json({ user: { id: user.public_id, email: user.email } });
+});
+
+// GET /me → verify the token from the cookie
+app.get("/me", async (req, res) => {
+  const { payload } = await jwtVerify(req.cookies.token, secret);
+  res.json({ userId: payload.sub });                // sub = your identity
+});
 ```
 
-### Python
+### Python (`python-jose` + FastAPI)
+
 ```python
-# TODO
+from jose import jwt
+SECRET = os.environ["JWT_SECRET"]
+
+@app.post("/auth/login")
+def login(body: LoginIn, response: Response):
+    user = verify_user(body.email, body.password)        # cap. 14
+    if not user:
+        raise UnauthorizedError("invalid credentials")
+
+    token = jwt.encode(
+        {"sub": str(user["id"]),
+         "iat": datetime.now(timezone.utc),
+         "exp": datetime.now(timezone.utc) + timedelta(minutes=15)},
+        SECRET, algorithm="HS256",
+    )
+    response.set_cookie(
+        "token", token,
+        httponly=True, secure=True, samesite="lax",
+        max_age=15 * 60,
+    )
+    return {"user": {"id": user["public_id"], "email": user["email"]}}
+
+@app.get("/me")
+def me(request: Request):
+    payload = jwt.decode(request.cookies["token"], SECRET, algorithms=["HS256"])
+    return {"user_id": payload["sub"]}
 ```
 
-### Go
+### Go (`golang-jwt`)
+
 ```go
-// TODO
+func login(w http.ResponseWriter, r *http.Request) {
+    var in struct{ Email, Password string }
+    json.NewDecoder(r.Body).Decode(&in)
+    user, err := verifyUser(r.Context(), in.Email, in.Password) // cap. 14
+    if err != nil || user == nil {
+        writeError(w, 401, "invalid credentials")
+        return
+    }
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+        "sub": strconv.FormatInt(user.ID, 10),
+        "iat": time.Now().Unix(),
+        "exp": time.Now().Add(15 * time.Minute).Unix(),
+    })
+    signed, _ := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+
+    http.SetCookie(w, &http.Cookie{
+        Name: "token", Value: signed,
+        HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
+        MaxAge: 15 * 60, Path: "/",
+    })
+    writeJSON(w, 200, map[string]any{"user": map[string]any{
+        "id": user.PublicID, "email": user.Email,
+    }})
+}
 ```
 
 :::
 
-<!-- proyecto: login que emite JWT en cookie httpOnly + GET /me -->
+El detalle clave del diseño: **la cookie viaja sola.** Con `httpOnly`,
+el navegador la adjunta automáticamente a cada request al dominio y
+*ningún JavaScript puede leerla* — un script malicioso inyectado (XSS)
+no puede robar el token. El precio: como viaja automática, un sitio
+maligno podría hacer que tu navegador la envíe sin saberlo (CSRF) — de
+ahí `sameSite: "lax"` y el cap. 18 profundiza.
 
-## ¿Por qué cada stack lo hace así?
+**¿Y el access + refresh?** El access de 15 min muere rápido (si lo
+roban, dura poco); el refresh de 30 días solo sirve para *pedir access
+nuevos* y vive en otra cookie. El usuario no re-loguea cada 15 min, pero
+el token robado caduca rápido. El cap. 18 le suma revocación real.
 
-<!-- TODO: la lección transferible tras el tabset -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Implementa login con JWT en mi API [Express / FastAPI / Go]. Requisitos:
+token con claims sub (user id), iat, exp=15min, firmado HS256 con
+JWT_SECRET de variable de entorno, enviado en cookie httpOnly + Secure
++ SameSite=lax (NO en el body ni en localStorage), endpoint GET /me que
+verifique la cookie y devuelva el usuario. Explica: por qué httpOnly y
+no localStorage, qué puede leer un atacante del JWT, y cómo añadirías
+un refresh token de 30 días en cookie separada.
+```
+
+:::
+
+## ¿Por qué cookie y no localStorage?
+
+**Lo único que necesitas llevarte:** `localStorage` es legible por
+cualquier JS que corra en tu página — incluido el script que un XSS
+inyecte en un comentario mal sanitizado. La cookie `httpOnly` es
+invisible para JS: el XSS no puede robarla. A cambio, la cookie viaja
+sola (riesgo CSRF, mitigado con `SameSite`). Ninguna opción es gratis —
+`httpOnly` + `SameSite` + `Secure` es el balance profesional.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: dónde vive la sesión"}
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| JWT en cookie httpOnly | Stateless, firma, expira | No revocable solo; CSRF a vigilar | APIs + SPA, el default moderno |
+| Sesión en BD/Redis | id opaco, consulta por request | Una query/lookup por request | Revocación instantánea prioritaria |
+| JWT en localStorage | Simple de implementar | XSS lo roba todo | Solo para aprender — no prod |
+| Access + refresh | Dos tokens, dos vidas | Más complejidad (rotation, cap. 18) | Todo lo serio |
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| JWT en localStorage | Es lo que enseña el tutorial viejo | Cookie httpOnly |
+| Datos sensibles en el payload | "Está cifrado" — NO, está firmado | El payload es público: solo `sub`/claims inocuos |
+| `exp` de días en el access token | "Para que no re-loguee" | Access corto + refresh largo |
+| Token sin verificar firma real | Decodificar sin `verify` — te puedes inventar el payload | Siempre `jwtVerify`/`decode` con la clave |
+| `JWT_SECRET` débil en el repo | HS256 se rompe por fuerza bruta si el secreto es "1234" | Secreto aleatorio largo en env/secret manager |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Claims mínimos:** `sub`, `exp`, `iat` bastan — roles y permisos se
+  consultan frescos (cap. 17) o van en claims que cambian poco.
+- **`Secure` siempre en prod** — sin HTTPS la cookie viaja en claro.
+- **El secreto vive en el secret manager** (cap. N4), no en el repo.
+- **Logout = borrar la cookie** (`maxAge: 0`) — con JWT stateless el
+  token sigue "válido" hasta `exp`, pero sin cookie no viaja. La
+  revocación real llega en cap. 18.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
-
-## Mini reto
-
-"Robar" tu propio token desde la consola y explicar por qué httpOnly lo impide (o no).
+1. Decodifica a mano (jwt.io o `atob`) un JWT y nombra sus tres partes
+   y qué garantiza cada una.
+2. ¿Por qué `sub` guarda el `id` interno y no el `public_id`? (pista:
+   ¿quién lo lee?)
+3. Diseña las dos cookies (access + refresh): tiempos y para qué sirve
+   cada una.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+1. `header` (algoritmo), `payload` (claims: sub/exp/iat — legible por
+   cualquiera), `signature` (HMAC del contenido: garantiza integridad —
+   quien lo modifique sin el secreto produce firma inválida).
+2. El `sub` lo lee *el servidor* para buscar al usuario en la BD — el id
+   interno es la FK natural, rápida y estable. El `public_id` es para
+   URLs de la API (qué expone al mundo); dentro del token, lo interno
+   es correcto porque el token es un contrato servidor↔servidor.
+3. Access: cookie httpOnly, 15 min — la credencial de cada request.
+   Refresh: cookie httpOnly, 30 días, path `/auth/refresh` (solo viaja
+   ahí) — renueva el access sin re-login. Si el access se roba, dura
+   minutos; el refresh se rota en cada uso (cap. 18).
 
-**Mini reto.** <!-- TODO -->
+:::
+
+## Mini reto
+
+"Robar" tu propio token desde la consola del navegador y explicar por
+qué `httpOnly` lo impide (o no).
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+Abre DevTools → Console → `document.cookie`: la cookie `token` **no
+aparece** — `httpOnly` la excluye de la API de cookies de JS. Eso es el
+punto: un XSS que inyecte `<script>` no puede exfiltrarla por
+`document.cookie`. Pero honestidad: *sí* aparece en DevTools →
+Application → Cookies (tú eres el usuario legítimo mirando tu propia
+cookie) y viaja en cada request. `httpOnly` protege contra *robo por
+script*, no contra acceso físico a tu navegador. La defensa completa es
+el combo: httpOnly (anti-XSS) + SameSite (anti-CSRF) + Secure (anti-red)
++ exp corto (anti-robo).
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Explicar por qué HTTP necesita tokens (stateless)
+- [ ] Nombrar las 3 partes del JWT y qué garantiza la firma vs el cifrado
+- [ ] Emitir JWT en cookie httpOnly y verificarlo en un endpoint
+- [ ] Justificar httpOnly vs localStorage y el par access/refresh

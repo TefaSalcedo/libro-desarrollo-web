@@ -3,81 +3,258 @@ title: "18. Necesitamos que robar una sesión no sea suficiente"
 subtitle: "La cookie se filtró: ¿qué puede hacer el atacante? ¿puedes revocarla?"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+El JWT del cap. 15 tiene un agujero: **no se puede revocar** — quien lo
+robe lo usa hasta que expire, y "cerrar sesión en todos mis dispositivos"
+es imposible. Este capítulo añade la capa que falta: sesiones persistidas
+y revocables, refresh token rotation (que *detecta* el robo), rate
+limiting en login, y CORS explicado de verdad.
+:::
 
 ## El problema
 
-JWT puro no se puede revocar. Necesitamos sesiones persistidas, refresh rotation, rate limiting y CORS bien entendido.
+El JWT stateless es escalable pero ciego: el servidor verifica la firma
+y confía — sin consultar nada. Eso significa que **no hay interruptor**:
+el token robado vale hasta su `exp`, el logout no invalida nada en el
+servidor, y "cerrar todas las sesiones" (tu laptop robada) no existe como
+operación. Además el login es el endpoint más atacado del mundo: sin límite
+de intentos, la fuerza bruta prueba contraseñas a máquina.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+El diseño que la industria convergió — **híbrido**:
+
+- **Access token:** JWT stateless, vida corta (15 min). Escala gratis,
+  no se consulta nada — y si se roba, vive poco.
+- **Refresh token:** opaco (no JWT, un string aleatorio), vida larga (30
+  días), **guardado en la BD**. Sirve solo para pedir access nuevos — y
+  como vive en tabla, se puede `DELETE` = revocación real.
+- **Rotación:** cada vez que el refresh se usa, se emite uno nuevo y el
+  viejo muere. Si un token *ya usado* reaparece → alguien lo robó → se
+  invalida la sesión entera (detección, no solo expiración).
+- **Rate limiting** en `/auth/*`: 5 intentos por minuto por IP — la
+  fuerza bruta se vuelve impráctica.
+- **CORS:** el navegador pregunta "¿este origen puede llamarte?" y el
+  servidor responde con headers — no es autenticación, es política del
+  navegador.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-u">U</span> JWT stateless vs sesión en BD: un query extra a cambio de revocación real
-- <span class="tag tag-u">U</span> "Cerrar sesión en todos mis dispositivos": imposible con JWT puro
-- <span class="tag tag-u">U</span> Refresh token rotation: detectar robo cuando un token viejo se reutiliza
-- <span class="tag tag-u">U</span> Rate limiting en login: fuerza bruta y el 429 como amigo
-- <span class="tag tag-u">U</span> CORS en serio: qué pregunta el navegador y qué responde el servidor
+- <span class="tag tag-u">U</span> JWT stateless vs sesión en BD: una query a cambio de revocación real
+- <span class="tag tag-u">U</span> "Cerrar sesión en todos mis dispositivos": imposible con JWT puro, trivial con tabla de sesiones
+- <span class="tag tag-u">U</span> Refresh rotation + reuse detection: el token viejo reutilizado delata al ladrón
+- <span class="tag tag-u">U</span> Rate limiting: el 429 como amigo — fuerza bruta vuelta impráctica
+- <span class="tag tag-u">U</span> CORS en serio: `Origin` pregunta, `Access-Control-Allow-*` responde — es el navegador, no tu API
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+sequenceDiagram
+  participant C as Cliente
+  participant S as Servidor
+  participant DB as sessions table
+  Note over C,S: login → access(15m) + refresh(30d, en BD)
+  C->>S: request con access expirado
+  S-->>C: 401 expired
+  C->>S: POST /auth/refresh con refresh cookie
+  S->>DB: ¿este refresh existe y no se usó?
+  DB-->>S: válido → lo marca usado
+  S-->>C: nuevo access + nuevo refresh (rotación)
+  Note over S,DB: si el refresh YA usado reaparece<br/>→ robo detectado → DELETE sesión entera
+```
 
 ## Implementación
 
-::: {.panel-tabset}
+La tabla de sesiones y el refresh con rotación — la parte que hace
+revocable lo que el JWT no puede:
 
-### TypeScript
-```ts
-// TODO
+```sql
+CREATE TABLE sessions (
+  id           BIGSERIAL PRIMARY KEY,
+  user_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  refresh_hash TEXT NOT NULL UNIQUE,     -- hash del refresh, no el token
+  expires_at   TIMESTAMPTZ NOT NULL,
+  used_at      TIMESTAMPTZ,              -- rotación: cuándo se canjeó
+  revoked_at   TIMESTAMPTZ,              -- logout / "cerrar todas"
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 ```
 
-### Python
+¿Por qué `refresh_hash`? Misma lección del cap. 14: **los tokens también
+son secretos** — si la tabla `sessions` se filtra, los refresh en claro
+son sesiones regaladas. Se guarda el hash; lo que viaja al cliente es el
+token opaco.
+
+El refresh con rotación + detección de reuso (patrón, válido en los tres
+stacks):
+
 ```python
-# TODO
+def refresh_session(refresh_token: str):
+    row = conn.execute(
+        "SELECT * FROM sessions WHERE refresh_hash = %s",
+        (hash(refresh_token),),
+    ).fetchone()
+
+    if not row:
+        raise UnauthorizedError("invalid session")
+    if row["used_at"] or row["revoked_at"] or row["expires_at"] < now():
+        # a used/expired token came back — someone stole it
+        revoke_session_family(row["user_id"])     # kill the whole session
+        raise UnauthorizedError("session reuse detected")
+    mark_used(row["id"])                          # this refresh dies now
+    return issue_access(row["user_id"]), issue_refresh(row["user_id"])
 ```
 
-### Go
-```go
-// TODO
+Y el rate limit del login — en los tres stacks es un middleware delante
+del handler (mismo patrón del cap. 16):
+
+```text
+POST /auth/login → rate_limit(5 req/min per IP) → handler
+  6th attempt → 429 {"error": {"code": "RATE_LIMITED"}}
+  + Retry-After: 42
+```
+
+**CORS sin magia:** tu frontend corre en `localhost:5173` y tu API en
+`:8000` — orígenes distintos. El navegador manda `Origin:` y, para
+requests "no simples", primero un `OPTIONS` (el *preflight*): "¿puedo
+hacer `POST` con `Content-Type: json` desde este origen?". El servidor
+responde con headers o el navegador bloquea la respuesta **aunque el
+request llegó**:
+
+```text
+Access-Control-Allow-Origin: http://localhost:5173   ← ese origen exacto, no *
+Access-Control-Allow-Credentials: true               ← porque viajan cookies
+Access-Control-Allow-Headers: Content-Type
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE
+```
+
+Detalle crítico: `Allow-Origin: *` + `Allow-Credentials: true` es
+combinación **prohibida** por el estándar (el navegador la rechaza) —
+con cookies siempre se nombra el origen exacto. Y CORS no protege tu API
+de llamadas fuera del navegador (curl no pregunta) — protege al *usuario*
+de sitios malignos.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Implementa autenticación revocable para mi API [Express / FastAPI / Go]:
+access JWT de 15min + refresh opaco de 30d persistido en tabla sessions
+(hash del token, used_at, revoked_at, expires_at), endpoint
+POST /auth/refresh con ROTATION (cada uso emite refresh nuevo e invalida
+el viejo) y reuse detection (si un refresh usado reaparece, revoca la
+sesión entera), POST /auth/logout que revoque, "cerrar todas las sesiones"
+que revoque todas las del usuario, rate limit de 5 req/min en /auth/*,
+y config CORS para mi frontend en localhost:5173 con credentials. Dame
+el esquema de sessions, los endpoints, y explícame el flujo de rotación.
 ```
 
 :::
 
-<!-- proyecto: sesiones persistidas revocables + logout real + rate limit -->
+## ¿Por qué este híbrido y no "solo JWT" o "solo sesiones"?
 
-## ¿Por qué cada stack lo hace así?
+**Lo único que necesitas llevarte:** el access stateless hace el trabajo
+pesado (millones de requests sin tocar la BD) y el refresh persistido da
+el control (revocación real, detección de robo). JWT puro no puede
+desloguear; sesión pura paga una consulta por request. El híbrido cobra
+la consulta **una vez cada 15 minutos** — el precio justo por el botón
+"cerrar sesión en todos mis dispositivos".
 
-<!-- TODO: la lección transferible tras el tabset -->
+::: {.callout-note collapse="true" title="Otras cimentaciones: arquitecturas de sesión"}
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| JWT puro | Todo stateless | Sin revocación real | APIs internas, tokens de corta vida |
+| Sesión opaca en BD | Una query por request | El lookup siempre | Apps donde el control manda |
+| Access+refresh híbrido | Stateless + tabla para refresh | La complejidad de este capítulo | El default de apps serias |
+| Refresh en Redis | Lookup más barato que Postgres | Otra pieza de infra | Sesiones calientes a escala |
+| Todo tercero (Auth0, Clerk, Supabase Auth) | Ellos lo operan | Costo + lock-in + tu user table queda afuera | MVP donde auth no es tu diferencial |
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Refresh en claro en la BD | "Es solo un token" — es *la* sesión | `refresh_hash`, como las contraseñas |
+| Refresh JWT stateless también | Recién reinventaste el problema | Refresh opaco persistido — eso es lo que se revoca |
+| Sin rotación | El refresh robado vale 30 días | Rotación + reuse detection |
+| `Allow-Origin: *` con cookies | Funciona en el tutorial | Inválido con credentials; nombra el origen |
+| Rate limit solo en login | `/refresh` y `/register` también se abusan | Todo `/auth/*` limitado |
+| CORS "arreglado" con `*` y silencio | No entendiste que es política del navegador | Entender qué pregunta el preflight |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Refresh opaco, aleatorio, hasheado, rotable** — las cuatro
+  propiedades que hacen sesión seria.
+- **Reuse detection = alarma gratis:** un refresh usado que reaparece es
+  un robo; revoca la familia y marca el evento en logs.
+- **Rate limit por IP *y* por cuenta** — el botnet tiene mil IPs pero la
+  cuenta objetivo es una.
+- **`Retry-After` en el 429** — el cliente bien portado espera lo que le
+  dices.
+- **CORS con lista explícita de orígenes** — localhost:5173 en dev, tu
+  dominio en prod, nunca `*` con cookies.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
-
-## Mini reto
-
-Listar los endpoints donde un 429 debería existir en cualquier API seria.
+1. Diseña el flujo de "cerrar sesión en todos mis dispositivos" con la
+   tabla `sessions`.
+2. Explica por qué la rotación detecta el robo — qué ven el ladrón y la
+   víctima cuando ambos usan el mismo refresh.
+3. ¿Por qué CORS no te protege de curl/Postman/scripts? ¿A quién protege?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+1. `UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND
+   revoked_at IS NULL` — todos los refresh del usuario mueren; los
+   access siguen vivos hasta su `exp` (~15 min, el precio del híbrido).
+   El usuario re-loguea en su dispositivo actual tras confirmar
+   contraseña (operación sensible = re-auth).
+2. El ladrón usa el refresh robado → recibe uno nuevo y el viejo queda
+   `used_at`. La víctima intenta usar el suyo (el mismo viejo, si fue
+   robado a ella — o el ladrón reusa uno): quien sea segundo dispara
+   "token ya usado" → se revoca la sesión entera → ambos quedan fuera y
+   hay que re-loguear. El robo queda *detectado*, no solo expirado.
+3. CORS lo enforcea el *navegador*: curl y scripts de servidor no hacen
+   preflight ni respetan los headers — ven la respuesta igual. CORS
+   protege al **usuario con navegador** de un sitio maligno que haría
+   requests con *sus* cookies; no es una frontera de la API sino una
+   política del navegador. Por eso la seguridad real es
+   SameSite+httpOnly+rate limit; CORS es el candado de la vitrina.
 
-**Mini reto.** <!-- TODO -->
+:::
+
+## Mini reto
+
+Listar los endpoints donde un 429 debería existir en cualquier API
+seria.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+Los que cuestan recursos o revelan información por repetición:
+
+- `POST /auth/login` — fuerza bruta de contraseñas (5/min por IP + por
+  email).
+- `POST /auth/register` — creación masiva de cuentas.
+- `POST /auth/refresh` — adivinación de tokens.
+- `POST /auth/forgot-password` — spam de emails + enumeración de
+  usuarios registrados.
+- `POST /auth/verify` / códigos OTP — fuerza bruta de códigos de 6
+  dígitos (aquí el límite debe ser *muy* bajo: ~5 por código).
+- Endpoints caros: exportaciones, reportes, búsquedas pesadas —
+  cuestan CPU/dinero por llamada.
+
+Patrón: limita donde **cada intento cuesta algo tuyo** (CPU, email,
+dinero) o **revela algo** (¿existe este email? ¿es válido este código?).
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Explicar por qué JWT puro no se revoca y el híbrido cómo lo arregla
+- [ ] Diseñar la tabla de sesiones con hash, rotación y revocación
+- [ ] Implementar reuse detection como alarma de robo
+- [ ] Poner rate limiting donde importa y explicar el 429
+- [ ] Responder un preflight CORS correctamente y explicar a quién protege

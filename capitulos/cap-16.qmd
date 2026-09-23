@@ -3,82 +3,290 @@ title: "16. Necesitamos saber quién eres en cada request"
 subtitle: "¿Copiar la verificación del JWT en 20 endpoints? No."
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Veinte endpoints protegidos no pueden llevar veinte copias de "verifica
+el token". El patrón que lo resuelve es **middleware**: una función que
+se ejecuta *antes* de tu handler, resuelve quién eres, y te entrega el
+usuario listo — o corta el request con un 401. En este capítulo
+`get_current_user` nace y protege Taskflow sin duplicar una línea.
+:::
 
 ## El problema
 
-Veinte endpoints protegidos. La verificación de auth no se copia: se inyecta. El patrón middleware en tres dialectos.
+Cada endpoint privado necesita lo mismo: leer la cookie, verificar la
+firma, extraer `sub`, buscar el usuario, responder 401 si algo falla.
+Copiarlo es más que feo — es **inconsistente**: el endpoint donde olvides
+pegarlo queda público, y el día que cambie la verificación hay que tocar
+20 archivos. La verificación de auth es un *cross-cutting concern*: una
+capa que atraviesa todo, no parte de ningún handler.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+El patrón universal: la lógica compartida se **envuelve alrededor** del
+handler, no dentro. Cada stack tiene su dialecto:
+
+- **Express:** `app.use(auth)` — función que recibe `next()` y decide si
+  la cadena continúa.
+- **FastAPI:** `Depends(get_current_user)` — declaras la dependencia en
+  la firma; el framework la resuelve y *inyecta* el resultado.
+- **Go:** `auth(handler)` — una función que devuelve un handler envuelto:
+  composición explícita, sin magia.
+
+Y la pregunta gemela: una vez verificado, **¿dónde vive el usuario** para
+que el handler lo use sin otra query? Cada stack tiene su canal:
+`res.locals` (Express), el retorno del `Depends` (FastAPI), el
+`context.Context` del request (Go).
 
 ## Conceptos nuevos
 
-- <span class="tag tag-u">U</span> El patrón middleware/pipeline: ejecutar antes del handler
-- <span class="tag tag-ts">TS</span> `app.use(authMiddleware)` — función que envuelve la siguiente
-- <span class="tag tag-py">Py</span> `Depends(get_current_user)` — inyección de dependencias declarativa
-- <span class="tag tag-go">Go</span> `middleware(handler)` — composición explícita, sin magia
-- <span class="tag tag-u">U</span> Propagar el usuario: `res.locals` vs DI vs `context.Context` — ¿dónde pongo el user?
-- <span class="tag tag-u">U</span> Orden de ejecución: el diagrama del pipeline completo
+- <span class="tag tag-u">U</span> El patrón middleware/pipeline: código que corre *antes* del handler y decide si este existe
+- <span class="tag tag-ts">TS</span> `app.use(auth)` — la función que envuelve la siguiente
+- <span class="tag tag-py">Py</span> `Depends(...)` — inyección declarativa: pides el usuario en la firma
+- <span class="tag tag-go">Go</span> `middleware(handler)` — composición: handler que devuelve handler
+- <span class="tag tag-u">U</span> Propagar el usuario: `res.locals` vs retorno de DI vs `context.Context`
+- <span class="tag tag-u">U</span> El orden del pipeline: auth antes del handler, logging antes de todo
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+El pipeline completo de un request protegido:
+
+```{mermaid}
+flowchart LR
+  R["Request<br/>GET /tasks"] --> M1["logging<br/><i>registra</i>"] --> M2["auth<br/><i>verifica JWT,<br/>busca user</i>"]
+  M2 -->|válido| H["handler<br/><i>ya sabe quién eres</i>"]
+  M2 -->|inválido| E["401 — el handler<br/>NUNCA se ejecuta"]
+  H --> Res["Response 200"]
+```
+
+El middleware es una *aduana*: el handler detrás puede asumir "quien
+llegó aquí ya mostró su identificación".
 
 ## Implementación
 
+El mismo patrón en tres dialectos — verifica el token, carga el usuario,
+lo entrega al handler:
+
 ::: {.panel-tabset}
 
-### TypeScript
+### TypeScript (`app.use` + `res.locals`)
+
 ```ts
-// TODO
+// auth.middleware.ts — the customs officer
+export async function auth(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { payload } = await jwtVerify(req.cookies.token, secret);
+    const user = await getUserById(Number(payload.sub));
+    if (!user) throw new Error("no user");
+    res.locals.user = user;          // where the user lives for this request
+    next();                          // proceed to the handler
+  } catch {
+    throw new UnauthorizedError("invalid or expired token");  // 401, handler skipped
+  }
+}
+
+// routes.ts — one word protects the whole group
+app.use("/tasks", auth);
+app.get("/tasks", async (req, res) => {
+  const user = res.locals.user;      // already verified, already loaded
+  res.json(await listTasks(user.id));
+});
 ```
 
-### Python
+`res.locals` es el bolsillo del request: vive lo que el middleware
+dejó. El handler nunca toca el JWT — solo pregunta "¿quién soy?".
+
+### Python (`Depends`)
+
 ```python
-# TODO
+# deps.py — the dependency FastAPI resolves for you
+def get_current_user(request: Request) -> User:
+    token = request.cookies.get("token")
+    try:
+        payload = jwt.decode(token, SECRET, algorithms=["HS256"])
+        user = get_user_by_id(int(payload["sub"]))
+    except Exception:
+        raise UnauthorizedError("invalid or expired token")
+    if not user:
+        raise UnauthorizedError("invalid or expired token")
+    return user                          # whatever you return gets INJECTED
+
+# routes.py — asking for it in the signature IS the protection
+@app.get("/tasks")
+def list_tasks(user: User = Depends(get_current_user)):
+    return list_tasks_service(user.id)   # user already verified + loaded
 ```
 
-### Go
+Esto es **inyección de dependencias**: `Depends(get_current_user)` dice
+"para ejecutar este handler, primero corre esa función y dame su
+resultado". FastAPI la llama; si lanza `UnauthorizedError`, el handler
+ni se ejecuta. La protección está en la *firma* — imposible olvidarla.
+
+### Go (`middleware(handler)` — composición)
+
 ```go
-// TODO
+// auth.go — a function that wraps a handler
+func auth(next http.HandlerFunc) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        cookie, err := r.Cookie("token")
+        if err != nil {
+            writeError(w, 401, "invalid or expired token")
+            return                       // handler never runs
+        }
+        claims := jwt.MapClaims{}
+        _, err = jwt.ParseWithClaims(cookie.Value, claims,
+            func(t *jwt.Token) (any, error) { return []byte(os.Getenv("JWT_SECRET")), nil })
+        if err != nil {
+            writeError(w, 401, "invalid or expired token")
+            return
+        }
+        sub, _ := strconv.ParseInt(claims["sub"].(string), 10, 64)
+        user, err := getUserByID(r.Context(), sub)
+        if err != nil || user == nil {
+            writeError(w, 401, "invalid or expired token")
+            return
+        }
+        ctx := context.WithValue(r.Context(), userKey, user)  // user travels in ctx
+        next(w, r.WithContext(ctx))      // proceed to the handler
+    }
+}
+
+// routes.go — wrap it, one word
+mux.HandleFunc("GET /tasks", auth(listTasks))
+
+func listTasks(w http.ResponseWriter, r *http.Request) {
+    user := r.Context().Value(userKey).(*User)   // already verified
+    writeJSON(w, 200, mustListTasks(r.Context(), user.ID))
+}
+```
+
+Go no tiene `app.use` ni `Depends` — tiene funciones que devuelven
+funciones. `auth(listTasks)` *es* el handler: uno que hace aduana y
+delega. Todo explícito — nada se esconde.
+
+:::
+
+El patrón en una línea: **la verificación vive en un solo lugar, y
+proteger un endpoint nuevo cuesta una palabra** (`Depends`, `app.use`,
+`auth(...)`). Cap. 17 le da argumentos — middlewares con parámetros.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Implementa el middleware de autenticación para mi API
+[Express / FastAPI / Go]. Requisitos: verifica el JWT de la cookie
+'token' (firma HS256 con JWT_SECRET de env), carga el usuario completo
+desde la BD por su sub, lo propaga al handler por el mecanismo idiomático
+(res.locals / Depends / context.Context), y responde 401 genérico sin
+ejecutar el handler si falla. Debe proteger un grupo de rutas con UNA
+línea (app.use / Depends / wrapper). Explícame el orden del pipeline y
+dónde pondrías logging y rate-limit relativos a auth.
 ```
 
 :::
 
-<!-- proyecto: get_current_user + protección sin duplicar -->
-
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** los tres resuelven el mismo problema
+— "código antes del handler con usuario resuelto" — con el mecanismo que
+su lenguaje hace natural: Express encadena funciones, FastAPI declara
+dependencias, Go compone handlers. Si entiendes el patrón, cada dialecto
+se aprende en una tarde; si solo memorizas el dialecto, cada framework
+parece magia nueva.
+
+::: {.callout-note collapse="true" title="Detalle: el orden del pipeline importa"}
+
+```text
+request → logging → CORS → rate-limit → auth → handler
+```
+
+- `logging` primero: quieres registrar *todo*, incluso los 401.
+- `rate-limit` antes de `auth`: no gastes `bcrypt.compare`/JWT verify en
+  requests que vas a rechazar de todas formas (cap. 18).
+- `auth` justo antes del handler protegido: lo público (`/health`,
+  `/auth/login`) queda fuera.
+- Los errores de cualquier capa caen al mapper del cap. 6.
+
+En Express el orden es literal (el orden de `app.use`); en FastAPI es el
+orden de los `Depends`/middlewares; en Go es cómo anidas los wrappers:
+`logging(cors(rateLimit(auth(handler))))` — se lee de afuera hacia adentro.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Verificación copiada por endpoint | "Solo era un endpoint más" | Un middleware; el olvido cuesta un endpoint público |
+| Auth que consulta la BD... por cada request... en endpoints que no la necesitan | El middleware carga el user aunque el handler no lo use | OK si es barato; si no, resuelve `sub` en middleware y carga el user en el servicio que lo necesita |
+| Middleware registrado DESPUÉS de las rutas | Orden del pipeline al revés | `app.use(auth)` antes de las rutas protegidas |
+| El user viaja en variable global | `let currentUser = ...` → requests concurrentes se mezclan | `res.locals`/`Depends`/`ctx` — por request, nunca global |
+| Rutas públicas detrás del auth | `/health` pidiendo JWT | Agrupa: público primero, `use(auth)` solo en el grupo privado |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **El middleware resuelve identidad, el handler decide permisos** —
+  separa autenticación (quién eres, cap. 16) de autorización (qué puedes,
+  cap. 17).
+- **El usuario propagado es el *mínimo* necesario:** id + lo que el
+  handler consulta siempre — no la fila entera si no hace falta.
+- **401 temprano:** falla rápido, antes de tocar la BD si la firma ya es
+  inválida.
+- **Nombra la dependencia por lo que devuelve** (`get_current_user`),
+  no por lo que hace (`check_token`) — el handler que la pide se lee
+  solo.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
-
-## Mini reto
-
-Proteger un endpoint nuevo en una sola línea — y entender por qué funciona.
+1. Dibuja el pipeline de `POST /tasks` en tu stack, marcando dónde se
+   puede cortar con 401.
+2. Escribe la línea exacta que protege `GET /projects` en tu stack.
+3. ¿Por qué `currentUser` en variable global es un bug de concurrencia?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+1. `POST /tasks` → logging → rate-limit → **auth** (aquí muere con 401
+   si el token falta/expira) → validación del body (422) → handler →
+   servicio → BD.
+2. TS: `app.get("/projects", auth, listProjects)` (o `app.use("/projects",
+   auth)` para todo el grupo). Py: `def list_projects(user: User =
+   Depends(get_current_user))`. Go: `mux.HandleFunc("GET /projects",
+   auth(listProjects))`.
+3. Porque el servidor atiende muchos requests *a la vez*: mientras la
+   request de Ana está en el handler, la de Bruno sobreescribe
+   `currentUser` — y Ana ejecuta acciones como Bruno. El usuario es
+   estado *del request*: vive en `res.locals`, el retorno del `Depends`
+   o el `context.Context`, que son por-request por diseño.
 
-**Mini reto.** <!-- TODO -->
+:::
+
+## Mini reto
+
+Proteger un endpoint nuevo en una sola línea — y entender por qué
+funciona.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+Go:
+```go
+mux.HandleFunc("DELETE /tasks/{id}", auth(deleteTask))
+```
+
+Funciona porque `auth` es una función que *devuelve un handler*: el
+handler resultante hace la aduana primero y, solo si pasa, llama a
+`deleteTask`. La línea parece declarativa ("este endpoint requiere auth")
+pero es composición real de funciones — `auth(deleteTask)` *es* un
+`http.HandlerFunc` válido. La misma línea en FastAPI es el
+`Depends(get_current_user)` en la firma; en Express, poner `auth` entre
+la ruta y el handler. Una palabra, toda la protección.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Explicar el patrón middleware y por qué auth no se copia
+- [ ] Implementar la verificación como middleware/dependency/wrapper en tu stack
+- [ ] Propagar el usuario por `res.locals` / `Depends` / `context.Context`
+- [ ] Ordenar el pipeline: logging, CORS, rate-limit, auth, handler
+- [ ] Proteger rutas públicas y privadas sin que se contaminen
