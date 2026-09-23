@@ -47,6 +47,14 @@ La tabla de tres columnas con todos los conceptos del libro clasificados — aho
 
 Agregar a la tabla un concepto que el libro no cubrió (ej. caché) y clasificarlo.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

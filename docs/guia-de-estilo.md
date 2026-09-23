@@ -22,7 +22,8 @@ Todo capítulo sigue estas 11 secciones (en este orden):
 8. `## Buenas prácticas`
 9. `## Ejercicio` — guiado, sobre el proyecto
 10. `## Mini reto` — abierto, de razonamiento
-11. `## Lo que deberías saber hacer ahora` — checklist
+11. Soluciones — callout colapsable (ver abajo)
+12. `## Lo que deberías saber hacer ahora` — checklist
 
 Capítulos agnósticos (datos, seguridad, ops) pueden omitir el tabset y la
 sección 6 si no aplica — pero el patrón "problema primero" nunca se omite.
@@ -74,6 +75,28 @@ Se escriben como spans con clase CSS (ver `styles.css`):
 <span class="tag tag-d">D</span> bases de datos
 <span class="tag tag-ops">Ops</span> infra/operación
 ```
+
+## Ejemplos por sección
+
+Regla: **cada sección lleva al menos un elemento concreto** — snippet,
+llamada `curl`, respuesta HTTP de ejemplo, escenario numerado o tabla.
+Las secciones narrativas (problema, equipo, errores, prácticas) no se
+quedan en abstracto: un ejemplo corto que aterrice la idea.
+
+## Soluciones
+
+Ejercicios y mini retos siempre tienen solución, en un callout colapsable
+después de "Mini reto" y antes del checklist:
+
+````markdown
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** ...solución — tabset ×3 si es de código...
+
+**Mini reto.** ...respuesta modelo...
+
+:::
+````
 
 ## Diagramas
 

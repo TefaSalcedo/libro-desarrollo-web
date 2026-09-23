@@ -52,6 +52,14 @@ subtitle: "Si depende de la memoria, fallará"
 
 Hacer fallar el build a propósito con un test roto y ver el gate funcionar.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

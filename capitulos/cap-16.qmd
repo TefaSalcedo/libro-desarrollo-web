@@ -71,6 +71,14 @@ Veinte endpoints protegidos. La verificación de auth no se copia: se inyecta. E
 
 Proteger un endpoint nuevo en una sola línea — y entender por qué funciona.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

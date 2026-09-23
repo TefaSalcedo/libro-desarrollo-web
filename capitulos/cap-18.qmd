@@ -70,6 +70,14 @@ JWT puro no se puede revocar. Necesitamos sesiones persistidas, refresh rotation
 
 Listar los endpoints donde un 429 debería existir en cualquier API seria.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

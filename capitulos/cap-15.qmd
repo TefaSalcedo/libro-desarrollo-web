@@ -71,6 +71,14 @@ Tras el login, el siguiente request vuelve a ser anónimo. Necesitamos tokens, c
 
 "Robar" tu propio token desde la consola y explicar por qué httpOnly lo impide (o no).
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

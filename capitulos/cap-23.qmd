@@ -72,6 +72,14 @@ En producción no hay consola que mirar. Necesitamos logging estructurado y requ
 
 Dado un log "500 a las 3:14", reconstruir qué pasó usando el request ID.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

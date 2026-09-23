@@ -28,6 +28,14 @@ Un equipo maduro decide tres cosas sobre los errores:
    { "error": { "code": "TASK_NOT_FOUND", "message": "Task 99 does not exist" } }
    ```
 
+   Y esto es lo que **nunca** debe ver el cliente — pero sí tu log:
+
+   ```text
+   Cliente ve:    500 { "error": { "code": "INTERNAL", "message": "unexpected error" } }
+   Log guarda:    Traceback … line 42, in get_task … sqlite3.OperationalError:
+                  database is locked  (request_id=req_8f3a)
+   ```
+
 2. **La frontera**: los errores de negocio ("la tarea no existe") viajan
    como valores normales hasta la capa de transporte, que los convierte en
    HTTP. El servicio no sabe de status codes; el router no sabe de negocio.
@@ -228,6 +236,29 @@ Simula un error *inesperado* en plena creación de tarea (por ejemplo, la
 ve el stack trace y que el log del servidor sí lo tiene. Bonus: ¿cómo harías
 que el error devuelva un `request_id` que el usuario pueda reportar? (El
 Cap. 23 lo implementa de verdad.)
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 1.** `NotFoundError` con `code` y `message` + mapper: TS en el
+error middleware (`err instanceof NotFoundError → 404`), Py en
+`@app.exception_handler`, Go con `errors.Is(err, ErrTaskNotFound) →
+writeError(w, 404, …)`.
+
+**Ejercicio 2.** `ConflictError` mapea a 409 igual que NotFound a 404 —
+misma frontera, otra entrada del mapper. La regla de negocio ("no borrar
+con subtareas") vive en el servicio, no en el handler.
+
+**Ejercicio 3.** Provocar el 500 (p. ej. `raise RuntimeError("boom")` en
+el servicio): el cliente recibe solo `{"error":{"code":"INTERNAL",…}}` y el
+log muestra el stack completo — eso es lo correcto.
+
+**Mini reto.** El `request_id` se genera en un middleware al inicio del
+request (UUID corto), se guarda en el contexto (`res.locals` /
+`context.Context` / request state), se incluye en TODOS los logs del
+request y se devuelve en el body del error. El usuario reporta "me dio
+INTERNAL req_8f3a" y tú buscas ese id en los logs — Cap. 23 lo implementa.
+
+:::
 
 ## Lo que deberías saber hacer ahora
 

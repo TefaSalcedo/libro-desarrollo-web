@@ -47,6 +47,14 @@ La plantilla reusable: dónde vive cada capa en Node/TS, Python y Go.
 
 Arrancar un proyecto nuevo desde cero usando solo el árbol como guía.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

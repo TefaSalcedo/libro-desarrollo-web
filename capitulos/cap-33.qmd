@@ -71,6 +71,14 @@ Producción exige otra cosa: workers, reverse proxy, HTTPS y health checks de ve
 
 Explicar el camino completo de un request desde el navegador hasta tu handler en prod.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

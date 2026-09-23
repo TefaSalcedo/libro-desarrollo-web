@@ -56,6 +56,14 @@ La lista en memoria muere con el proceso. Necesitamos una base de datos — y di
 
 Decidir qué pasa con las tareas cuando se borra su usuario — y defenderlo.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

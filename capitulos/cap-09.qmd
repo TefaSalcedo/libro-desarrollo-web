@@ -53,6 +53,14 @@ Antes de que cualquier ORM traduzca por nosotros, necesitamos escribir las queri
 
 Escribir la query "tareas pendientes por usuario, ordenadas por prioridad".
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

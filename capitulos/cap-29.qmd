@@ -69,6 +69,14 @@ Mocks y fakes en la frontera correcta: testear que llamaste bien, no la librerí
 
 El test de "servicio externo caído → la API responde bien igual".
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

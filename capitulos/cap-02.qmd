@@ -26,6 +26,15 @@ Un equipo real exige tres cosas antes de escribir la primera línea de lógica:
 3. **Un solo comando para arrancar**: si el README dice "paso 1, paso 2…
    paso 9", ya perdiste.
 
+Ejemplo de lo que un equipo espera encontrar en el README:
+
+```bash
+git clone … && cd taskflow
+pip install -r requirements.txt   # o: npm install / go mod download
+uvicorn app.main:app --reload     # o: npm run dev / go run .
+# → GET http://localhost:8000/health responde {"status":"ok"}
+```
+
 Nuestro proyecto — **Taskflow** — nace aquí: la API de tareas que acompañará
 todo el libro. Empezamos por su esqueleto de entorno, no por sus endpoints.
 
@@ -207,6 +216,22 @@ Sin mirar documentación: explica qué información lleva un lockfile que el
 manifiesto no tiene, y por qué un equipo *exige* commitearlo. Pista: ¿qué
 pasa si Express publica mañana una versión con un bug y tu compañero instala
 después que tú?
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** La estructura queda como los árboles de la sección
+Implementación; el `.gitignore` mínimo por stack: `node_modules/` (TS),
+`.venv/` + `__pycache__/` (Py), binario compilado (Go). Los tres comandos
+del README: instalar deps → arrancar en watch mode → `curl
+localhost:8000/health`.
+
+**Mini reto.** El manifiesto dice "quiero Express ^4" — un *rango*; el
+lockfile registra la *versión exacta resuelta* (4.19.2) y la de cada
+dependencia transitiva, con hashes. Sin lockfile, tu compañero instala
+mañana la 4.19.3 con el bug y "en mi máquina funcionaba" — con lockfile,
+`npm ci`/`pip install -r`/`go mod download` instalan bit a bit lo mismo.
+
+:::
 
 ## Lo que deberías saber hacer ahora
 

@@ -70,6 +70,14 @@ Tests de integración reales: BD de test, transacción con rollback por test, y 
 
 Demostrar con un test que el doble-submit devuelve 409 tras éxito.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

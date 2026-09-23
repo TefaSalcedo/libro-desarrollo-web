@@ -69,6 +69,14 @@ La imagen de desarrollo no es la de producción: multi-stage, config en runtime,
 
 Auditar la imagen contra un checklist de producción.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

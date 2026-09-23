@@ -30,6 +30,26 @@ La regla profesional es simple y brutal:
 
 > **Nada que venga del cliente se usa sin pasar por validación.**
 
+Ejemplo del objetivo: que este request
+
+```bash
+curl -X POST /tasks -d '{"title": "", "priority": 9}'
+```
+
+muera *antes* del handler con algo así:
+
+```json
+422 {
+  "error": {
+    "code": "VALIDATION",
+    "fields": {
+      "title": "String should have at least 1 character",
+      "priority": "Input should be less than or equal to 5"
+    }
+  }
+}
+```
+
 Y la forma moderna de hacerlo es *declarativa*: en vez de veinte `if`
 sueltos en el handler, describes **la forma válida** una sola vez — un
 schema — y dejas que una capa anterior rechace lo que no cumple. El handler
@@ -227,6 +247,28 @@ Haz que un email malformado **nunca** llegue al handler de un futuro
 `POST /users` — en tu lenguaje. Pregunta extra: ¿aceptarías `"a@b"` como
 email válido? Investiga qué decide cada librería y por qué la validación de
 emails es más tramposa de lo que parece.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 1.** El schema `TaskCreate` con `Field(min_length=1,
+max_length=200)` / `z.string().min(1).max(200)` / `validate:"required,max=200"`
+rechaza los tres casos con 422 — el handler no se ejecuta.
+
+**Ejercicio 2** (`TaskUpdate`, "al menos un campo"): en Pydantic,
+`model_validator(mode="after")` que falle si todos los campos son `None`;
+en Zod, `.refine(obj => Object.values(obj).some(v => v !== undefined))`;
+en Go, chequeo manual tras `Decode`. Mismo concepto: la regla "al menos
+uno" no cabe en un tipo — es un validador cruzado.
+
+**Mini reto.** Email como campo validado: `z.string().email()` /
+`EmailStr` (Pydantic, requiere `email-validator`) / `validate:"email"`.
+Sobre `"a@b"`: Zod y Pydantic lo rechazan (exigen dominio con punto),
+validator de Go lo acepta por defecto — la RFC 5322 permite dominios sin
+punto. Lección: "email válido" es una decisión de negocio, no solo de
+formato — muchos equipos validan formato básico y confirman con un email
+de verificación (Cap. 14).
+
+:::
 
 ## Lo que deberías saber hacer ahora
 

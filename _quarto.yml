@@ -15,8 +15,9 @@ book:
   repo-url: ""
   chapters:
     - index.qmd
-    - part: "Parte 0 — El cambio de mentalidad"
+    - part: "Parte 0 — Fundamentos y cambio de mentalidad"
       chapters:
+        - capitulos/cap-00.qmd
         - capitulos/cap-01.qmd
     - part: "Parte 1 — Proyecto 1: Taskflow en memoria"
       chapters:

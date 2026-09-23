@@ -53,6 +53,14 @@ En dev todo vuela. En prod, la lista de tareas tarda segundos. Necesitamos índi
 
 Encontrar el N+1 en un fragmento de código que parece inocente.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

@@ -54,6 +54,14 @@ Proyecto final: workspace colaborativo por equipos. Del requerimiento al modelo,
 
 Presentar el diseño como si fuera un RFC de equipo — y defender cada decisión.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

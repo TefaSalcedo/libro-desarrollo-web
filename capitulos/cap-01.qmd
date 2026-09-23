@@ -37,6 +37,17 @@ conversación nunca empieza en el código. Empieza en el **contrato**:
 - ¿Qué responde si el body está mal? `400`/`422` con un error estructurado
 - ¿Quién puede llamarlo? ¿Cualquiera o solo usuarios autenticados?
 
+Ejemplo de contrato terminado — esto es lo que el equipo acuerda *antes*
+de codear:
+
+```text
+POST /api/tasks
+Body:    { "title": "Deploy to prod", "priority": 2 }
+Éxito:   201 { "id": 7, "title": "Deploy to prod", "done": false }
+Error:   422 { "error": { "code": "VALIDATION",
+                          "fields": { "title": "required" } } }
+```
+
 Ese contrato es lo único que el frontend conoce de ti. Es también lo que te
 permite reescribir tu backend en otro lenguaje sin que el frontend se entere —
 o que otro equipo escriba el frontend sin hablar contigo. **El contrato es el
@@ -205,6 +216,22 @@ que ya conozcas desde el frontend: qué envía el navegador, qué verifica el
 servidor, qué devuelve (cookie, token), qué pasa con ese token en el siguiente
 request. Si hay etapas que no puedes dibujar, acabas de encontrar qué
 capítulos necesitas más.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** `GET /health` responde `{"status":"ok"}`; `GET /version`
+responde `{"version":"0.1.0"}`. Al repetirlo en otro lenguaje, lo idéntico
+es el contrato (ruta, verbo, status, JSON); lo distinto es solo la sintaxis
+para declarar el handler — esa es la tesis del libro.
+
+**Mini reto.** Respuesta modelo: `POST /login` → el body lleva
+`{email, password}` → el servidor busca el usuario, verifica el hash del
+password (Cap. 14) → genera un JWT (Cap. 15) → lo devuelve en una cookie
+httpOnly → el navegador la adjunta sola en el siguiente request → un
+middleware/dependency la valida antes del handler (Cap. 16). Si te faltaron
+etapas 3–6, es exactamente la Parte 3 del libro.
+
+:::
 
 ## Lo que deberías saber hacer ahora
 

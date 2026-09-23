@@ -248,6 +248,20 @@ func main() {
 
 :::
 
+Así se prueba cualquiera de los tres — misma llamada, mismo resultado:
+
+```bash
+curl -i -X POST http://localhost:8000/tasks \
+  -H "Content-Type: application/json" -d '{"title":"ship v1"}'
+
+# HTTP/1.1 201 Created
+# {"id":1,"title":"ship v1","done":false}
+
+curl -i http://localhost:8000/tasks/99
+# HTTP/1.1 404 Not Found
+# {"error":"task not found"}
+```
+
 ## ¿Por qué cada stack lo hace así?
 
 - **Express** es "Imperativo minimalista": tú parseas el body
@@ -299,6 +313,36 @@ verbos, los status codes. Eso es el protocolo HTTP — el lenguaje solo cambia
 Diseña las rutas de una API de "likes" sobre tareas: un usuario puede dar
 like a una tarea, quitarlo, y ver quiénes dieron like. Sin verbos en la URL
 y sin ambigüedad — escribe la tabla antes de pensar en código.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 2** (PATCH). Solo se acepta `done`:
+
+```python
+@app.patch("/tasks/{task_id}")
+def update_task(task_id: int, payload: TaskUpdate):
+    task = find_or_404(task_id)
+    if payload.done is not None:
+        task.done = payload.done
+    return task
+# TaskUpdate = BaseModel con done: bool | None = None
+```
+
+**Ejercicio 3** (filtro): `GET /tasks?done=true` →
+`[t for t in tasks if t.done == done]` cuando el query param está presente.
+
+**Mini reto.** Tabla modelo:
+
+| Verbo + ruta | Significado | Éxito |
+|---|---|---|
+| `PUT /tasks/{id}/like` | dar like (idempotente: repetir no duplica) | `204` |
+| `DELETE /tasks/{id}/like` | quitar like | `204` |
+| `GET /tasks/{id}/likes` | quiénes dieron like | `200` + lista |
+
+La decisión clave: `PUT` en vez de `POST` para dar like — como un usuario
+solo puede dar like una vez, la operación es idempotente y `PUT` lo expresa.
+
+:::
 
 ## Lo que deberías saber hacer ahora
 

@@ -53,6 +53,14 @@ Repaso del mapa completo, la tabla Python/FastAPI/universal final, y cuándo ele
 
 Elegir un backend open-source real y mapear sus capas contra la arquitectura del libro.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

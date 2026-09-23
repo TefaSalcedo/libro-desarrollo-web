@@ -52,6 +52,14 @@ Deploys sin downtime, migraciones compatibles hacia atrás y la diferencia entre
 
 Planear "dividir name en first_name/last_name" sin downtime.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

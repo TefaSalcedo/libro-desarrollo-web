@@ -70,6 +70,14 @@ El código necesita hablar con la BD: drivers, pools de conexiones, consultas pa
 
 Detectar la diferencia entre "objeto modificado en memoria" y "fila actualizada en BD".
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

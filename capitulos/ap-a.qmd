@@ -50,6 +50,14 @@ Solo lo que el libro usó: tipos, módulos, errores, clases/structs, concurrenci
 
 Traducir una función del proyecto a los otros dos lenguajes sin mirar la solución.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

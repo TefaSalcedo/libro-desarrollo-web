@@ -52,6 +52,14 @@ subtitle: "El entorno completo en un archivo"
 
 Un compañero clona el repo y levanta todo con un solo comando.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

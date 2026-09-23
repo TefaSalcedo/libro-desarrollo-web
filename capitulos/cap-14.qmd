@@ -71,6 +71,14 @@ El sistema de usuarios empieza por la pregunta más delicada: ¿qué guardamos e
 
 Cronometrar bcrypt con distintos costos y justificar la elección.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

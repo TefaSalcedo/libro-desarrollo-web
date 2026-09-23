@@ -68,6 +68,14 @@ flowchart LR
 
 <!-- Abierto, de razonamiento -->
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- solución — tabset ×3 si es de código -->
+
+**Mini reto.** <!-- respuesta modelo -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] …

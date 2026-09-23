@@ -69,6 +69,14 @@ Hardcodear `localhost:5432` no escala. Necesitamos variables de entorno, 12-fact
 
 Quitar todos los valores hardcodeados de Taskflow y arrancar en un entorno limpio.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

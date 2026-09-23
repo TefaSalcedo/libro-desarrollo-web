@@ -35,6 +35,22 @@ El equipo define explícitamente **qué campos son públicos** — el
 servicio devuelva el objeto interno completo (con campos privados), la capa
 de salida actúa como aduana: solo sale lo declarado.
 
+Ejemplo concreto de la frontera — mismo objeto interno, dos salidas:
+
+```jsonc
+// Objeto interno (nunca sale)
+{ "id": 7, "title": "deploy", "done": false,
+  "owner_id": 3, "internal_notes": "rev 2 del plan",
+  "deleted_at": null, "created_at": "2026-09-22T10:00:00Z" }
+
+// GET /tasks/7  → TaskPublic (detalle)
+{ "id": 7, "title": "deploy", "done": false,
+  "created_at": "2026-09-22T10:00:00Z" }
+
+// GET /tasks    → TaskSummary (lista)
+{ "id": 7, "title": "deploy", "done": false }
+```
+
 Hay una consecuencia arquitectónica importante: llegamos a **tres formas
 distintas del mismo concepto**:
 
@@ -227,6 +243,25 @@ Devuelve la misma tarea en dos formas según *quién pregunta*: el owner ve
 `internal_notes`, los demás no. ¿Dónde debería vivir esa decisión — en el
 serializador o antes? Diseña la solución; la implementamos en el capítulo
 de autorización.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 1.** `TaskPublic` con `id, title, done, created_at` filtra los
+tres campos internos — `GET /tasks/7` responde solo lo público.
+
+**Ejercicio 2.** Dos contratos: `TaskSummary {id, title, done}` para
+`GET /tasks` y `TaskPublic` completo para `GET /tasks/{id}`. La razón de
+diseño: la lista viaja miles de veces y se pinta en tarjetas — traer campos
+de detalle es peso muerto y exposición innecesaria.
+
+**Mini reto.** La decisión "quién pregunta" es *autorización*, no
+serialización: vive en el servicio/handler (con el usuario del request ya
+resuelto — Cap. 16–17), que elige el contrato `TaskOwnerView` vs
+`TaskPublic`. El serializador solo filtra; **decidir qué forma corresponde
+a cada quién es lógica de negocio**. Si la decisión viviera en el
+serializador, éste tendría que conocer auth — capas invertidas.
+
+:::
 
 ## Lo que deberías saber hacer ahora
 

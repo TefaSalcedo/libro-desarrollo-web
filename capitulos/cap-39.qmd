@@ -52,6 +52,14 @@ Auditoría completa de Nexus: seguridad, configuración, errores, logs, performa
 
 Pasar la checklist del apéndice F a Nexus y documentar cada hallazgo.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

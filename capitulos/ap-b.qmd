@@ -47,6 +47,14 @@ Cheatsheet agnóstico: CRUD, JOINs, agregaciones, índices, `EXPLAIN`.
 
 Reescribir de memoria las 5 queries más usadas de Taskflow.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

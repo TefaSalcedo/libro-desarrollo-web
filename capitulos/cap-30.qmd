@@ -71,6 +71,14 @@ El nuevo dev tarda dos días en arrancar el proyecto. Necesitamos empaquetar la 
 
 Reducir el tamaño de la imagen a la mitad explicando cada decisión (spoiler: Go gana).
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

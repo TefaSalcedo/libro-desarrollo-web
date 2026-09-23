@@ -1,0 +1,407 @@
+---
+title: "0. Fundamentos: lo que ya casi sabes"
+subtitle: "El piso mínimo para leer todo este libro — y salir sabiendo backend"
+---
+
+Este capítulo es el único "teórico" del libro. Su trabajo es simple: que
+nada de lo que viene después te pille desprevenido. Si vienes de JavaScript,
+**ya sabes el 80%** — aquí solo traducimos lo que sabes y rellenamos los
+huecos que un frontend nunca necesitó.
+
+Al final hay un checklist: si puedes marcarlo todo, puedes leer el libro
+entero sin frenarte.
+
+## 0.1 La terminal: tu otro navegador
+
+En backend, la terminal es donde vive tu aplicación — no hay DevTools que
+te salve. Cinco cosas que usarás todos los días:
+
+```bash
+cd mi-proyecto          # entrar a una carpeta
+ls                      # ver qué hay (en Windows: dir)
+curl http://localhost:8000/health      # llamar una API sin frontend
+curl -X POST http://localhost:8000/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title": "learn backend"}'      # POST con JSON body
+export DEBUG=true       # variable de entorno (Windows PowerShell: $env:DEBUG="true")
+```
+
+`curl` es tu `fetch` de terminal: verás en el libro que casi todo endpoint
+se prueba primero con curl — si funciona ahí, funcionará en tu React.
+
+## 0.2 HTTP en quince minutos
+
+Ya usas HTTP desde `fetch`, pero ahora **tú eres quien responde**. Un
+request tiene cuatro piezas:
+
+```text
+POST /tasks?urgent=true HTTP/1.1     ← método + ruta + query
+Host: api.ejemplo.com                ┐
+Content-Type: application/json       ├─ headers (metadatos)
+Authorization: Bearer eyJhbGc…       ┘
+
+{"title": "deploy", "priority": 2}   ← body (opcional)
+```
+
+Y una response, tres:
+
+```text
+HTTP/1.1 201 Created                 ← status code
+Content-Type: application/json       ← headers
+
+{"id": 7, "title": "deploy", "done": false}   ← body
+```
+
+**Los métodos son semántica**, no decoración:
+
+| Método | Promesa | Ejemplo |
+|---|---|---|
+| `GET` | Solo leo, nunca modifico | `GET /tasks` |
+| `POST` | Creo o ejecuto algo | `POST /tasks` |
+| `PUT` | Reemplazo el recurso entero | `PUT /tasks/7` |
+| `PATCH` | Modifico parte | `PATCH /tasks/7` |
+| `DELETE` | Elimino | `DELETE /tasks/7` |
+
+**Los status codes son familias**: `2xx` salió bien, `4xx` culpa del
+cliente (mal body, sin permiso, no existe), `5xx` culpa del servidor (tu
+bug). Un backend profesional elige el código *a propósito* — es parte del
+contrato, no un detalle.
+
+## 0.3 JSON: el idioma común
+
+JSON es un formato de texto para datos — hijo de JavaScript, adoptado por
+todos los lenguajes:
+
+```json
+{
+  "id": 7,
+  "title": "deploy",
+  "done": false,
+  "tags": ["ops", "release"],
+  "owner": { "id": 3, "name": "Ana" },
+  "due": null
+}
+```
+
+Tipos: `string`, `number`, `boolean`, `null`, array `[]`, objeto `{}`.
+No hay funciones, ni `undefined`, ni fechas — una fecha viaja como string
+ISO `"2026-10-01"` y cada lado la interpreta.
+
+En backend, *serializar* es convertir tu objeto interno a JSON para la
+respuesta; *parsear* es convertir el JSON del request a tu objeto. Harás
+ambas cosas cientos de veces en este libro.
+
+## 0.4 Clases y objetos: por qué importan aquí
+
+Si usaste clases en JS/TS, esto es repaso con traducción. Si no, la idea es
+simple: una **clase** es un molde que agrupa *datos* (atributos) y
+*comportamiento* (métodos); un **objeto** es una instancia creada desde ese
+molde.
+
+¿Por qué le importa esto a un backend? Porque tres piezas centrales se
+expresan como clases:
+
+- **Schemas/modelos**: `class TaskCreate` define la forma válida del body
+- **Modelos de datos**: `class Task` mapea a una fila de tabla
+- **Servicios/handlers**: agrupan la lógica por dominio
+
+::: {.panel-tabset}
+
+### TypeScript
+
+```ts
+// interface = solo la forma (desaparece al compilar)
+interface Task {
+  id: number;
+  title: string;
+  done: boolean;
+}
+
+// class = forma + comportamiento (existe en runtime)
+class TaskService {
+  private tasks: Task[] = [];            // atributo privado
+
+  create(title: string): Task {          // método
+    const task = { id: this.tasks.length + 1, title, done: false };
+    this.tasks.push(task);               // this = esta instancia
+    return task;
+  }
+}
+
+const svc = new TaskService();           // instancia
+svc.create("deploy");
+```
+
+### Python
+
+```python
+# Python no tiene interfaces — las clases hacen ambos papeles
+class Task:
+    def __init__(self, id: int, title: str):
+        self.id = id          # self = esta instancia (explícito, se escribe)
+        self.title = title
+        self.done = False
+
+class TaskService:
+    def __init__(self):
+        self.tasks: list[Task] = []
+
+    def create(self, title: str) -> Task:   # self es el primer parámetro
+        task = Task(len(self.tasks) + 1, title)
+        self.tasks.append(task)
+        return task
+
+svc = TaskService()             # instancia — sin "new"
+svc.create("deploy")
+```
+
+### Go
+
+```go
+// Go no tiene clases: tiene structs (datos) + métodos (funciones pegadas)
+type Task struct {
+	ID    int
+	Title string
+	Done  bool
+}
+
+type TaskService struct {
+	tasks []Task              // campo privado (minúscula = privado en Go)
+}
+
+// método: la "instancia" es el receiver (s *TaskService)
+func (s *TaskService) Create(title string) Task {
+	t := Task{ID: len(s.tasks) + 1, Title: title}
+	s.tasks = append(s.tasks, t)
+	return t
+}
+
+svc := &TaskService{}         // instancia
+svc.Create("deploy")
+```
+
+:::
+
+Las diferencias que importan de verdad:
+
+- **`self`/`this`/receiver**: la referencia a "esta instancia". En JS se
+  escribe `this` (y a veces desaparece mágicamente); en Python se declara
+  `self` como primer parámetro de cada método; en Go es el *receiver*
+  `(s *TaskService)` — el método es una función que recibe el struct.
+- **Go no tiene clases ni herencia**: struct = datos, método = función con
+  receiver. Suena limitado y a propósito lo es — la composición explícita
+  reemplaza la herencia (lo verás en servicios).
+- **En Python todo es objeto** y `self` es obligatorio: `def create(self,
+  title)` — olvidarlo es el error clásico del que viene de JS.
+
+## 0.5 Funciones, parámetros y módulos
+
+La traducción rápida:
+
+::: {.panel-tabset}
+
+### TypeScript
+
+```ts
+// función tipada
+function createTask(title: string, priority: number = 3): Task {
+  return { id: 1, title, done: false };
+}
+
+import { createTask } from "./services/tasks.js";  // ES module
+```
+
+### Python
+
+```python
+# def + indentación — los bloques son por sangría, no por llaves
+def create_task(title: str, priority: int = 3) -> Task:
+    return Task(id=1, title=title)
+
+from app.services.tasks import create_task   # módulo = archivo .py
+```
+
+### Go
+
+```go
+// func + llaves; el tipo va DESPUÉS del nombre
+func createTask(title string, priority int) Task {
+	return Task{ID: 1, Title: title}
+}
+
+import "taskflow/internal/service"   // package = directorio
+```
+
+:::
+
+Dos detalles Python que confunden al principio:
+
+- **snake_case**: `create_task`, no `createTask`. Convención del lenguaje.
+- **La indentación ES la sintaxis**: `def`/`if`/`for` terminan en `:` y el
+  cuerpo va indentado — no hay `{}` ni `end`.
+
+## 0.6 Estructuras de datos mínimas
+
+| Concepto | TypeScript | Python | Go |
+|---|---|---|---|
+| Mapa clave→valor | `object` / `Map` | `dict` | `map[K]V` |
+| Lista ordenada | `Array` | `list` | `[]T` (slice) |
+| Conjunto sin duplicados | `Set` | `set` | `map[K]struct{}` |
+| Tupla inmutable | `readonly [A,B]` | `tuple` | — (usa struct) |
+
+```python
+# Python — las que más verás
+user = {"id": 3, "name": "Ana"}        # dict ≈ objeto JS
+user["name"]                            # acceso por clave
+user.get("email", "sin email")          # con default — evita KeyError
+
+tasks = [t1, t2, t3]                    # list ≈ array
+active = [t for t in tasks if not t.done]  # comprehension — el .filter() de Python
+titles = [t.title for t in tasks]          # el .map() equivalente
+```
+
+Las **comprehensions** de Python (`[x for x in y if cond]`) merecen un
+momento: son `.filter()` y `.map()` fusionados en sintaxis — las verás en
+servicios y queries por todos lados.
+
+## 0.7 Errores en una frase (el Cap. 6 los abre de verdad)
+
+- **TS/Python**: `throw`/`raise` una excepción; alguien arriba hace
+  `catch`/`except`. Si nadie la atrapa → 500.
+- **Go**: la función *devuelve* el error como valor: `t, err := getTask(id)`
+  — no salta nada, tú decides.
+
+## 0.8 Qué es un endpoint (la anatomía mínima)
+
+Un endpoint = **(verbo + ruta) → handler**. El handler es solo una función
+que recibe el request y produce la response:
+
+::: {.panel-tabset}
+
+### TypeScript
+
+```ts
+// verbo.get(ruta, handler)
+app.get("/tasks/:id", (req, res) => {
+  const task = findTask(Number(req.params.id));
+  if (!task) return res.status(404).json({ error: "not found" });
+  res.json(task);                    // 200 + body
+});
+```
+
+### Python
+
+```python
+# decorator: "cuando llegue GET /tasks/{id}, ejecuta esta función"
+@app.get("/tasks/{task_id}")
+def get_task(task_id: int):
+    task = find_task(task_id)
+    if not task:
+        raise HTTPException(404, "not found")
+    return task                      # se serializa a JSON solo
+```
+
+### Go
+
+```go
+// patrón "método espacio ruta" → handler(w, r)
+mux.HandleFunc("GET /tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(r.PathValue("id"))
+	if t, ok := findTask(id); ok {
+		json.NewEncoder(w).Encode(t)
+	} else {
+		http.Error(w, "not found", 404)
+	}
+})
+```
+
+:::
+
+Leído en voz alta, los tres dicen lo mismo: *"cuando llegue un GET a
+/tasks/{id}, corre esta función que busca la tarea y la devuelve como JSON
+— o responde 404"*. El resto del libro solo agrega capas encima de esa idea.
+
+## Ejercicio
+
+1. Escribe en tu lenguaje elegido una clase/struct `User` con `id`,
+   `email`, `is_active` y un método `deactivate()` que la apague.
+2. Haz `curl -i http://localhost:8000/tasks` contra el servidor del Cap. 3
+   y lee los headers de la response — encuentra el status y el
+   `Content-Type`.
+3. Traduce a tu lenguaje: `[u.name for u in users if u.is_active]` (la
+   comprehension de arriba) a JS: ¿qué combinación de métodos es?
+
+## Mini reto
+
+Sin código: escribe con tus palabras la diferencia entre *la clase* `Task`
+y *un objeto* `task`, y da un ejemplo de cuándo en backend usas cada una.
+Si puedes explicar por qué un schema de validación (Cap. 4) se define como
+clase pero un endpoint es una función, entendiste la sección 0.4.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 1.**
+
+::: {.panel-tabset}
+
+### TypeScript
+
+```ts
+class User {
+  constructor(
+    public id: number,
+    public email: string,
+    public is_active = true,
+  ) {}
+  deactivate() { this.is_active = false; }
+}
+```
+
+### Python
+
+```python
+class User:
+    def __init__(self, id: int, email: str):
+        self.id, self.email, self.is_active = id, email, True
+    def deactivate(self):
+        self.is_active = False
+```
+
+### Go
+
+```go
+type User struct {
+	ID       int
+	Email    string
+	IsActive bool
+}
+func (u *User) Deactivate() { u.IsActive = false }
+```
+
+:::
+
+**Ejercicio 2.** Deberías ver `HTTP/1.1 200 OK` y
+`Content-Type: application/json` en los headers impresos por `-i`.
+
+**Ejercicio 3.** `users.filter(u => u.is_active).map(u => u.name)` —
+filter primero, map después. La comprehension hace ambos en una expresión.
+
+**Mini reto.** La clase es el molde (la *definición* de qué es una tarea);
+el objeto es una instancia concreta (la tarea #7 que creó Ana). Un schema
+es clase porque define una *forma* que se instancia por cada request que
+entra; un endpoint es función porque describe una *acción* (recibir un
+request, devolver una response), no un estado que mantener.
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Probar un endpoint con `curl` sin abrir el navegador
+- [ ] Leer un request HTTP completo: método, ruta, headers, body
+- [ ] Definir una clase/struct con un método en tu lenguaje
+- [ ] Traducir mentalmente: dict↔objeto, list↔array, `self`↔`this`
+- [ ] Explicar qué es un endpoint: (verbo + ruta) → handler
+- [ ] Decir qué es serializar y por qué el backend vive serializando
+
+Si marcaste todo: **puedes leer el libro entero**. Lo que falte, aparecerá
+justo cuando el problema lo necesite.

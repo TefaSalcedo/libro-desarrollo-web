@@ -47,6 +47,14 @@ Las listas de verificación completas que el libro fue construyendo capítulo a 
 
 Pasar la checklist completa a un proyecto tuyo anterior y contar los hallazgos.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

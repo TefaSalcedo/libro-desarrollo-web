@@ -53,6 +53,14 @@ Hay que agregar `tasks.due_date`. En producción ya hay filas. Necesitamos el es
 
 Agregar una columna con default a una tabla "con millones de filas" — ¿qué consideraciones tiene?
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

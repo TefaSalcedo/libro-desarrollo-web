@@ -69,6 +69,14 @@ subtitle: "Si falla el paso 2, la BD queda mentirosa"
 
 Diseñar qué debería pasar si dos usuarios completan la misma tarea "a la vez".
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

@@ -70,6 +70,14 @@ Cada endpoint inventa su formato de error. Necesitamos jerarquías de error, han
 
 Garantizar que ningún endpoint filtra un stack trace — con tests.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

@@ -70,6 +70,14 @@ Cualquier usuario logueado puede borrar las tareas de otro. Necesitamos ownershi
 
 Auditar tus endpoints: ¿cuáles dejan adivinar que un recurso existe?
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

@@ -53,6 +53,14 @@ OWASP no es un capítulo de teoría: es una auditoría sobre nuestros endpoints 
 
 Encontrar el endpoint donde un `viewer` podría hacer algo que no debería.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

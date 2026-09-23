@@ -1,5 +1,7 @@
 _book/
 .quarto/
+site_libs/
+capitulos/*.html
 *_cache/
 *_files/
 .env

@@ -72,6 +72,14 @@ subtitle: "Tu backend ahora es cliente de otro backend"
 
 Responder: ¿qué ve tu usuario si la API externa está caída?
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

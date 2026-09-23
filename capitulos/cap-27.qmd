@@ -71,6 +71,14 @@ Cada refactor rompe algo en otro lugar. Necesitamos una suite de tests — la pi
 
 Escribir el test que hubiera detectado tu último bug.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

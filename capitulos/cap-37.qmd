@@ -70,6 +70,14 @@ Guardar N cambios uno por uno corrompe el documento si la red cae; el undo no pu
 
 Explicar por qué snapshot completo y no solo diffs (O(1) restore vs replay).
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

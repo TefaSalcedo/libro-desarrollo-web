@@ -70,6 +70,14 @@ Membresías, invitaciones con tokens de un solo uso, y WebSockets autenticados p
 
 Dos navegadores deben verse cambios en <300ms: diseñar cómo verificarlo.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

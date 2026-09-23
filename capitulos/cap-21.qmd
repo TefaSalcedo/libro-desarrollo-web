@@ -69,6 +69,14 @@ Responder rápido y seguir trabajando en background — con el límite honesto d
 
 Diseñar el endpoint de "exportar mis datos" (toma minutos) sin timeout.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

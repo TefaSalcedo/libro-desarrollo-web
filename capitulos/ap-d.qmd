@@ -47,6 +47,14 @@ ORM, migración, transacción, N+1, idempotencia, JWT, nonce, CORS, reverse prox
 
 Explicar 5 términos en voz alta sin mirar.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

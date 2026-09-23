@@ -70,6 +70,14 @@ Consultar dos APIs externas en secuencia tarda el doble. Necesitamos concurrenci
 
 Medir la diferencia entre secuencial y concurrente con dos llamadas lentas — en tu lenguaje.
 
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio.** <!-- TODO -->
+
+**Mini reto.** <!-- TODO -->
+
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

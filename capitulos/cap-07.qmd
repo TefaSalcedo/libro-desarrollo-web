@@ -41,6 +41,24 @@ La regla de oro que hace funcionar todo: **los handlers son tontos**.
 regla "no borres una tarea con subtareas" vive en el servicio — así se puede
 llamar desde otro endpoint, un test o un WebSocket sin duplicar.
 
+El mismo endpoint, antes y después:
+
+```python
+# ANTES — handler gordo: transporte + negocio + datos mezclados
+@app.delete("/tasks/{task_id}")
+def delete(task_id: int):
+    task = next((t for t in tasks if t.id == task_id), None)
+    if not task: raise HTTPException(404)
+    if any(s for s in subtasks if s.task_id == task_id):
+        raise HTTPException(409, "has subtasks")      # regla en la ruta
+    tasks.remove(task)
+
+# DESPUÉS — handler tonto: la regla vive en el servicio
+@router.delete("/{task_id}", status_code=204)
+def delete(task_id: int):
+    svc.delete_task(task_id)    # TaskNotFound/Conflict salen del servicio
+```
+
 La prueba de que lo hiciste bien llega en la Parte 6: los tests de servicio
 no necesitan ni levantar HTTP.
 
@@ -262,6 +280,28 @@ Mueve una regla de negocio del handler al servicio (ej: "no puede haber dos
 tareas con el mismo título en la misma lista") y escribe un párrafo
 respondiendo: ¿qué se ganó? ¿Qué se volvió posible que antes no lo era?
 (Pista: piensa en el Cap. 28 — tests sin HTTP.)
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 1.** Tras el refactor, `main`/`index` solo ensambla (router +
+middleware + handlers de error), `services/` tiene las reglas, `storage/`
+la lista, `schemas/` los contratos — el árbol de la sección Implementación.
+
+**Ejercicio 2.** `lists` es otro router con su propio par servicio/storage:
+`include_router(lists_router)` / `app.use("/lists", …)` / `mux.HandleFunc("GET /lists", …)` —
+la estructura escala por dominio sin tocar lo existente.
+
+**Ejercicio 3.** El contrato mínimo de storage: métodos `list/create/get/
+update/delete` (o `Store` interface en Go). Cambiar lista→Postgres en el
+Cap. 10 = cambiar solo la implementación, cero handlers.
+
+**Mini reto.** Lo ganado: la regla se puede (a) testear sin HTTP
+(`svc.create_task` duplicado → `ConflictError`), (b) reutilizar desde otro
+endpoint o un futuro WebSocket/importador, (c) leer en un solo lugar — la
+fuente de verdad del negocio. Lo que se volvió posible: tests de servicio
+rápidos y un handler que solo traduce.
+
+:::
 
 ## Lo que deberías saber hacer ahora
 
