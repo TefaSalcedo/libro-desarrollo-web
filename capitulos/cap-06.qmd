@@ -3,6 +3,15 @@ title: "6. Necesitamos fallar correctamente"
 subtitle: "Tres lenguajes, tres filosofías de error"
 ---
 
+::: {.callout-note}
+## En una frase
+
+Vas a aprender a **fallar bien**: un formato de error único para el cliente
+y una frontera que traduce errores de negocio a HTTP — y de paso verás la
+diferencia más real entre los tres lenguajes: excepciones vs errores como
+valores.
+:::
+
 ## El problema
 
 `GET /tasks/99` cuando solo existen 5 tareas. ¿Qué devuelves?
@@ -247,6 +256,12 @@ distinción que otros lenguajes dejan difusa.
 
 ## ¿Por qué cada stack lo hace así?
 
+**Lo único que necesitas llevarte:** TS y Python usan excepciones (el error
+*salta* a la frontera); Go los devuelve como valores (la firma *grita* que
+puede fallar). Mismo objetivo, filosofías opuestas. El detalle:
+
+::: {.callout-note collapse="true" title="Detalle: excepciones vs errores como valor"}
+
 - **TypeScript y Python** comparten el modelo de excepciones: el error
   *salta* de la capa profunda a la frontera sin que los niveles intermedios
   lo mencionen. Cómodo — pero la firma de `get_task()` **no dice** que
@@ -260,6 +275,8 @@ distinción que otros lenguajes dejan difusa.
 `errors.Is`/`errors.As` merece una mirada: envolver con `%w` crea una
 cadena (`"task not found: 99"`) que el borde puede interrogar sin parsear
 strings — el equivalente Go a la jerarquía de clases de error.
+
+:::
 
 ::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre formato de error propio?"}
 

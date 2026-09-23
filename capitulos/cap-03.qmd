@@ -3,6 +3,14 @@ title: "3. Necesitamos responder a URLs y verbos"
 subtitle: "Qué es exactamente un endpoint y qué promete"
 ---
 
+::: {.callout-note}
+## En una frase
+
+Vas a construir tu **primer CRUD real**: cinco endpoints (`GET`, `POST`,
+`DELETE`…) que listan, crean y borran tareas en memoria — y a diseñar la
+tabla verbo+ruta que *es* el contrato de la API.
+:::
+
 ## El problema
 
 Taskflow necesita su primera funcionalidad real: **gestionar tareas**. El
@@ -374,6 +382,12 @@ curl -i http://localhost:8000/tasks/99
 
 ## ¿Por qué cada stack lo hace así?
 
+**Lo único que necesitas llevarte:** las rutas, verbos y status codes son
+*idénticos* en los tres — eso es HTTP, no el lenguaje. Lo que cambia es
+cuánto trabajo te quita el framework encima. El detalle:
+
+::: {.callout-note collapse="true" title="Detalle: tres filosofías de routing"}
+
 - **Express** es "Imperativo minimalista": tú parseas el body
   (`express.json()`), tú conviertes `req.params.id` de string a número, tú
   eliges `res.status(201)`. Libertad total = responsabilidad total.
@@ -388,6 +402,8 @@ curl -i http://localhost:8000/tasks/99
 Nótese lo que es **idéntico** en los tres: la forma de las rutas, los
 verbos, los status codes. Eso es el protocolo HTTP — el lenguaje solo cambia
 *cómo* lo expresas.
+
+:::
 
 ::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre REST con sustantivos?"}
 

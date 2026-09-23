@@ -3,6 +3,14 @@ title: "5. Necesitamos controlar lo que sale"
 subtitle: "Si devuelves el objeto tal cual, filtras datos"
 ---
 
+::: {.callout-note}
+## En una frase
+
+Vas a aprender a **definir qué campos salen** de tu API: un contrato de
+salida (`TaskPublic`) actúa como aduana — lo no declarado no sale, así tu
+`password_hash` futuro nunca se filtre por accidente.
+:::
+
 ## El problema
 
 La tarea en memoria ahora tiene más campos de los que el cliente debe ver:
@@ -277,6 +285,13 @@ decisión de diseño del lenguaje.
 
 ## ¿Por qué cada stack lo hace así?
 
+**Lo único que necesitas llevarte:** "qué sale" es una whitelist declarada
+en los tres — FastAPI la pone en la firma (`response_model`), Express te
+deja construirla a mano (`toPublic`), Go la graba en el tipo (`json:"-"`).
+El detalle:
+
+::: {.callout-note collapse="true" title="Detalle: tres formas de aduana"}
+
 - **FastAPI** hace la frontera *declarativa y automática*: `response_model`
   es tan visible en la firma del endpoint que es difícil olvidarlo — y de
   regalo genera el schema en OpenAPI (la documentación).
@@ -291,6 +306,8 @@ decisión de diseño del lenguaje.
 La lección universal: **entrada, almacenamiento y salida son tres contratos
 distintos**. Cualquier atajo que los fusione ("devuelvo el objeto de BD
 directo") es un agujero de seguridad esperando un campo nuevo.
+
+:::
 
 ::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre un contrato de salida separado?"}
 

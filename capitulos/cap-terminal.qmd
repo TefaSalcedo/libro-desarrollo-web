@@ -3,6 +3,14 @@ title: "0.5. La terminal, en serio"
 subtitle: "Donde vive el backend, las cosas que nunca debes hacer, y tus nuevos compañeros de AI"
 ---
 
+::: {.callout-note}
+## En una frase
+
+La terminal es el escritorio del backend: este capítulo te da el tour
+esencial (navegar, pipes, procesos), las **12 cosas que jamás debes hacer**
+y un mapa de los agentes de AI que ahora viven ahí.
+:::
+
 ## El problema real
 
 Tu aplicación funciona — en tu máquina, con VS Code abierto y `npm run dev`

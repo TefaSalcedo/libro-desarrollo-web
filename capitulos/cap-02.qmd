@@ -5,6 +5,15 @@ subtitle: "En backend, tú eres el navegador de alguien más"
 
 ![Parte 1 — Taskflow en memoria](../imagenes/parte-01.png)
 
+::: {.callout-note}
+## En una frase
+
+Vas a aprender **cómo se inicializa un proyecto backend** para que cualquiera
+(tu laptop, CI, producción) lo corra igual: manifiesto de dependencias,
+entorno aislado y un comando para arrancar. Es el `npm install` que ya
+conoces — ahora del lado del servidor.
+:::
+
 ## El problema
 
 El servidor del capítulo anterior era un juguete: un archivo, una librería,
@@ -160,6 +169,12 @@ criptográfico viene incluido.
 
 ## ¿Por qué cada stack lo hace así?
 
+**Lo único que necesitas llevarte:** npm y pip instalan dependencias
+*en el proyecto*; Go las funde en un solo binario. Por eso el deploy de Go
+es copiar un archivo. El detalle:
+
+::: {.callout-note collapse="true" title="Detalle: tres filosofías de dependencias"}
+
 | | npm (TS) | pip+venv (Py) | go mod (Go) |
 |---|---|---|---|
 | Dependencias viven en | `node_modules/` del proyecto | `.venv/` del proyecto | caché global con hashes |
@@ -178,6 +193,8 @@ el `venv` de Python te parecerá un paso extra torpe (hay que *activarlo*) —
 es el precio de que Python no tuviera `node_modules` por diseño durante años.
 Hoy existen herramientas modernas (`uv`, `poetry`) que lo hacen más cómodo;
 el libro usa `venv`+`pip` porque es lo que entenderás en cualquier equipo.
+
+:::
 
 ::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre estos gestores de paquetes?"}
 

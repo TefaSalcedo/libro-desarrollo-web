@@ -173,6 +173,26 @@ flowchart LR
 - Un diagrama por idea; etiquetas cortas en español.
 - Comparativas → tablas Markdown, no prosa.
 
+## Digestibilidad (reglas de lectura ligera)
+
+El lector puede no tener carrera tech ni frontend profundo. Reglas:
+
+- **"En una frase" obligatorio**: cada capítulo abre con un callout
+  `::: {.callout-note}` titulado "En una frase" — qué vas a aprender y
+  construir, en 2–3 líneas de lenguaje llano, antes de cualquier teoría.
+- **Disclosure progresivo**: la sección "¿Por qué cada stack lo hace
+  así?" muestra una conclusión visible de 2–3 líneas ("Lo único que
+  necesitas llevarte: …") y el detalle va en un callout
+  `collapse="true"`. Quien lee rápido se lleva la idea; quien quiere
+  profundidad abre el bloque.
+- **Orientación antes del código**: cada bloque de código largo se
+  anuncia con una línea ("qué estás viendo y dónde mirar").
+- **No memorizar**: el libro dice explícitamente que el objetivo es
+  reconocer patrones, no recitar sintaxis — y que leer con un AI CLI al
+  lado es lo esperado.
+- Párrafos cortos; si una explicación pasa de ~6 líneas, parte o va a un
+  callout.
+
 ## Tono
 
 - Segunda persona plural de equipo: "necesitamos", "nuestro endpoint".

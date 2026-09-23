@@ -3,6 +3,14 @@ title: "4. Necesitamos confiar en lo que entra (o no confiar)"
 subtitle: "El cliente manda basura; la validación es la muralla"
 ---
 
+::: {.callout-note}
+## En una frase
+
+Vas a aprender a **rechazar basura antes de que toque tu lógica**: un schema
+declarativo (Zod / Pydantic / validator) describe la forma válida una vez y
+los requests malos mueren con 422 antes de llegar al handler.
+:::
+
 ## El problema
 
 El Cap. 3 terminó con una mentira piadosa: dijimos que `400` era "body
@@ -306,7 +314,13 @@ la validación manual también es legítima — no hay magia que esconder.
 
 ## ¿Por qué cada stack lo hace así?
 
-Aquí hay una diferencia **profunda**, no de sintaxis:
+**Lo único que necesitas llevarte:** declaras la forma válida una vez y el
+muro rechaza lo demás — en los tres stacks. La diferencia profunda es
+*qué existe en runtime*: los tipos TS se evaporan al compilar, los hints de
+Python solo son notas… hasta que Pydantic los lee, y los tipos de Go sí
+viven en el binario. El detalle:
+
+::: {.callout-note collapse="true" title="Detalle: quién valida en runtime"}
 
 - **TypeScript**: los tipos (`interface Task`) *no existen en runtime* — se
   evaporan al compilar. Por eso necesitas Zod: es el puente entre "lo que
@@ -324,6 +338,8 @@ Aquí hay una diferencia **profunda**, no de sintaxis:
 La lección universal: **el contrato de entrada debe existir fuera del
 handler**, expresado una sola vez, y rechazar antes de ejecutar lógica.
 Zod, Pydantic y validator son tres implementaciones del mismo muro.
+
+:::
 
 ::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre un schema declarativo?"}
 

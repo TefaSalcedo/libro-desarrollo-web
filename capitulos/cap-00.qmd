@@ -3,10 +3,23 @@ title: "0. Fundamentos: lo que ya casi sabes"
 subtitle: "El piso mínimo para leer todo este libro — y salir sabiendo backend"
 ---
 
+::: {.callout-note}
+## En una frase
+
+Repaso exprés de lo que ya casi sabes: terminal, HTTP, JSON, clases y
+cómo se define un endpoint — traducido a TypeScript, Python y Go. Lee las
+secciones que necesites; el checklist del final te dice si estás listo.
+:::
+
 Este capítulo es el único "teórico" del libro. Su trabajo es simple: que
 nada de lo que viene después te pille desprevenido. Si vienes de JavaScript,
 **ya sabes el 80%** — aquí solo traducimos lo que sabes y rellenamos los
 huecos que un frontend nunca necesitó.
+
+> **No memorices esto.** Es material de consulta: puedes saltarlo, seguir
+> el libro, y volver aquí cuando algo no te suene. El libro está pensado
+> para leerse con un AI CLI al lado — pregúntale "explícame X de este
+> capítulo" sin culpa.
 
 Al final hay un checklist: si puedes marcarlo todo, puedes leer el libro
 entero sin frenarte.

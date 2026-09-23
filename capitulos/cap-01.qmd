@@ -5,6 +5,18 @@ subtitle: "Todo lo que fetch oculta, alguien tuvo que construirlo"
 
 ![Parte 0 — El cambio de mentalidad](../imagenes/parte-00.png)
 
+::: {.callout-note}
+## En una frase
+
+Vas a aprender **qué pasa del otro lado de un `fetch`**: cómo un programa
+escucha un puerto, decide qué función atiende cada request y responde JSON.
+Al final del capítulo habrás levantado tu primer servidor en tu lenguaje.
+:::
+
+> **No memorices nada de este libro.** El objetivo no es recitar sintaxis —
+> es *reconocer el patrón* cuando lo veas. Todo lo que necesites está a una
+> búsqueda de distancia (la lupa del sidebar) o a una pregunta de tu AI CLI.
+
 ## El problema
 
 Llevas tiempo escribiendo código así:
@@ -273,7 +285,11 @@ framework?" — muchas empresas dicen que no.
 
 ## ¿Por qué cada stack lo hace así?
 
-Aquí está la primera diferencia filosófica real entre ecosistemas:
+**Lo único que necesitas llevarte:** los tres hacen lo mismo; lo que cambia
+es *cuánto te esconden*. Express y FastAPI separan "la app" de "el servidor";
+en Go son la misma pieza. Si quieres el detalle, aquí está:
+
+::: {.callout-note collapse="true" title="Detalle: app vs servidor en cada stack"}
 
 - **Node/Express**: el *framework* (`app`) define rutas y responde; `app.listen`
   crea el servidor HTTP debajo. Dos piezas disfrazadas de una.
@@ -290,6 +306,8 @@ testear la app sin abrir sockets. Go decide que esa indirección no vale la
 pena: simplicidad operativa sobre flexibilidad. Ninguna respuesta es "la
 correcta" — es una decisión de diseño del ecosistema, y reconocerlas así es
 pensar como backend.
+
+:::
 
 ::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre un proceso escuchando un puerto?"}
 
