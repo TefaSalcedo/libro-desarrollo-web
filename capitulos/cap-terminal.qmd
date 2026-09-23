@@ -1,0 +1,274 @@
+---
+title: "0.5. La terminal, en serio"
+subtitle: "Donde vive el backend, las cosas que nunca debes hacer, y tus nuevos compañeros de AI"
+---
+
+## El problema real
+
+Tu aplicación funciona — en tu máquina, con VS Code abierto y `npm run dev`
+corriendo en una terminal integrada que cerras cuando terminas. Entonces
+llega el día: "hay que desplegarlo". Y de repente todo es terminal: el
+servidor no tiene pantalla, Docker no tiene botones, los logs son un stream
+infinito, y la única forma de entrar a producción es `ssh`.
+
+En frontend la terminal era un accesorio. En backend **es el escritorio
+donde trabajas**. Este capítulo corto te pone cómodo ahí — y te dice qué
+cosas jamás hacer, porque la terminal no tiene Ctrl+Z.
+
+## Cómo se resuelve en un equipo
+
+- **Nadie memoriza comandos raros.** Los equipos escriben *runbooks*:
+  archivos con los comandos exactos para desplegar, ver logs, reiniciar.
+- **Los READMEs arrancan con comandos**, no con prosa: "clona, corre esto,
+  abre este puerto".
+- **Desde hace poco, la terminal tiene nuevos habitantes:** los agentes de
+  AI (Devin CLI, Claude Code, Copilot, Gemini CLI) viven ahí — porque la
+  terminal es la interfaz universal donde se leen archivos y se ejecutan
+  cosas.
+
+## Conceptos nuevos
+
+- La diferencia entre **terminal, shell y consola** (son tres cosas).
+- Qué es el **PATH** y por qué `command not found` existe.
+- **Exit codes**: el contrato silencioso de todo comando.
+- **Pipes y redirección**: componer programas como compones funciones.
+- Las **reglas de oro** de lo que nunca se hace.
+- Qué son los **agentes CLI de AI** y cómo trabajar con ellos sin que te
+  rompan nada.
+
+## Explicación visual: tres capas que la gente confunde
+
+```{mermaid}
+flowchart TB
+  subgraph W["Terminal — la ventana (GUI)"]
+    subgraph S["Shell — el intérprete (bash / zsh / PowerShell)"]
+      C["tus comandos"]
+    end
+  end
+  W --> K["Sistema operativo: procesos, archivos, red, permisos"]
+  C -->|"exec()"| K
+```
+
+- **Terminal**: solo la ventana que dibuja texto (Windows Terminal, iTerm,
+  la pestaña de VS Code). No entiende nada.
+- **Shell**: el programa que interpreta lo que escribes — `bash`, `zsh`,
+  `fish`, `pwsh`. *El mismo comando puede significar cosas distintas en
+  cada shell.*
+- **SO**: quien realmente ejecuta: crea procesos, abre puertos, borra
+  archivos.
+
+Por eso `export PORT=8000` funciona en bash pero en PowerShell es
+`$env:PORT = "8000"`. Misma intención, distinto intérprete.
+
+## El tour esencial
+
+Nada de memorizar — esto es lo que usarás cada día, agrupado por
+intención:
+
+### Orientarse y archivos
+
+```bash
+pwd                    # dónde estoy
+ls -la                 # qué hay aquí (con ocultos)
+cd .. && cd -          # subir / volver al directorio anterior
+mkdir -p src/services  # crear carpetas anidadas
+cp .env .env.example   # copiar
+mv old.ts new.ts       # mover/renombrar
+cat app.log            # ver un archivo
+tail -f app.log        # ver logs EN VIVO (el más usado en backend)
+```
+
+### Componer con pipes (la idea más poderosa)
+
+```bash
+cat app.log | grep ERROR | wc -l    # cuántos errores hay
+history | grep docker               # qué comandos docker usé
+curl -s localhost:8000/health       # probar tu API sin navegador
+echo "hello" > file.txt             # escribir (sobreescribe)
+echo "more" >> file.txt             # añadir (append)
+```
+
+`|` conecta la salida de un programa con la entrada del siguiente — es
+`.map().filter()` pero entre procesos completos.
+
+### Procesos, puertos y exit codes
+
+```bash
+Ctrl+C                 # SIGTERM amable: "termina por favor"
+kill -9 1234           # SIGKILL: mata sin dejar limpiar (último recurso)
+netstat -ano | grep 8000     # Windows: quién ocupa el puerto
+lsof -i :8000                # Unix: lo mismo
+echo $? / echo $LASTEXITCODE # exit code del comando anterior (0 = ok)
+```
+
+### Variables de entorno
+
+```bash
+export PORT=8000       # bash/zsh
+$env:PORT = "8000"     # PowerShell
+env | grep PORT        # ver qué existe
+```
+
+Las variables de entorno son cómo la config llega a tu app sin hardcodearla
+— el Cap. 24 vive de esto. Y tu repo ya lo usa: el `.env` con tu API key.
+
+## Las cosas que NUNCA debes hacer
+
+::: {.callout-warning}
+## Reglas de oro — la terminal no tiene Ctrl+Z
+
+1. **`rm -rf` sin mirar el path dos veces.** Jamás con variables que puedan
+   estar vacías: `rm -rf "$DIR/"` con `DIR` vacío borra desde la raíz.
+   Regla: `echo` el comando primero si hay variables.
+
+2. **`curl ... | bash` sin leer el script.** Estás ejecutando código
+   arbitrario de internet, a veces como root. Descarga, lee, *después*
+   ejecuta. Los instaladores serios te dejan revisar.
+
+3. **Commitear secretos.** `.env`, keys, tokens, PEMs. Borrar el archivo
+   después NO lo quita del historial de git — si se fue, hay que **rotar
+   la credencial** (esto ya te pasó con una API key en este proyecto).
+
+4. **`sudo` por costumbre.** Si necesitas sudo para todo, algo está mal
+   configurado (npm global, permisos de carpeta). sudo es el bisturí, no
+   el martillo.
+
+5. **`chmod 777` para "arreglar" permisos.** "Funcionó" = le diste todo a
+   todos. Entiende qué permiso falta (`644` archivos, `755` ejecutables).
+
+6. **`git push --force` a ramas compartidas** (`main`, `develop`).
+   Reescribes la historia de otros. `--force-with-lease` en TU rama es el
+   límite aceptable.
+
+7. **Pegar comandos que no entiendes** — especialmente de foros o con
+   `sudo`. Si no sabes qué hace, pregúntale a un AI CLI primero
+   ("explícame este comando") — para eso están.
+
+8. **`kill -9` como primera opción.** SIGKILL no deja al proceso cerrar
+   conexiones ni escribir el último log. Primero Ctrl+C o `kill`
+   (SIGTERM); `-9` solo si ignora lo demás.
+
+9. **Poner secretos en la línea de comandos:**
+   `mysql -pSuperSecret` queda en `history` y es visible en `ps`.
+   Usa `.env`, flags interactivos o gestores de secretos.
+
+10. **Rutas con espacios sin comillas:**
+    `cd C:\Repositorios\Grupo umbral` falla (dos argumentos);
+    `cd "C:\Repositorios\Grupo umbral"` funciona. Ironía: este repo lo
+    tiene.
+
+11. **"Solo voy a probar rápido" en producción.** No hay sandbox en prod:
+    `DROP DATABASE` no pregunta "¿estás seguro?". Cualquier comando
+    destructivo se ensaya en staging primero.
+
+12. **`docker run --privileged` o montar `/` por curiosidad.** Le diste al
+    contenedor tu máquina entera.
+:::
+
+## La nueva realidad: los CLI de AI
+
+La terminal dejó de ser solo para comandos: desde hace unos años también
+es donde viven los **agentes de AI** — programas que leen tu repo, proponen
+cambios, editan archivos y ejecutan comandos por ti.
+
+| CLI | Comando | Qué es |
+|---|---|---|
+| **Devin CLI** | `devin` | Agente autónomo (el que está escribiendo este libro contigo) |
+| **Claude Code** | `claude` | Agente de Anthropic en tu repo |
+| **Gemini CLI** | `gemini` | Agente de Google, free tier generoso |
+| **Copilot CLI** | `gh copilot` / `copilot` | Sugerencias y agente de GitHub |
+| **Aider** | `aider` | Pair-programming open source por terminal |
+
+¿Por qué viven en la terminal y no en una app con botones? Porque la
+terminal es **la interfaz universal**: todo lo que un dev puede hacer —
+leer archivos, correr tests, git, ssh — es un comando. Un agente que sabe
+usar la terminal sabe usar todo lo que tú usas.
+
+### Las reglas de oro aplican al agente también
+
+Un agente es un junior muy rápido que a veces se equivoca con total
+confianza:
+
+- **Tú apruebas lo que ejecuta.** Si propone `rm -rf` o un `--force`, las
+  reglas de arriba aplican igual — la responsabilidad es tuya.
+- **Revisa el diff antes de commitear** lo que escribió, como harías con
+  el PR de un compañero.
+- **Nunca pegues secretos en el prompt.** `.env` y gestores de secretos,
+  igual que con cualquier herramienta.
+- **Dale contexto, no órdenes vagas:** "agrega validación al endpoint
+  POST /tasks de `src/routes/tasks.ts`" funciona; "arregla el backend" no.
+
+## Errores comunes
+
+- **`command not found`**: el programa no está en el PATH. Revisa si está
+  instalado y si tu terminal es vieja (el PATH se carga al abrirla — ya
+  nos pasó con `quarto`).
+- **"Cerré la terminal y sigue corriendo"** (o al revés): procesos hijos,
+  `nohup`, servicios — Ctrl+C mata el foreground, no la familia.
+- **Mezclar sintaxis de shells**: `export` no existe en PowerShell,
+  `$env:` no existe en bash. Mira qué shell tienes antes de pegar
+  comandos de un tutorial.
+
+## Buenas prácticas
+
+- **El README empieza con los 3 comandos** para correr el proyecto. Si
+  necesitas más, ponlos en `scripts/` o un `Makefile`.
+- **`history` + `Ctrl+R`**: tu memoria está a una búsqueda de distancia.
+- **Antes de un comando destructivo, la versión inofensiva:** `ls` donde
+  iría el `rm`, `--dry-run` si existe, `echo` donde hay variables.
+- **Scripts para lo que repites:** si lo escribiste tres veces, es un
+  archivo `.sh`/`.ps1` commiteado.
+
+## Ejercicio
+
+Sin salir de la terminal: (1) navega a un directorio temporal, (2) crea
+`playground/logs/`, (3) escribe tres líneas en `app.log` con `>>`,
+(4) cuenta las líneas con un pipe, (5) levanta `python -m http.server 8000`
+(o `npx serve`), (6) pruébalo con `curl` desde **otra** terminal,
+(7) mátalo con Ctrl+C.
+
+## Mini reto
+
+Un compañero te pega esto y te dice "córralo":
+
+```bash
+cd /tmp && curl -sL https://example.com/setup.sh | bash && rm -rf $OLD_BUILD
+```
+
+Antes de tocar nada: enumera las **tres** reglas de oro que viola.
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Explicar la diferencia terminal/shell/SO con tus palabras
+- [ ] Componer comandos con `|` y `grep` sin buscar en Google
+- [ ] Encontrar qué proceso ocupa un puerto y terminarlo *bien*
+- [ ] Recitar de memoria por qué `curl | bash` y `rm -rf $VAR` son peligrosos
+- [ ] Pedirle a un AI CLI que te explique un comando antes de correrlo
+
+::: {.callout-note collapse="true"}
+## Soluciones
+
+**Ejercicio (bash):**
+
+```bash
+cd /tmp && mkdir -p playground/logs && cd playground
+echo "INFO start" >> logs/app.log
+echo "ERROR oops" >> logs/app.log
+echo "INFO done" >> logs/app.log
+cat logs/app.log | wc -l          # 3
+python -m http.server 8000 &      # en otra terminal: curl localhost:8000
+# Ctrl+C para detener
+```
+
+**Mini reto** — las tres reglas violadas:
+
+1. `curl | bash` ejecuta código no revisado de internet (regla 2).
+2. `rm -rf $OLD_BUILD` usa una variable que puede estar **vacía** →
+   `rm -rf /` (regla 1).
+3. Y la meta-regla 7: correr algo que no entendiste. El flujo correcto:
+   `curl -sL .../setup.sh -o setup.sh`, leerlo, *entonces* decidir.
+
+**Pregunta de reflexión:** ¿por qué crees que los agentes de AI viven en
+la terminal y no en una app gráfica? Si tu respuesta es "porque la
+terminal puede hacer todo lo que un dev hace", entendiste el capítulo.
+:::

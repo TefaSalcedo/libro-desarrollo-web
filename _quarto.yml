@@ -18,6 +18,7 @@ book:
     - part: "Parte 0 — Fundamentos y cambio de mentalidad"
       chapters:
         - capitulos/cap-00.qmd
+        - capitulos/cap-terminal.qmd
         - capitulos/cap-01.qmd
     - part: "Parte 1 — Proyecto 1: Taskflow en memoria"
       chapters:
