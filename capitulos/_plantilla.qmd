@@ -4,7 +4,18 @@ subtitle: "El problema en una frase"
 ---
 
 <!-- PLANTILLA — no publicada (empieza por _). Copiar y rellenar.
-     Reglas en docs/guia-de-estilo.md -->
+     Reglas en docs/guia-de-estilo.md
+     NOTA: en Sección I los tabs son por FRAMEWORK (vanilla → React →
+     Vue/Angular/Svelte); en Sección II por LENGUAJE (TS/Py/Go). -->
+
+::: {.callout-note}
+## En una frase
+
+<!-- Qué vas a aprender/construir en 2-3 líneas de lenguaje llano,
+     antes de cualquier teoría. Obligatorio. -->
+:::
+
+## El problema
 
 ## El problema
 
@@ -102,9 +113,21 @@ flowchart LR
 
 :::
 
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+<!-- Prompt copiable (code-copy lo hace clickeable): pide el ejemplo
+     del capítulo con requisitos y buenas prácticas incluidas.
+     Debe contener: stack, qué construir, requisitos/edge cases,
+     qué explicación extra quieres. -->
+```
+
+:::
+
 ## ¿Por qué cada stack lo hace así?
 
-<!-- La lección transferible. Obligatoria tras un tabset. -->
+<!-- Conclusión visible de 2-3 líneas ("Lo único que necesitas llevarte")
+     + detalle en callout colapsable. Obligatoria tras un tabset. -->
 
 <!-- Patrón A — "Otras cimentaciones": tras explicar una decisión/técnica,
      bloque clicable que responde: ¿es estructural (debe existir) o

@@ -1,0 +1,65 @@
+---
+title: "N1. Qué es un servidor de verdad"
+subtitle: "On-premise, datacenters, VPS y bare metal — la máquina siempre existe"
+---
+
+::: {.callout-note}
+## En una frase
+
+"La nube" no existe: son **computadoras de otros en datacenters**. Este
+capítulo mapea el espectro completo — tu laptop, un servidor en tu closet
+(on-premise), un VPS alquilado, bare metal — y qué responsabilidad carga
+cada uno.
+:::
+
+## El problema
+
+*"Sube la app a la nube"* — ¿a dónde exactamente? Antes de AWS hay que
+entender el espectro físico: alguien, en algún lugar, mantiene una máquina
+encendida conectada a internet. Las opciones cambian *quién* la mantiene
+y *cuánto* control tienes.
+
+## Cómo lo resuelve un equipo
+
+- El spectrum de opciones de hosting
+- Quién paga el hardware, la red, la electricidad, la seguridad física
+- On-premise: tu propio rack — control total, costo total
+- Colocation: tu máquina, datacenter ajeno
+- VPS: una porción de máquina ajena (DigitalOcean, Hetzner, EC2 básico)
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> On-premise vs cloud vs hybrid
+- <span class="tag tag-ops">Ops</span> VPS, bare metal, rack, datacenter
+- <span class="tag tag-ops">Ops</span> La máquina siempre existe: "serverless" también corre en una
+
+## La explicación visual
+
+```{mermaid}
+flowchart LR
+  A["Tu laptop"] --> B["Servidor en tu closet<br/>(on-premise)"] --> C["VPS<br/>(porción alquilada)"] --> D["Cloud<br/>(AWS/Azure/GCP)"]
+```
+
+## Implementación
+
+*(Por escribir: provisionar un VPS real, conectar por SSH, levantar la
+app — el camino clásico antes del cloud abstracto.)*
+
+## Errores comunes
+
+## Buenas prácticas
+
+## Ejercicio
+
+## Mini reto
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+*(Por escribir.)*
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Explicar el espectro on-premise → VPS → cloud
+- [ ] Decir qué es un datacenter y quién lo opera en cada modelo

@@ -1,0 +1,153 @@
+---
+title: "F7. Mini-proyecto: la UI de Taskflow"
+subtitle: "Todo lo de la Sección I junto: componentes, estado y llamadas a tu API"
+---
+
+::: {.callout-note}
+## En una frase
+
+Vas a construir **el frontend de Taskflow completo**: una lista de tareas
+que se carga desde la API, un input para crear nuevas, y los estados
+loading/error — en React. Es el puente: cuando llegues a la Sección II
+ya tendrás un cliente real esperando tu backend.
+:::
+
+## El problema
+
+La Sección I te dio las piezas por separado: runtime, lenguaje, DOM,
+frameworks, llamadas a APIs, build. Ahora las juntamos en algo real: una
+UI que consume `GET /tasks` y `POST /tasks` — los endpoints que el libro
+construye en la Parte de backend.
+
+## Cómo lo resuelve un equipo
+
+Antes de escribir, el equipo define el *contrato* que la UI espera (el
+mismo que el backend promete):
+
+```text
+GET  /api/tasks           → 200 [{ id, title, done }]
+POST /api/tasks  {title}  → 201 { id, title, done }
+```
+
+Con el contrato claro, la UI se escribe sin backend todavía — contra un
+mock o contra la API cuando exista. Ese es el punto: **el contrato permite
+que frontend y backend se construyan en paralelo.**
+
+## Implementación
+
+La app completa en React — estado, loading, error, lista y formulario:
+
+```tsx
+import { useState, useEffect } from "react";
+
+const API = "/api";   // mismo-origen en producción; o VITE_API_URL
+
+export default function TasksPage() {
+  const [tasks, setTasks] = useState([]);
+  const [title, setTitle] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {                       // cargar al montar
+    fetch(`${API}/tasks`)
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(setTasks)
+      .catch(setError)
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function addTask(e) {
+    e.preventDefault();
+    const res = await fetch(`${API}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    const created = await res.json();
+    setTasks((ts) => [...ts, created]);   // agregar al estado → re-render
+    setTitle("");
+  }
+
+  if (loading) return <p>Cargando…</p>;
+  if (error) return <p>Error: {error.message}</p>;
+  return (
+    <div>
+      <form onSubmit={addTask}>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} />
+        <button>Agregar</button>
+      </form>
+      <ul>{tasks.map((t) => <li key={t.id}>{t.title}</li>)}</ul>
+    </div>
+  );
+}
+```
+
+Qué estás viendo: **todo lo de la sección junto** — `useState` (estado),
+`useEffect` (cargar al montar), `fetch` con `res.ok`, loading/error como
+parte de la UI, y `setTasks` que repinta solo.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Construye un componente React "TasksPage" que consuma mi API REST:
+- GET /api/tasks devuelve [{id, title, done}]
+- POST /api/tasks con body {title} devuelve la tarea creada (201)
+Requisitos: useState para tasks/title/loading/error, useEffect para
+cargar al montar, formulario controlado para crear, estados de
+loading/error visibles en la UI, y base URL desde variable de entorno.
+Usa fetch nativo — sin librerías extra — y explica cada hook que uses.
+```
+
+:::
+
+## ¿Sin backend todavía?
+
+Tres formas de desarrollar la UI sin que la API exista:
+
+| Alternativa | Cómo | Cuándo |
+|---|---|---|
+| Mock en el frontend | `const tasks = [...]` local | UI primero, API después |
+| Mock server (json-server, MSW) | Un archivo JSON que simula la API | Desarrollo real en paralelo |
+| La API real | La construyes en la Sección II | Cuando llegues ahí — encaja directo |
+
+**MSW** (Mock Service Worker) es la favorita profesional: intercepta
+`fetch` y responde mocks — tu código de producción no cambia nada.
+
+## Errores comunes
+
+- **fetch en el body del componente** (sin useEffect): se dispara en cada
+  render — bucle infinito.
+- **`setTasks([...tasks, created])` vs `tasks.push()`**: mutar no repinta
+  en React — siempre crear array nuevo.
+- **Olvidar `e.preventDefault()`** en el form: la página recarga entera.
+
+## Ejercicio
+
+1. Levanta esta página contra un array mock local primero — que funcione
+   sin API.
+2. Cuando tengas la API (Sección II), cambia solo la base URL y verifica
+   que todo sigue igual — eso es "contrato cumplido".
+
+## Mini reto
+
+Agrega el checkbox `done`: click marca la tarea hecha. ¿Qué endpoint
+necesitas? (Ya lo diseñaste en el Cap. 3: `PATCH /tasks/{id}`.)
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 1.** `useState([{id:1,title:"a",done:false}])` inicial + el
+`useEffect` comentado — la UI funciona sin red; al conectar la API, solo
+cambia `API`.
+
+**Mini reto.** `PATCH /api/tasks/{id}` con `{done: true}` → luego
+`setTasks(ts => ts.map(t => t.id===id ? {...t, done:true} : t))`. El
+patrón: mutación al servidor + actualización optimista del estado.
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Construir una UI completa (estado, loading, error, form) que consuma una API
+- [ ] Explicar por qué el contrato permite desarrollar FE y BE en paralelo
+- [ ] Desarrollar contra un mock sin cambiar el código de producción
+- [ ] Conectar la UI a la API real cambiando solo la base URL

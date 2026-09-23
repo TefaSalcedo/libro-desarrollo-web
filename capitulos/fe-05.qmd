@@ -1,0 +1,236 @@
+---
+title: "F5. Hablar con una API desde el frontend"
+subtitle: "fetch, axios, React Query y HttpClient — el cliente del contrato"
+---
+
+::: {.callout-note}
+## En una frase
+
+Todas las formas de llamar una API desde el cliente: `fetch` nativo,
+`axios`, React Query/SWR y el `HttpClient` de Angular — y por qué en una
+app real no basta un `fetch` suelto. Este capítulo es el puente: el
+cliente que consume el contrato que tú construirás en la Sección II.
+:::
+
+## El problema
+
+Tu componente necesita las tareas del servidor. La primera aproximación:
+
+```ts
+const res = await fetch("/api/tasks");
+const tasks = await res.json();
+```
+
+Funciona — hasta que necesitas *loading* mientras carga, *error* si falla,
+*reintento* si la red se cae, *caché* para no pedir lo mismo, y *mutación*
+para el POST de crear. Ahí es donde un `fetch` suelto se queda corto y
+nace el ecosistema de clientes.
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> **fetch nativo**: la Promise del
+  navegador para HTTP — la base de todo.
+- <span class="tag tag-u">U</span> **Estados de la llamada**: loading /
+  error / data — el ciclo completo de una petición real.
+- <span class="tag tag-u">U</span> **Cliente HTTP con extras**: axios
+  (interceptors, JSON auto), React Query (caché + estados).
+- <span class="tag tag-u">U</span> **Observable** (Angular): stream
+  reactivo en vez de Promise — el modelo de RxJS.
+
+## Implementación: de menos a más
+
+::: {.panel-tabset}
+
+### fetch nativo
+
+```ts
+async function getTasks() {
+  const res = await fetch("/api/tasks");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);  // 404 no lanza solo
+  return res.json();
+}
+
+// POST con body JSON:
+await fetch("/api/tasks", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ title: "ship v1" }),
+});
+```
+
+Tres detalles: `fetch` **no rechaza en 4xx/5xx** (revisa `res.ok`), el body
+se parsea con `.json()`, y `credentials: "include"` envía cookies.
+
+### axios
+
+```ts
+import axios from "axios";
+const { data } = await axios.get("/api/tasks");     // JSON automático
+await axios.post("/api/tasks", { title: "ship v1" });
+
+// interceptor: agrega auth a TODOS los requests
+axios.interceptors.request.use((cfg) => {
+  cfg.headers.Authorization = `Bearer ${token}`;
+  return cfg;
+});
+```
+
+Axios lanza error en 4xx/5xx (mejor que fetch) y los interceptors son
+middleware del lado cliente.
+
+### React Query (TanStack)
+
+```tsx
+import { useQuery, useMutation } from "@tanstack/react-query";
+
+function Tasks() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: () => fetch("/api/tasks").then((r) => r.json()),
+  });
+
+  const createTask = useMutation({
+    mutationFn: (t) =>
+      fetch("/api/tasks", { method: "POST", body: JSON.stringify(t) }),
+  });
+
+  if (isLoading) return <p>Cargando…</p>;
+  if (error) return <p>Error: {error.message}</p>;
+  return <ul>{data.map((t) => <li key={t.id}>{t.title}</li>)}</ul>;
+}
+```
+
+`useQuery` resuelve el ciclo completo: loading/error/data + caché +
+revalidación + reintentos — lo que a mano son 40 líneas de `useState`/
+`useEffect`.
+
+### Angular HttpClient
+
+```ts
+// Angular devuelve un Observable, no una Promise
+this.http.get<Task[]>("/api/tasks").subscribe({
+  next: (tasks) => (this.tasks = tasks),
+  error: (err) => console.error(err.status),
+});
+```
+
+Observable vs Promise: el Observable es *frío* — no hay request hasta
+`.subscribe()` — puede emitir varios valores y se cancela con
+`unsubscribe()`. Angular trae interceptors nativos para auth.
+
+:::
+
+## ¿Por qué tantas opciones?
+
+**Lo único que necesitas llevarte:** todas hablan HTTP igual — la
+diferencia es *cuánto te ayudan con el ciclo completo* (loading, error,
+caché). `fetch` es la base; axios/React Query agregan la gestión que una
+app real necesita.
+
+::: {.callout-note collapse="true" title="Detalle: Promise vs Observable"}
+
+Promise (`fetch`, axios): un valor futuro, se dispara al crearla, no se
+cancela nativamente (`AbortController` aparte). Observable (`HttpClient`):
+un *stream* de valores posibles, no hace nada hasta suscribirse, se
+cancela con `unsubscribe()`. Angular eligió Observables porque las UIs son
+flujos de eventos continuos — modelo más potente, curva más empinada.
+
+:::
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Quiero llamar una API REST desde React. Muéstrame la evolución completa:
+(1) fetch suelto con useState+useEffect (loading, error, data), (2) axios
+con un interceptor para Authorization, (3) TanStack Query con useQuery y
+useMutation. Para cada versión explica qué problema de la anterior
+resuelve. El endpoint es GET/POST /api/tasks que devuelve {id,title,done}.
+```
+
+:::
+
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre una librería para llamar APIs?"}
+
+**Esta decisión es material:** llamar la API debe pasar; con qué depende
+de cuánto ciclo de vida necesitas.
+
+| Alternativa | Qué te cuesta | Cuándo elegirla |
+|---|---|---|
+| `fetch` + useState a mano | Tú gestionas loading/error/caché | Una llamada puntual, demo, aprender |
+| axios | Una dependencia, su API | Auth con interceptors, apps medianas |
+| React Query / SWR | Conceptos de caché/invalidación | React serio — casi siempre la respuesta |
+| HttpClient (Angular) | RxJS — la curva más alta | Angular: obligado, y es bueno |
+| GraphQL client | Cambia el contrato a GraphQL | Si el backend ya es GraphQL |
+
+:::
+
+## Errores comunes
+
+- **`fetch` sin revisar `res.ok`**: un 404 llega como "éxito" y rompes al
+  hacer `.json()` o al pintar.
+- **useEffect con fetch sin cleanup**: doble llamada en StrictMode,
+  race conditions si el componente se desmonta.
+- **Guardar el token en el interceptor… leído una vez**: el token cambia
+  al hacer login; léelo *dentro* del interceptor cada request.
+- **Manejar loading/error a mano cuando ya usas React Query**: reinventar
+  la rueda dentro de la librería que la resuelve.
+
+## Buenas prácticas
+
+- **Un `api-client` centralizado**: todas las llamadas pasan por un
+  archivo — cambiar base URL o auth se hace en un lugar.
+- **Loading y error son parte del contrato UI**: diseña los tres estados
+  (cargando / error / datos) — no es opcional en producción.
+- **Interceptors para auth**, no token pegado en cada llamada.
+- **Type the response**: `fetch<Task[]>()` o validación — el JSON que
+  llega no está garantizado (eso lo resuelve el backend con el contrato,
+  Sección II).
+
+## Ejercicio
+
+1. Escribe `getTasks()` con fetch que lance error si `!res.ok` — y
+   pruébalo contra `http://localhost:8000/tasks` cuando corras la API del
+   libro.
+2. Haz el POST de crear tarea con fetch y verifica que aparece en la lista.
+
+## Mini reto
+
+Tu `useEffect` + fetch se ejecuta **dos veces** en desarrollo. ¿Por qué
+(React StrictMode) y cómo lo resuelves *bien* — con cleanup o con React
+Query?
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 1.**
+
+```ts
+async function getTasks() {
+  const res = await fetch("http://localhost:8000/tasks");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+```
+
+**Ejercicio 2.**
+
+```ts
+await fetch("http://localhost:8000/tasks", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ title: "nueva" }),
+});
+```
+
+**Mini reto.** StrictMode monta→desmonta→remonta en dev para detectar
+efectos sin cleanup. Fix manual: `let cancelled = false` + cleanup que la
+pone `true`. Fix real: React Query maneja dedupe/cancelación por ti —
+otra razón por la que las apps serias no hacen fetch en useEffect a mano.
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Llamar GET y POST con fetch incluyendo `res.ok` y JSON
+- [ ] Explicar qué agregan axios (interceptors) y React Query (caché/estados)
+- [ ] Explicar la diferencia Promise vs Observable (Angular)
+- [ ] Diseñar los tres estados de una llamada en la UI

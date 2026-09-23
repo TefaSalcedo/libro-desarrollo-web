@@ -1,0 +1,53 @@
+---
+title: "N5. Serverless y edge: tu código sin tu servidor"
+subtitle: "Lambda, Functions, Workers y cuándo la nube corre por ti"
+---
+
+::: {.callout-note}
+## En una frase
+
+Serverless es la cimentación alternativa del Cap. 1 llevada al extremo:
+**no hay proceso escuchando — tu función despierta por request**. Pagas
+por ejecución, no por servidor encendido. Cuándo conviene y cuándo no es
+la lección del capítulo.
+:::
+
+## El problema
+
+*(Por escribir: tráfico irregular — ¿pagar un servidor 24/7 que duerme?) *
+
+## Cómo lo resuelve un equipo
+
+## Conceptos nuevos
+
+- <span class="tag tag-ops">Ops</span> FaaS: Lambda, Azure Functions, Cloud Functions
+- <span class="tag tag-ops">Ops</span> Edge: Cloudflare Workers, Vercel — código cerca del usuario
+- <span class="tag tag-u">U</span> Cold starts, límites de tiempo, vendor lock-in — el precio real
+
+## La explicación visual
+
+```{mermaid}
+flowchart LR
+  R["Request"] -->|"despierta"| F["tu función<br/>(solo existe al ejecutarse)"] --> Res["Response"]
+```
+
+## Implementación
+
+## Errores comunes
+
+## Buenas prácticas
+
+## Ejercicio
+
+## Mini reto
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+*(Por escribir.)*
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Explicar el modelo serverless y su precio real (cold starts, límites)
+- [ ] Decidir cuándo conviene serverless vs un proceso siempre vivo

@@ -106,142 +106,36 @@ ambas cosas cientos de veces en este libro.
 
 ## 0.4 Recordatorio: así llamas a una API desde el frontend
 
-Antes de construir el servidor, un repaso de **todas las formas en que el
-cliente ya llama a una API** — porque a partir del Cap. 1 tú eres quien está
-del otro lado de cada una de estas llamadas.
+> **Si esto no te suena del todo:** la **Sección I · Aprende Frontend** lo
+> enseña completo (fetch, axios, React Query, HttpClient). Lee el resumen
+> y vuelve aquí — o salta allá primero si lo prefieres.
 
-### fetch nativo (la base de todo)
+El punto que importa para backend: del otro lado de cada una de estas
+llamadas hay un servidor — y a partir del Cap. 1 ese servidor eres tú.
 
 ```ts
-// async/await — el estilo moderno
+// fetch — la base de todo
 const res = await fetch("/api/tasks");
-if (!res.ok) throw new Error(`HTTP ${res.status}`);
+if (!res.ok) throw new Error(`HTTP ${res.status}`);  // 404 no lanza solo
 const tasks = await res.json();
 
-// .then() — la misma Promise, estilo encadenado (código más viejo)
-fetch("/api/tasks")
-  .then((r) => r.json())
-  .then((tasks) => console.log(tasks))
-  .catch((err) => console.error(err));
-```
+// axios — JSON auto, errores en 4xx, interceptors para auth
+const { data } = await axios.get("/api/tasks");
 
-Tres detalles que el backend agradece que sepas: `fetch` **no rechaza en
-404 ni 500** (solo en error de red — por eso existe `res.ok`), el body hay
-que `.json()` explícitamente, y `credentials: "include"` es lo que envía
-las cookies (importante en la Parte 3).
-
-### XMLHttpRequest y callbacks (el pasado)
-
-```ts
-const xhr = new XMLHttpRequest();
-xhr.open("GET", "/api/tasks");
-xhr.onload = () => console.log(JSON.parse(xhr.responseText));
-xhr.send();
-```
-
-Nadie escribe esto a mano hoy, pero vive debajo de librerías viejas. La
-evolución fue: callbacks → Promises (`fetch`) → `async/await` (azúcar sobre
-Promises). **Todo es asíncrono en JS** porque hay un solo hilo: bloquear la
-línea principal congelaría la UI.
-
-### axios y librerías cliente
-
-```ts
-import axios from "axios";
-const { data } = await axios.get("/api/tasks");   // JSON automático
-// axios lanza error en 4xx/5xx (a diferencia de fetch)
-axios.interceptors.request.use((cfg) => { /* agregar headers auth */ });
-```
-
-Lo que axios agrega sobre `fetch`: JSON automático, errores en 4xx/5xx,
-*interceptors* (middleware del lado cliente — agregar el token a cada
-request), timeouts cómodos. Mismo wire, mejor DX.
-
-### En React
-
-```tsx
-// El patrón manual: fetch dentro de useEffect + estados
-const [tasks, setTasks] = useState([]);
-const [loading, setLoading] = useState(true);
-useEffect(() => {
-  fetch("/api/tasks")
-    .then((r) => r.json())
-    .then(setTasks)
-    .finally(() => setLoading(false));
-}, []);
-
-// El patrón profesional: TanStack Query / SWR — caché + revalidación
+// React Query — loading/error/caché resueltos
 const { data, isLoading } = useQuery({
   queryKey: ["tasks"],
   queryFn: () => fetch("/api/tasks").then((r) => r.json()),
 });
-const mutation = useMutation({
-  mutationFn: (t) =>
-    fetch("/api/tasks", { method: "POST", body: JSON.stringify(t) }),
-});
+
+// Angular HttpClient — Observable (frío): sin subscribe no hay request
+this.http.get<Task[]>("/api/tasks").subscribe((t) => (this.tasks = t));
 ```
 
-`useQuery`/`useMutation` existen porque una llamada real no es solo "pedir
-datos": es caché, loading, error, reintento y revalidación. Cuando
-construyas el endpoint, estos son los estados que tu contrato provoca.
-
-### En Angular: HttpClient con Observables
-
-```ts
-// Angular NO devuelve una Promise: devuelve un Observable (RxJS)
-this.http.get<Task[]>("/api/tasks").subscribe({
-  next: (tasks) => (this.tasks = tasks),
-  error: (err) => console.error(err.status),   // err.status ya viene
-});
-
-// En el template, el async pipe se suscribe solo:
-// {{ (tasks$ | async) | json }}   con  tasks$ = this.http.get<Task[]>("/api/tasks")
-```
-
-La diferencia mental que importa:
-
-| | `fetch` → **Promise** | `HttpClient` → **Observable** |
-|---|---|---|
-| Cuándo dispara | Al crearla (hot) | Al suscribirse (cold — sin `subscribe` no hay request) |
-| Valores | Uno (o error) | Un stream de valores posibles |
-| Cancelar | `AbortController` manual | `unsubscribe()` nativo |
-| Interceptors | No nativos (axios sí) | `HttpInterceptor` nativo (auth, logs) |
-
-Angular también trae DI nativa (`@Injectable` services) — la misma idea de
-inyección de dependencias que FastAPI usa con `Depends` en el Cap. 16.
-
-### Las carpetas que ya conoces
-
-```text
-React                          Angular
-src/                           src/app/
-├── components/    UI          ├── components/        UI
-├── pages/         rutas       ├── services/          *.service.ts (inyectable)
-├── hooks/         lógica      ├── models/            interfaces/tipos
-├── lib/api-client.ts  ← fetch centralizado
-└── services/      ← llamadas por dominio
-```
-
-El puente hacia este libro: tu `lib/api-client.ts` era **el consumidor del
+El puente: tu `lib/api-client.ts` del frontend era **el consumidor del
 contrato** — ahora tú produces ese contrato. Y tu `services/` del frontend
 (hablador de APIs) es el espejo del `services/` del backend (lógica de
 negocio) del Cap. 7: mismo nombre, distinto rol.
-
-::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre fetch/axios/HttpClient?"}
-
-**Esta decisión es material:** "llamar una API desde el cliente" es
-estructural (tiene que pasar), pero *con qué* es intercambiable — como
-elegir zapatas vs losas: todas sostienen el edificio, distinto costo.
-
-| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
-|---|---|---|---|
-| `fetch` nativo | HTTP del navegador, cero deps | Tú manejas errores 4xx, JSON, cancelación | Proyectos pequeños, una llamada puntual |
-| `axios` / `ky` | Wrapper con interceptors y JSON auto | Una dependencia + su API propia | Apps con auth, retries, config global |
-| TanStack Query / SWR | Caché + estados sobre fetch | Curva de conceptos (caché, invalidación) | React serio: casi siempre la respuesta |
-| Angular `HttpClient` | Observables + DI nativa | RxJS: el modelo mental más empinado | Angular — no tienes opción, y está bien |
-| GraphQL clients (Apollo/urql) | Cliente + schema tipado | Cambia el contrato entero (no REST) | Cuando el backend ya es GraphQL |
-
-:::
 
 ## 0.5 Clases y objetos: por qué importan aquí
 

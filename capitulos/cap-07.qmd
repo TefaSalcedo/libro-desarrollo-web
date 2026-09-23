@@ -305,6 +305,21 @@ planos. El "framework de arquitectura" de Go es la convención misma, y
 
 :::
 
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Refactoriza mi API de tareas (ahora en un solo archivo) a arquitectura
+por capas en [Express+TypeScript / FastAPI+Python / Go]. Estructura:
+routes/handlers (solo traducen HTTP), services (reglas de negocio,
+errores de dominio), storage (persistencia), schemas (contratos de
+entrada/salida), y un ensamblador (index/main) que solo conecta piezas.
+Requisito: los handlers deben quedar "tontos" — la regla "no borrar
+tarea con subtareas" vive en el servicio. Muéstrame el árbol de carpetas
+y el código del handler delgado.
+```
+
+:::
+
 ## ¿Por qué cada stack lo hace así?
 
 **Lo único que necesitas llevarte:** la estructura de capas es *idéntica*

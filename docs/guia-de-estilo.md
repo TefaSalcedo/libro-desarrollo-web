@@ -1,6 +1,19 @@
 # Guía de estilo del libro
 
-Convenciones de autoría para mantener los 40 capítulos coherentes.
+Convenciones de autoría para mantener el libro coherente.
+
+## Estructura del libro
+
+El libro se divide en tres secciones macro de desarrollo web:
+
+- **Sección I · Aprende Frontend** (`fe-XX.qmd`): el navegador como
+  runtime, JS/TS, DOM/estado, frameworks, llamadas a APIs, build. Los
+  tabsets son por **framework** (vanilla → React → Vue/Angular/Svelte).
+- **Sección II · Aprende Backend y BD juntos** (`cap-XX.qmd`): HTTP, APIs,
+  validación, PostgreSQL, auth, testing. Los tabsets son por **lenguaje**
+  (TypeScript → Python → Go).
+- **Sección III · Aprende Nube** (`nu-XX.qmd` + caps. 30–35): servidores,
+  Docker, proveedores cloud, serverless.
 
 ## Idioma
 
@@ -143,6 +156,33 @@ Regla: **cada sección lleva al menos un elemento concreto** — snippet,
 llamada `curl`, respuesta HTTP de ejemplo, escenario numerado o tabla.
 Las secciones narrativas (problema, equipo, errores, prácticas) no se
 quedan en abstracto: un ejemplo corto que aterrice la idea.
+
+## Prompts listos para la AI
+
+Cada ejemplo importante lleva un callout con un **prompt copiable** que
+pide exactamente lo que el capítulo enseña — el lector puede pegarlo en
+su AI CLI y comparar la respuesta con el capítulo.
+
+````markdown
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Quiero [la funcionalidad del capítulo] en [stack]. Requisitos:
+[requisitos + edge cases + buenas prácticas]. Después explícame
+[la parte conceptual clave].
+```
+
+:::
+````
+
+Reglas:
+
+- El prompt debe **enseñar a pedir bien**: stack concreto, requisitos,
+  buenas prácticas, qué explicación extra se quiere — es una lección de
+  prompting escondida.
+- El bloque `text` activa el botón de copiar (`code-copy: true` en
+  `_quarto.yml` lo da en todos los bloques).
+- Uno por capítulo, en el ejemplo insignia — no en cada snippet.
 
 ## Soluciones
 

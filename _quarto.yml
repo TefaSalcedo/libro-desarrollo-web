@@ -5,8 +5,8 @@ project:
 lang: es
 
 book:
-  title: "Backend para desarrolladores frontend"
-  subtitle: "Un concepto, tres lenguajes: TypeScript, Python y Go"
+  title: "Desarrollo web completo"
+  subtitle: "Aprende frontend, backend y nube — un concepto, tres lenguajes, y ningún prerrequisito"
   author: "Stefa"
   date: today
   cover-image: imagenes/cover.png
@@ -15,12 +15,21 @@ book:
   repo-url: ""
   chapters:
     - index.qmd
-    - part: "Parte 0 — Fundamentos y cambio de mentalidad"
+    - part: "Sección I · Aprende Frontend"
+      chapters:
+        - capitulos/fe-01.qmd
+        - capitulos/fe-02.qmd
+        - capitulos/fe-03.qmd
+        - capitulos/fe-04.qmd
+        - capitulos/fe-05.qmd
+        - capitulos/fe-06.qmd
+        - capitulos/fe-07.qmd
+    - part: "Sección II · Backend — Fundamentos"
       chapters:
         - capitulos/cap-00.qmd
         - capitulos/cap-terminal.qmd
         - capitulos/cap-01.qmd
-    - part: "Parte 1 — Proyecto 1: Taskflow en memoria"
+    - part: "Sección II · Taskflow en memoria"
       chapters:
         - capitulos/cap-02.qmd
         - capitulos/cap-03.qmd
@@ -28,7 +37,7 @@ book:
         - capitulos/cap-05.qmd
         - capitulos/cap-06.qmd
         - capitulos/cap-07.qmd
-    - part: "Parte 2 — Proyecto 2: PostgreSQL"
+    - part: "Sección II · PostgreSQL"
       chapters:
         - capitulos/cap-08.qmd
         - capitulos/cap-09.qmd
@@ -36,41 +45,50 @@ book:
         - capitulos/cap-11.qmd
         - capitulos/cap-12.qmd
         - capitulos/cap-13.qmd
-    - part: "Parte 3 — Usuarios, autenticación y permisos"
+    - part: "Sección II · Usuarios, autenticación y permisos"
       chapters:
         - capitulos/cap-14.qmd
         - capitulos/cap-15.qmd
         - capitulos/cap-16.qmd
         - capitulos/cap-17.qmd
         - capitulos/cap-18.qmd
-    - part: "Parte 4 — Integraciones y concurrencia"
+    - part: "Sección II · Integraciones y concurrencia"
       chapters:
         - capitulos/cap-19.qmd
         - capitulos/cap-20.qmd
         - capitulos/cap-21.qmd
         - capitulos/cap-22.qmd
-    - part: "Parte 5 — Robustez"
+    - part: "Sección II · Robustez"
       chapters:
         - capitulos/cap-23.qmd
         - capitulos/cap-24.qmd
         - capitulos/cap-25.qmd
         - capitulos/cap-26.qmd
-    - part: "Parte 6 — Testing"
+    - part: "Sección II · Testing"
       chapters:
         - capitulos/cap-27.qmd
         - capitulos/cap-28.qmd
         - capitulos/cap-29.qmd
-    - part: "Parte 7 — Docker"
+    - part: "Sección III · Nube — Fundamentos"
+      chapters:
+        - capitulos/nu-01.qmd
+        - capitulos/nu-02.qmd
+    - part: "Sección III · Docker"
       chapters:
         - capitulos/cap-30.qmd
         - capitulos/cap-31.qmd
         - capitulos/cap-32.qmd
-    - part: "Parte 8 — Deployment"
+    - part: "Sección III · Producción"
       chapters:
         - capitulos/cap-33.qmd
         - capitulos/cap-34.qmd
         - capitulos/cap-35.qmd
-    - part: "Parte 9 — Proyecto final: Nexus"
+    - part: "Sección III · Proveedores cloud"
+      chapters:
+        - capitulos/nu-03.qmd
+        - capitulos/nu-04.qmd
+        - capitulos/nu-05.qmd
+    - part: "Proyecto final · Nexus"
       chapters:
         - capitulos/cap-36.qmd
         - capitulos/cap-37.qmd
@@ -91,7 +109,8 @@ format:
     css: styles.css
     toc: true
     code-overflow: wrap
-    highlight-style: github
+    highlight-style: pygments
+    code-copy: true
   pdf:
     documentclass: scrreprt
     toc: true

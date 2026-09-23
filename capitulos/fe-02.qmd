@@ -1,0 +1,237 @@
+---
+title: "F2. JavaScript y TypeScript: lo esencial para este libro"
+subtitle: "Solo las piezas del lenguaje que el libro usa — nada de relleno"
+---
+
+::: {.callout-note}
+## En una frase
+
+El JavaScript/TypeScript mínimo que necesitas: variables, funciones,
+objetos, arrays, módulos y `async/await`. Si vienes "de la era de la AI" y
+nunca aprendiste esto en orden, este capítulo es tu base — todo lo demás
+del libro se apoya aquí.
+:::
+
+## El problema
+
+Sabes pedirle a una AI "hazme un componente" — pero cuando el código que
+devuelve usa `.map()`, `...spread`, `async/await` o `import`, ¿entiendes
+qué hace cada pieza? Sin esa base, eres copiloto sin saber volar: la AI
+escribe y tú no puedes revisarla.
+
+Este capítulo no es un curso de JavaScript — es **el inventario exacto de
+piezas que el libro usa**, cada una con un ejemplo que puedes correr en la
+consola del navegador *ahora mismo* (F12 → Console).
+
+## Cómo lo resuelve un equipo
+
+En un equipo real nadie memoriza el lenguaje entero — se domina el 20% que
+se usa el 95% del tiempo, y el resto se busca. Ese 20% en este libro es:
+
+```text
+variables → objetos/arrays → funciones → módulos → async → tipos TS
+```
+
+Cada pieza abajo tiene: qué es, un ejemplo mínimo, y *por qué la vas a
+usar en backend*.
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> `const`/`let` — variables (usa `const`
+  por defecto).
+- <span class="tag tag-u">U</span> Objetos y arrays — las estructuras que
+  viajan en JSON.
+- <span class="tag tag-u">U</span> `.map()` / `.filter()` — transformar
+  colecciones sin loops.
+- <span class="tag tag-u">U</span> `import`/`export` — módulos ES.
+- <span class="tag tag-u">U</span> `async/await` — esperar operaciones
+  lentas sin bloquear.
+- <span class="tag tag-ts">TS</span> Type annotations — el "JS con
+  etiquetas" que es TypeScript.
+
+## Las piezas, una por una
+
+### Variables y objetos
+
+```js
+const title = "deploy";           // const: no se reasigna
+let count = 0;                    // let: sí puede cambiar
+count = count + 1;
+
+const task = {                    // objeto = el JSON que ya viste
+  id: 1,
+  title: "deploy",
+  done: false,
+};
+task.title;                       // "deploy" — acceso por punto
+const { title: t } = task;        // destructuring: sacar campos
+```
+
+**Por qué importa:** un endpoint devuelve objetos; un body es un objeto.
+Si lees `{ id, title, done }` como "una tarea", ya tienes el 80% del JSON
+del libro.
+
+### Arrays y transformaciones
+
+```js
+const tasks = [
+  { id: 1, title: "a", done: true },
+  { id: 2, title: "b", done: false },
+];
+
+tasks.map((t) => t.title);          // ["a","b"] — transforma cada uno
+tasks.filter((t) => !t.done);       // [{id:2…}] — deja solo los que cumplen
+tasks.find((t) => t.id === 2);      // la tarea o undefined
+```
+
+**Por qué importa:** `GET /tasks` devuelve un array; tu backend hará
+`.find()`/`filter()` constantemente antes de que exista la base de datos.
+
+### Funciones
+
+```js
+// tres formas de la misma función
+function add(a, b) { return a + b; }
+const add2 = (a, b) => a + b;              // arrow function
+const add3 = async (a, b) => a + b;        // async (devuelve Promise)
+```
+
+**Por qué importa:** un *handler* es literalmente una función que recibe
+el request y devuelve la respuesta. Ya sabes handlers — no lo llamabas así.
+
+### Módulos
+
+```js
+// services/tasks.js
+export function createTask(title) { … }
+
+// index.js
+import { createTask } from "./services/tasks.js";
+```
+
+**Por qué importa:** el Cap. 7 organiza el backend en archivos — `import`
+es cómo se conectan.
+
+### async/await
+
+```js
+const res = await fetch("/tasks");   // pausa aquí hasta que responde
+const tasks = await res.json();      // otra pausa: parsear el body
+```
+
+`async` marca que la función puede pausar; `await` espera el resultado de
+algo lento (red, disco). **Por qué importa:** todo lo que tarda (llamar
+APIs, leer la BD) es async — en los tres lenguajes del libro.
+
+### TypeScript: JS + etiquetas
+
+```ts
+interface Task { id: number; title: string; done: boolean }
+
+function createTask(title: string): Task {
+  return { id: 1, title, done: false };
+}
+```
+
+**Por qué importa:** TypeScript es JS con *etiquetas de tipo* que el
+editor chequea antes de correr. Las etiquetas desaparecen al ejecutar —
+son andamiaje, no runtime (el Cap. 4 vuelve a esto).
+
+## La explicación visual
+
+```{mermaid}
+flowchart LR
+  A["const task = {…}"] --> B["objeto en memoria"]
+  B -->|"JSON.stringify"| C["texto JSON<br/>viaja por HTTP"]
+  C -->|"JSON.parse"| D["objeto otra vez<br/>(en el servidor)"]
+```
+
+Objeto ↔ JSON ↔ objeto: ese viaje es toda la comunicación frontend↔backend.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Quiero un repaso práctico de JavaScript moderno SOLO de estos temas:
+const/let, objetos, arrays con map/filter/find, arrow functions,
+import/export de ES modules, async/await, y qué agrega TypeScript encima.
+Para cada tema: un ejemplo de 3-5 líneas que pueda pegar en la consola del
+navegador, qué imprime, y un uso real en una API. No me des un curso
+completo — solo estas piezas.
+```
+
+:::
+
+## Errores comunes
+
+- **Confundir `map` con `forEach`**: `.map()` *devuelve* un array nuevo
+  (útil); `.forEach()` solo itera (no devuelve nada).
+- **`await` fuera de `async`**: error de sintaxis — el `await` necesita
+  vivir dentro de una función `async` (o top-level en módulos modernos).
+- **Creer que los tipos TS existen en runtime**: `interface` se evapora
+  al compilar — no valida nada que llegue por red (ese es el trabajo del
+  Cap. 4).
+- **`const` no es inmutable**: `const task = {}` no se reasigna, pero
+  `task.done = true` sí muta el contenido.
+
+## Buenas prácticas
+
+- **`const` por defecto**, `let` solo cuando reasignas — menos sorpresas.
+- **Destructuring al recibir objetos**: `const { title } = req.body` es
+  más legible que `req.body.title`.
+- **Una exportación por concepto**: funciones pequeñas con nombre claro
+  > un archivo gigante.
+- **Aprende a leer antes que a escribir**: si entiendes `.map().filter()`,
+  ya lees el 70% del código frontend y backend real.
+
+## Ejercicio
+
+En la consola del navegador (F12):
+
+1. Crea un array de 3 tareas y usa `.filter()` para quedarte con las no
+   hechas; `.map()` para sacar solo los títulos.
+2. Escribe `JSON.stringify(tuArray)` y luego `JSON.parse()` del resultado —
+   verifica que obtienes el mismo array.
+
+## Mini reto
+
+Sin ejecutarlo: ¿qué devuelve esto y por qué?
+
+```js
+const tasks = [{ id: 1, done: false }, { id: 2, done: true }];
+tasks.filter(t => t.done).map(t => t.id);
+```
+
+Pista: encadena las dos operaciones — primero filtra, luego transforma.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 1.**
+
+```js
+const tasks = [
+  { id: 1, title: "a", done: true },
+  { id: 2, title: "b", done: false },
+  { id: 3, title: "c", done: false },
+];
+tasks.filter(t => !t.done);        // [{id:2…},{id:3…}]
+tasks.map(t => t.title);           // ["a","b","c"]
+```
+
+**Ejercicio 2.** `JSON.stringify` produce texto
+(`'[{"id":1,…}]'`); `JSON.parse` lo convierte de vuelta a objetos — el
+mismo array. Ese ida y vuelta es literalmente lo que hacen `fetch` y tu
+futuro servidor.
+
+**Mini reto.** `[2]`: `filter` deja solo `{id:2, done:true}`, luego `map`
+extrae su `id`. Encadenar `filter().map()` es el patrón más común del
+mundo para transformar colecciones — lo verás cientos de veces.
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Usar `.map()`, `.filter()`, `.find()` sin dudar
+- [ ] Explicar qué hacen `async`/`await` y por qué la red es async
+- [ ] Leer un `import`/`export` y decir qué se mueve entre archivos
+- [ ] Explicar qué es un `interface` de TS y por qué desaparece en runtime
+- [ ] Convertir un objeto a JSON y de vuelta — y decir por qué importa

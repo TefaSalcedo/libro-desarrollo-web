@@ -10,3 +10,6 @@ Thumbs.db
 
 /.quarto/
 **/*.quarto_ipynb
+
+# Quarto LaTeX intermediates
+*.tex

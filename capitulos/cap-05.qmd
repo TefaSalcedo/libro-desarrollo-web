@@ -283,6 +283,21 @@ decisión de diseño del lenguaje.
 
 :::
 
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Crea un contrato de salida para mi API de tareas en
+[Express+TypeScript / FastAPI+Python / Go]. El objeto interno Task tiene
+campos privados (owner_id, internal_notes, deleted_at) que NUNCA deben
+salir en el JSON. Requisitos: forma pública TaskPublic con solo
+{id, title, done, created_at}, whitelist declarativa (no blacklist),
+aplicada a GET /tasks/{id} y a la lista GET /tasks con una forma
+resumida TaskSummary. Muéstrame el JSON que sale vs el objeto interno
+para comprobar el filtrado.
+```
+
+:::
+
 ## ¿Por qué cada stack lo hace así?
 
 **Lo único que necesitas llevarte:** "qué sale" es una whitelist declarada

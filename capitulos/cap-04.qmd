@@ -312,6 +312,21 @@ la validación manual también es legítima — no hay magia que esconder.
 
 :::
 
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Agrega validación declarativa al endpoint POST /tasks de mi API en
+[Zod+Express / Pydantic+FastAPI / validator+Go]. El body válido es:
+{ title: string (1-200 chars, requerido), priority: number (1-5,
+opcional), due_date: string ISO date (opcional) }. Requisitos: schema
+definido UNA sola vez fuera del handler, rechazo con 422 y errores
+estructurados por campo ({field, message}), y que el handler solo se
+ejecute si el dato ya es válido. Incluye curl de ejemplo con un body
+inválido y la respuesta 422 esperada.
+```
+
+:::
+
 ## ¿Por qué cada stack lo hace así?
 
 **Lo único que necesitas llevarte:** declaras la forma válida una vez y el

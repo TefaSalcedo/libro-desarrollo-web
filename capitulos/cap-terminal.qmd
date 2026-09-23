@@ -227,6 +227,17 @@ confianza:
 - **Dale contexto, no órdenes vagas:** "agrega validación al endpoint
   POST /tasks de `src/routes/tasks.ts`" funciona; "arregla el backend" no.
 
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Explícame este comando antes de que lo ejecute: [pegar comando].
+Quiero: qué hace cada flag y cada pipe, qué archivos/procesos toca, si
+es destructivo o reversible, y la forma segura de lograr lo mismo si es
+peligroso. No lo ejecutes — solo explícalo.
+```
+
+:::
+
 ## Errores comunes
 
 - **`command not found`**: el programa no está en el PATH. Revisa si está

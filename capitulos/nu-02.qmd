@@ -1,0 +1,55 @@
+---
+title: "N2. IaaS, PaaS y SaaS: la frontera de responsabilidad"
+subtitle: "Quién administra qué — la pregunta que responde todo modelo de nube"
+---
+
+::: {.callout-note}
+## En una frase
+
+La única pregunta que importa en la nube: **¿hasta dónde llega tu
+responsabilidad?** IaaS (máquina, tú todo), PaaS (plataforma, solo tu
+código), SaaS (solo lo usas). Mismo problema, distinta frontera.
+:::
+
+## El problema
+
+*(Por escribir: elegir entre administrar el SO o solo subir código.)*
+
+## Cómo lo resuelve un equipo
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> IaaS: EC2, VMs — tú el SO en adelante
+- <span class="tag tag-u">U</span> PaaS: Heroku, App Engine, Elastic Beanstalk — solo tu app
+- <span class="tag tag-u">U</span> SaaS: Gmail, Notion — solo lo usas
+- <span class="tag tag-ops">Ops</span> Containers as a Service, FaaS — puntos intermedios
+
+## La explicación visual
+
+```{mermaid}
+flowchart TB
+  subgraph Stack["La pila: hardware → SO → runtime → app → datos"]
+    direction TB
+  end
+```
+
+## Implementación
+
+## Errores comunes
+
+## Buenas prácticas
+
+## Ejercicio
+
+## Mini reto
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+*(Por escribir.)*
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Dibujar la frontera de responsabilidad de IaaS/PaaS/SaaS
+- [ ] Ubicar un servicio concreto en el modelo correcto

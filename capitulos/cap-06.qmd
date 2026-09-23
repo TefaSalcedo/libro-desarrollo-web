@@ -254,6 +254,21 @@ distinción que otros lenguajes dejan difusa.
 
 :::
 
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Implementa el manejo de errores de mi API en
+[Express+TypeScript / FastAPI+Python / Go]. Requisitos: jerarquía de
+errores de dominio (DomainError → NotFoundError con code estable tipo
+TASK_NOT_FOUND), el servicio lanza errores de dominio sin conocer HTTP,
+UN solo lugar traduce errores a HTTP (middleware / exception handler /
+helper), formato de respuesta { error: { code, message } } consistente,
+y el 500 loguea el stack completo pero devuelve solo {code: "INTERNAL"}
+— nunca el trace al cliente.
+```
+
+:::
+
 ## ¿Por qué cada stack lo hace así?
 
 **Lo único que necesitas llevarte:** TS y Python usan excepciones (el error

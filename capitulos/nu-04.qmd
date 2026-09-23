@@ -1,0 +1,48 @@
+---
+title: "N4. Servicios administrados: paga por no administrar"
+subtitle: "Managed Postgres, storage, DNS, CDN y secretos — lo que la nube te quita"
+---
+
+::: {.callout-note}
+## En una frase
+
+El valor real de la nube no son las máquinas — son los **servicios
+administrados**: una Postgres con backups automáticos (RDS), un storage
+infinito (S3), DNS global, CDN. Pagas para *no* ser DBA ni sysadmin.
+:::
+
+## El problema
+
+*(Por escribir: administrar Postgres a mano vs RDS.)*
+
+## Cómo lo resuelve un equipo
+
+## Conceptos nuevos
+
+- <span class="tag tag-d">D</span> Managed DB: RDS/Cloud SQL — backups, réplicas, patching incluidos
+- <span class="tag tag-ops">Ops</span> Object storage: S3 — durabilidad 11 nueves, no es un filesystem
+- <span class="tag tag-ops">Ops</span> DNS (Route 53) y CDN (CloudFront/Cloudflare)
+- <span class="tag tag-ops">Ops</span> Secretos: Secrets Manager, Key Vault — dónde van las API keys
+
+## La explicación visual
+
+## Implementación
+
+## Errores comunes
+
+## Buenas prácticas
+
+## Ejercicio
+
+## Mini reto
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+*(Por escribir.)*
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Decir qué te quita de encima un servicio administrado
+- [ ] Explicar por qué S3 no es "un disco" y RDS no es "Postgres en una VM"

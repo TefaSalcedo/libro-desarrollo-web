@@ -167,6 +167,20 @@ criptográfico viene incluido.
 
 :::
 
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Inicializa un proyecto backend nuevo llamado "taskflow" en
+[Express+TypeScript / FastAPI+Python / Go]. Requisitos: manifiesto de
+dependencias (package.json / requirements.txt / go.mod), entorno aislado
+(si aplica: venv), .gitignore correcto para el stack, estructura de
+carpetas mínima, y un README con los 3 comandos: instalar, arrancar en
+watch mode, y probar GET /health con curl. Dame los comandos de terminal
+exactos paso a paso.
+```
+
+:::
+
 ## ¿Por qué cada stack lo hace así?
 
 **Lo único que necesitas llevarte:** npm y pip instalan dependencias

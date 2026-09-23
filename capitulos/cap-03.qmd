@@ -380,6 +380,20 @@ curl -i http://localhost:8000/tasks/99
 # {"error":"task not found"}
 ```
 
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Implementa un CRUD en memoria para una API de tareas en
+[Express+TypeScript / FastAPI+Python / net/http+Go]. Endpoints:
+GET /tasks (lista), POST /tasks (crear, body {title}), GET /tasks/{id}
+(una, 404 si no existe), DELETE /tasks/{id} (204 o 404). Requisitos:
+status codes correctos (201, 204, 404), sin base de datos (array en
+memoria), y los comandos curl para probar cada endpoint. Después
+explícame qué convención REST aplica cada ruta.
+```
+
+:::
+
 ## ¿Por qué cada stack lo hace así?
 
 **Lo único que necesitas llevarte:** las rutas, verbos y status codes son

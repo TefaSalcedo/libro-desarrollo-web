@@ -1,0 +1,180 @@
+---
+title: "F1. El navegador es un runtime"
+subtitle: "Qué pasa de verdad cuando escribes una URL y le das Enter"
+---
+
+::: {.callout-note}
+## En una frase
+
+Vas a entender **qué hace el navegador con tu código**: descarga archivos,
+construye el DOM, ejecuta JavaScript y pinta píxeles. Cuando entiendas que
+el navegador *es un runtime* (como Node, pero con pantalla), todo lo demás
+del frontend se acomoda solo.
+:::
+
+## El problema
+
+Escribes `localhost:5173`, le das Enter, y aparece tu app. ¿Qué pasó en el
+medio? La mayoría de la gente que "sabe frontend" no puede responder esto
+completo — y es la base de todo lo que viene.
+
+```text
+Escribes URL → el navegador pide archivos → los interpreta → pinta
+```
+
+Ese flujo simple esconde cuatro actores: la red (HTTP), el parser
+(HTML→DOM), el motor JS (que ejecuta tu código) y el motor de renderizado
+(que pinta). Aquí los destapamos uno por uno — sin teoría vacía, cada uno
+con algo que puedes ver *ahora* en tu navegador.
+
+## Cómo lo resuelve un equipo
+
+Cuando algo "no se ve", un frontend senior no adivina: abre las DevTools y
+mira *qué etapa falló*:
+
+- ¿Llegaron los archivos? → pestaña **Network** (¿algún request rojo 404/500?)
+- ¿Se construyó el DOM? → pestaña **Elements** (¿el HTML tiene lo esperado?)
+- ¿Corrió el JS? → pestaña **Console** (¿algún error rojo?)
+- ¿Se pintó pero mal? → pestaña **Styles/Computed**
+
+Esa división (red / estructura / lógica / pintura) *es* el mapa del
+navegador — y del debugging de frontend entero.
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> **Runtime**: el programa que ejecuta tu
+  código. El navegador es el runtime del frontend; Node es el mismo motor
+  (V8) sin pantalla.
+- <span class="tag tag-u">U</span> **DOM**: el árbol de objetos que el
+  navegador construye al leer tu HTML — lo que JavaScript puede tocar.
+- <span class="tag tag-u">U</span> **Render blocking**: el navegador pausa
+  cuando encuentra `<script>` — por eso importa *dónde* pones los scripts.
+- <span class="tag tag-u">U</span> **DevTools**: el debugger que ya llevas
+  instalado — Network, Elements, Console, Sources.
+
+## La explicación visual
+
+```{mermaid}
+flowchart LR
+  U["URL + Enter"] --> N["1. Network<br/>GET index.html, app.js, styles.css"]
+  N --> P["2. Parse<br/>HTML → árbol DOM"]
+  P --> J["3. Motor JS<br/>ejecuta app.js<br/>(puede tocar el DOM)"]
+  J --> R["4. Render<br/>DOM + CSS → píxeles"]
+```
+
+**Míralo en vivo**: abre cualquier página, presiona F12 → pestaña Network,
+recarga. Cada fila es un archivo que el navegador pidió — ese *es* el paso 1.
+
+## Implementación
+
+La página mínima que demuestra las 4 etapas — crea `index.html` y ábrela:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    .card { border: 2px solid #2563eb; padding: 1rem; }
+  </style>
+</head>
+<body>
+  <div id="app" class="card">Cargando…</div>
+  <script>
+    // Paso 3: el motor JS toca el DOM construido en el paso 2
+    document.getElementById("app").textContent =
+      "El navegador construyó el DOM y JS lo modificó";
+  </script>
+</body>
+</html>
+```
+
+Qué estás viendo: el navegador **parseó** el HTML a un árbol (paso 2),
+**ejecutó** el script que modificó ese árbol (paso 3) y **pintó** el
+resultado con el CSS (paso 4). El paso 1 fue traer `index.html` desde tu
+disco o servidor.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Explícame el ciclo de vida completo de una página web cuando escribo una
+URL y presiono Enter: qué archivos pide el navegador, en qué orden, qué es
+el DOM y cuándo se ejecuta el JavaScript. Usa este HTML de ejemplo:
+[pegar tu index.html]. Quiero una explicación paso a paso, no una
+definición de Wikipedia — y dime qué puedo ver en DevTools para
+comprobar cada etapa.
+```
+
+:::
+
+## ¿Por qué importa esto para backend?
+
+**Lo único que necesitas llevarte:** el navegador es un *cliente HTTP con
+pantalla*. Cuando en la Sección II construyas el servidor, tu única misión
+será responder bien al paso 1 — el navegador hace el resto.
+
+::: {.callout-note collapse="true" title="Detalle: navegador vs Node, el mismo motor"}
+
+El motor JS de Chrome es **V8** — el mismo que corre Node.js. Por eso
+JavaScript "saltó" del navegador al servidor: Node es V8 + APIs de sistema
+(archivos, red, procesos) en vez de APIs de navegador (DOM, eventos,
+canvas). Mismo lenguaje, distintas herramientas alrededor — esa es toda la
+diferencia frontend/backend a nivel runtime.
+
+:::
+
+## Errores comunes
+
+- **Confundir el archivo con lo que se ve**: el HTML que escribiste no es
+  lo que se pinta — es lo que el DOM tiene *después* de que JS lo tocó.
+  Mira Elements, no el archivo.
+- **Script antes del DOM**: si tu script corre antes de que exista el
+  elemento, `getElementById` devuelve `null`. Por eso los scripts van al
+  final del `<body>` o con `defer`.
+- **Debuggear a ciegas**: editar HTML sin mirar Network/Console es
+  apagar fuegos con los ojos cerrados.
+
+## Buenas prácticas
+
+- **DevTools abiertas siempre** mientras desarrollas — son tu debugger,
+  no un accesorio.
+- **`type="module"` y `defer`** para scripts modernos — respetan el orden
+  y no bloquean el parse.
+- **Pregunta "¿en qué etapa estoy?"** ante cualquier bug: ¿llegó el
+  archivo? ¿está en el DOM? ¿corrió el JS? ¿se pintó?
+
+## Ejercicio
+
+1. Crea el `index.html` de arriba, ábrelo y cambia el texto del div desde
+   la **consola de DevTools** (`document.getElementById("app").textContent
+   = "otro"`). ¿Qué pasó — el archivo cambió o el DOM?
+2. En Network, recarga y encuentra el request de `index.html`: mira su
+   status, su tamaño y su tiempo.
+
+## Mini reto
+
+Abre una web real (cualquiera) y responde solo con DevTools: ¿cuántos
+requests hizo al cargar? ¿cuál fue el más lento? ¿hay algún error en
+Console? Esas tres respuestas son el 80% del diagnóstico frontend.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 1.** Cambió el **DOM en memoria**, no el archivo — si recargas,
+vuelve el texto original. Esa es *la* lección del capítulo: el navegador
+pinta el DOM (árbol vivo), no tu archivo.
+
+**Ejercicio 2.** En Network verás `index.html` con status `200`, tipo
+`document`, y su tiempo de descarga — el paso 1 del diagrama.
+
+**Mini reto.** Respuesta modelo: una página típica hace 20–80 requests
+(HTML + JS + CSS + imágenes + APIs). El más lento suele ser un bundle JS
+grande o una API — ordena por columna "Time" en Network. Errores rojos en
+Console = JS que falló en el paso 3.
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Explicar las 4 etapas (network → DOM → JS → render) sin mirar
+- [ ] Diagnosticar "no se ve nada" ubicando qué etapa falló con DevTools
+- [ ] Explicar por qué el archivo HTML y lo que se ve no son lo mismo
+- [ ] Decir qué comparten el navegador y Node.js (y qué no)

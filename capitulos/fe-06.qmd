@@ -1,0 +1,151 @@
+---
+title: "F6. De dev server a build: qué produce tu frontend"
+subtitle: "npm run dev no es tu app — es la fábrica que la construye"
+---
+
+::: {.callout-note}
+## En una frase
+
+`npm run dev` levanta un servidor *de desarrollo* que compila tu código al
+vuelo; `npm run build` produce **archivos estáticos** (HTML+JS+CSS) que un
+servidor cualquiera puede servir. Entender esa diferencia es entender cómo
+el frontend llega a producción — y cómo se conecta con tu backend.
+:::
+
+## El problema
+
+En desarrollo todo funciona en `localhost:5173` con Vite recargando solo.
+Luego alguien pregunta: "¿y en producción cómo corre?" — y la respuesta
+sorprende: **tu React no corre en el servidor**. Se *construye* a archivos
+estáticos y cualquier servidor (nginx, un CDN, tu propio backend) los
+sirve tal cual. El navegador del usuario hace todo el trabajo.
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> **Dev server**: compila al vuelo, hot
+  reload, solo para desarrollar — nunca para usuarios.
+- <span class="tag tag-u">U</span> **Build**: `npm run build` → `dist/` con
+  archivos estáticos optimizados (minificados, con hash).
+- <span class="tag tag-u">U</span> **SPA vs SSR**: la app corre en el
+  navegador (SPA) vs el servidor prerenderiza HTML (SSR).
+- <span class="tag tag-u">U</span> **API vs static hosting**: tu frontend
+  son archivos; tu backend es un proceso — dos cosas distintas a desplegar.
+
+## La explicación visual
+
+```{mermaid}
+flowchart LR
+  subgraph Dev["Desarrollo"]
+    D1["npm run dev<br/>Vite dev server :5173"] -->|"compila al vuelo"| B1["navegador"]
+  end
+  subgraph Prod["Producción"]
+    B["npm run build"] --> S["dist/ = index.html<br/>+ app.js + style.css"]
+    S --> N["nginx / CDN / tu backend<br/>los sirve estáticos"] --> B2["navegador del usuario"]
+    B2 -->|"fetch /api"| API["tu backend (Sección II)"]
+  end
+```
+
+La lección clave: en producción hay **dos servicios** — el que sirve los
+archivos estáticos (frontend) y el que responde `/api` (backend). Pueden
+ser el mismo proceso o dos distintos.
+
+## Implementación
+
+```bash
+npm run dev      # Vite dev server — solo desarrollo, hot reload
+npm run build    # → dist/ : index.html + assets/*.js + *.css minificados
+npm run preview  # sirve dist/ localmente para probar el build
+```
+
+Mira lo que genera `build`:
+
+```text
+dist/
+├── index.html              # el esqueleto que carga todo
+└── assets/
+    ├── index-a1b2c3.js     # TODO tu React, minificado, con hash
+    └── index-d4e5f6.css    # tus estilos, minificados
+```
+
+El hash en el nombre (`a1b2c3`) es caché-busting: cambia cuando el código
+cambia, así el navegador sabe cuándo re-descargar.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Explícame la diferencia entre `npm run dev`, `npm run build` y
+`npm run preview` en un proyecto Vite + React. Quiero saber: qué genera
+el build físicamente, por qué el servidor de producción solo sirve
+archivos estáticos, y cómo se conecta el frontend desplegado con un
+backend en /api. Usa un ejemplo con nginx o sirviendo dist/ desde el
+propio backend.
+```
+
+:::
+
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre SPA + build estático?"}
+
+**Esta decisión es material:** entregar tu UI al navegador debe pasar;
+cómo llega ahí tiene variantes reales.
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| SPA estática (este capítulo) | Build → archivos servidos por cualquiera | SEO más difícil, primera carga vacía | Apps privadas, dashboards — el default |
+| SSR (Next.js, Nuxt, Angular Universal) | El servidor prerenderiza HTML por request | Un proceso Node corriendo siempre | SEO, contenido público, e-commerce |
+| SSG (static site generation) | HTML generado en build por página | Rebuild al cambiar contenido | Blogs, docs, marketing |
+| Server components (React moderno) | Componentes que corren solo en servidor | Modelo mental nuevo, framework-specific | Apps grandes con Next.js |
+
+:::
+
+## Errores comunes
+
+- **Desplegar el dev server**: `npm run dev` en producción — está hecho
+  para velocidad de desarrollo, no para usuarios.
+- **Pensar que el frontend "corre" en el servidor**: solo se sirven
+  archivos; el código corre en el navegador del usuario.
+- **API hardcodeada a localhost**: `fetch("http://localhost:8000")` en el
+  build de producción — la base URL debe venir del entorno.
+
+## Buenas prácticas
+
+- **`dist/` a un estático** (nginx, CDN, S3) — el frontend no necesita un
+  proceso vivo, solo archivos servidos.
+- **La API como variable de entorno**: `VITE_API_URL` — el build se
+  adapta a cada entorno sin re-compilar lógica.
+- **Mismo dominio si puedes**: servir frontend y `/api` desde el mismo
+  origen evita CORS (Sección II lo explica).
+
+## Ejercicio
+
+1. Corre `npm run build` en tu app Vite y mira `dist/` — encuentra el JS
+   con hash y confirma que `index.html` lo referencia.
+2. Sirve `dist/` con `npm run preview` y verifica que funciona sin el dev
+   server.
+
+## Mini reto
+
+Si el frontend son solo archivos estáticos, ¿cómo "sabe" a qué backend
+llamar? Diseña la respuesta — pista: variable de entorno en build o
+mismo-origen con proxy.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 1.** `dist/index.html` referencia `assets/index-<hash>.js` —
+un solo archivo con todo tu código minificado; el hash cambia al
+reconstruir.
+
+**Mini reto.** Dos caminos: (a) `VITE_API_URL` inyectada en el build
+(`import.meta.env.VITE_API_URL`) apunta al backend por entorno; (b)
+mismo-origen — el servidor que sirve `dist/` también responde `/api/*`
+(nginx proxy o el propio backend sirviendo estáticos), y el frontend usa
+`fetch("/api/...")` sin host. El (b) es el más simple en producción y
+evita CORS por completo.
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Explicar qué genera `npm run build` y por qué son archivos estáticos
+- [ ] Decir la diferencia entre dev server, preview y producción
+- [ ] Explicar SPA vs SSR y cuándo cada uno
+- [ ] Diseñar cómo el frontend desplegado encuentra a su backend

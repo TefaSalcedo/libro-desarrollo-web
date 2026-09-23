@@ -1,0 +1,176 @@
+---
+title: "F3. DOM, eventos y estado: por qué existe React"
+subtitle: "El problema que los frameworks resuelven — mostrado a mano primero"
+---
+
+::: {.callout-note}
+## En una frase
+
+Vas a tocar el DOM a mano (sin frameworks): seleccionar elementos,
+escuchar clicks y **descubrir por tu cuenta el problema que React
+resolvió** — mantener la pantalla sincronizada con los datos. Es el
+capítulo que explica por qué los frameworks existen.
+:::
+
+## El problema
+
+Tienes una lista de tareas en memoria (un array de JS) y quieres verla en
+pantalla. Con HTML puro ya sabes escribir `<ul><li>…</li></ul>` — pero la
+lista *cambia*: el usuario agrega tareas, las marca hechas, las borra.
+¿Cómo haces que la pantalla refleje el array actual?
+
+La respuesta ingenua: "cuando cambie el array, reescribo el HTML". Intenta
+hacerlo a mano y sentirás el dolor que React vino a curar.
+
+## Cómo lo resuelve un equipo
+
+Antes de React (2013), los equipos sincronizaban datos↔pantalla a mano con
+jQuery — y las apps grandes se volvían spaghetti de `$(this).find(...)`
+imposibles de razonar. La idea que cambió todo:
+
+> **La pantalla es una función del estado.** `UI = f(state)`. No actualices
+> el DOM elemento por elemento; declara cómo se ve la UI para cada estado y
+> deja que el framework calcule el cambio.
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> **DOM**: el árbol vivo que JS puede
+  modificar (`document.getElementById`, `createElement`, `append`).
+- <span class="tag tag-u">U</span> **Eventos**: clicks, inputs — el usuario
+  "emite" eventos y tú registras listeners.
+- <span class="tag tag-u">U</span> **Estado**: los datos que cambian en el
+  tiempo (el array de tareas) — la fuente de verdad.
+- <span class="tag tag-u">U</span> **Re-render**: volver a pintar cuando
+  el estado cambia — a mano es tedioso; los frameworks lo automatizan.
+
+## La explicación visual
+
+```{mermaid}
+flowchart LR
+  subgraph Manual["A mano (DOM directo)"]
+    S1["estado: tasks[]"] -->|"tú escribes cada cambio"| D1["DOM"]
+    D1 -->|"click"| E1["listener"] -->|"muta"| S1
+  end
+  subgraph Framework["Con framework"]
+    S2["state"] -->|"UI = f(state) auto"| D2["DOM"]
+    D2 -->|"evento"| S2
+  end
+```
+
+En el modelo manual *tú* escribes cada actualización del DOM; en el de
+framework tú cambias el estado y la UI se recalcula sola.
+
+## Implementación: el dolor a mano (y por qué importa)
+
+Un contador + lista con DOM puro — fíjate en cuánto código es solo
+"sincronizar pantalla":
+
+```html
+<ul id="list"></ul>
+<input id="newTask" placeholder="nueva tarea" />
+<button id="add">Agregar</button>
+
+<script>
+  const tasks = [];   // ← el ESTADO: la fuente de verdad
+
+  function render() {            // ← reescribir el DOM entero cada vez
+    const ul = document.getElementById("list");
+    ul.innerHTML = "";
+    tasks.forEach((t) => {
+      const li = document.createElement("li");
+      li.textContent = t;
+      ul.append(li);
+    });
+  }
+
+  document.getElementById("add").addEventListener("click", () => {
+    tasks.push(document.getElementById("newTask").value);  // cambia estado
+    render();                                             // sincroniza a mano
+  });
+</script>
+```
+
+Qué estás viendo: **toda la complejidad está en `render()`** — reescribir
+el DOM cada vez que el estado cambia. Con 3 elementos es manejable; con 50
+componentes anidados es el infierno que React vino a resolver: tú declaras
+`UI = f(state)` y React hace el `render()` por ti.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Quiero entender por qué existen los frameworks frontend. Muéstrame el
+mismo ejercicio (una lista donde agrego ítems con un input) en DOS
+versiones: (1) DOM puro con addEventListener y re-render manual, (2)
+React con useState. Para cada una explica qué línea sincroniza el estado
+con la pantalla — quiero ver exactamente qué trabajo me ahorra el
+framework.
+```
+
+:::
+
+::: {.callout-tip collapse="true" title="Otras cimentaciones: ¿siempre un framework para el DOM?"}
+
+**Esta decisión es material:** *sincronizar estado↔pantalla* es
+estructural; cómo hacerlo varía mucho.
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
+|---|---|---|---|
+| DOM manual (este capítulo) | `render()` a mano | Crece mal con la complejidad | Páginas casi estáticas, aprender |
+| React (canónico) | `UI = f(state)`, JSX | Curva de conceptos (hooks) | El default de la industria |
+| Vue / Svelte | Reactividad más directa | Ecosistema menor que React | Equipos que la prefieren — igual de válidas |
+| HTMX / Alpine | Reactividad mínima en HTML | No escala a apps complejas | Apps server-rendered con poca interactividad |
+
+:::
+
+## Errores comunes
+
+- **`innerHTML +=`**: borra y recrea todo el DOM — pierde el foco, el
+  scroll y es un agujero de seguridad (inyección). Los frameworks lo
+  evitan.
+- **Estado duplicado**: si el dato vive en el array *y* en el DOM, se
+  desincronizan. Una sola fuente de verdad: el estado.
+- **Confundir evento con estado**: un click no "guarda" nada — dispara
+  una función que cambia el estado, y *eso* repinta.
+
+## Buenas prácticas
+
+- **El estado es la fuente de verdad**: el DOM solo lo *refleja*; nunca
+  leas datos "desde el DOM".
+- **Un evento → cambia estado → re-render**: ese ciclo es el latido de
+  toda app frontend, con o sin framework.
+- **Entiende el dolor manual antes del framework**: quien entiende qué
+  resuelve React la usa mejor.
+
+## Ejercicio
+
+1. Completa el ejemplo del contador agregando un botón "Borrar última" que
+   quite el último item del array y re-renderice.
+2. Agrega un `<span>` que muestre `tasks.length` — actualízalo en
+   `render()`.
+
+## Mini reto
+
+En una frase: ¿qué es exactamente lo que React te ahorra escribir? Si tu
+respuesta menciona "el render manual", entendiste el capítulo.
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 1.** `tasks.pop(); render();` — el patrón es siempre: mutar
+estado → llamar render.
+
+**Ejercicio 2.** `document.getElementById("count").textContent =
+tasks.length;` dentro de `render()` — otro dato derivado del estado.
+
+**Mini reto.** React te ahorra escribir el `render()` y la sincronización
+manual del DOM: declaras cómo se ve la UI para cada estado
+(`UI = f(state)`) y el framework calcula el cambio mínimo. Todo lo demás
+(JSX, hooks, componentes) son detalles de esa idea central.
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Seleccionar y modificar elementos del DOM con JS puro
+- [ ] Registrar un `addEventListener` y explicar qué pasa al click
+- [ ] Explicar "UI = f(state)" y por qué fue la idea clave
+- [ ] Decir qué es la fuente de verdad en una app (el estado, no el DOM)

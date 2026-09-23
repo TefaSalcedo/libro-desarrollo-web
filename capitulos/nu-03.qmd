@@ -1,0 +1,58 @@
+---
+title: "N3. AWS, Azure y GCP: el mismo supermercado con tres logos"
+subtitle: "Los tres gigantes venden lo mismo — aprende las equivalencias"
+---
+
+::: {.callout-note}
+## En una frase
+
+AWS, Azure y Google Cloud ofrecen **los mismos servicios con distintos
+nombres**: EC2 = Azure VM = Compute Engine. Aprende la categoría, no el
+logo — y ninguna certificación te pillará por sorpresa.
+:::
+
+## El problema
+
+*(Por escribir: "usa AWS" suena a aprender un universo; en realidad es
+aprender las 10 categorías que todos venden igual.)*
+
+## Cómo lo resuelve un equipo
+
+## Conceptos nuevos
+
+- <span class="tag tag-ops">Ops</span> Compute: EC2 / Azure VM / Compute Engine
+- <span class="tag tag-ops">Ops</span> Storage: S3 / Blob / Cloud Storage
+- <span class="tag tag-d">D</span> Managed DB: RDS / Azure SQL / Cloud SQL
+- <span class="tag tag-ops">Ops</span> Serverless: Lambda / Functions / Cloud Functions
+- <span class="tag tag-ops">Ops</span> IAM: identidad y permisos en los tres
+
+## La explicación visual
+
+| Categoría | AWS | Azure | GCP |
+|---|---|---|---|
+| Compute | EC2 | Virtual Machines | Compute Engine |
+| Storage objetos | S3 | Blob Storage | Cloud Storage |
+| BD relacional | RDS | Azure SQL | Cloud SQL |
+| Serverless | Lambda | Azure Functions | Cloud Functions |
+| DNS | Route 53 | Azure DNS | Cloud DNS |
+
+## Implementación
+
+## Errores comunes
+
+## Buenas prácticas
+
+## Ejercicio
+
+## Mini reto
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+*(Por escribir.)*
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Traducir un servicio de un proveedor a los otros dos
+- [ ] Nombrar las 5-6 categorías universales que todos venden

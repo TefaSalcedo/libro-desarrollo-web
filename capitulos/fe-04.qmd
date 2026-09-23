@@ -1,0 +1,235 @@
+---
+title: "F4. Frameworks: el mismo componente en cuatro sabores"
+subtitle: "React, Vue, Angular y Svelte resolviendo el mismo problema"
+---
+
+::: {.callout-note}
+## En una frase
+
+El mismo componente — un contador con un botón — escrito en **JS vanilla,
+React, Vue, Angular y Svelte**. Verás que el concepto (estado → UI) es
+idéntico y solo cambia la sintaxis: elegir framework es elegir dialecto,
+no religión.
+:::
+
+## El problema
+
+"¿Qué framework aprendo?" es la pregunta que paraliza a todo el que
+empieza. La respuesta honesta: **el concepto es uno** — componentes con
+estado que repintan la UI. Los frameworks son cuatro dialectos de esa idea.
+Verlos lado a lado resolviendo *exactamente lo mismo* es la forma más
+rápida de entenderlos todos.
+
+## Cómo lo resuelve un equipo
+
+Un equipo no elige "el mejor" — elige por contexto:
+
+- ¿Qué usa ya la empresa/equipo? (la razón #1 en la vida real)
+- ¿Cuánta estructura quieres impuesta? (Angular la impone toda; React te
+  deja decidir)
+- ¿Tamaño del ecosistema y contratación? (React gana por goleada)
+
+## Conceptos nuevos
+
+- <span class="tag tag-u">U</span> **Componente**: una pieza de UI con su
+  estado y su vista — botón, tarjeta, página entera.
+- <span class="tag tag-u">U</span> **Reactividad**: estado cambia → UI se
+  actualiza sola. Cada framework la implementa distinto.
+- <span class="tag tag-u">U</span> **Vite + dev server**: la herramienta
+  que sirve tu app en desarrollo (`npm run dev`).
+- <span class="tag tag-u">U</span> **JSX / templates / SFC**: cómo cada
+  framework escribe "HTML con lógica dentro".
+
+## Implementación: el contador, cinco formas
+
+::: {.panel-tabset}
+
+### Fundamentos (JS vanilla)
+
+```html
+<div id="app"></div>
+<script>
+  let count = 0;                    // estado
+  function render() {               // UI = f(state), a mano
+    document.getElementById("app").innerHTML =
+      `<p>Count: ${count}</p><button id="b">+1</button>`;
+    document.getElementById("b").onclick = () => { count++; render(); };
+  }
+  render();
+</script>
+```
+
+Ya conoces el patrón del Cap. F3: mutas estado → llamas render. Todo lo
+demás es esto mismo con mejor ergonomía.
+
+### React (canónico)
+
+```jsx
+import { useState } from "react";
+
+export default function Counter() {
+  const [count, setCount] = useState(0);   // estado declarativo
+  return (
+    <div>                                  {/* UI = f(state) */}
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>+1</button>
+    </div>
+  );
+}
+```
+
+`useState` devuelve `[valor, setter]`: llamar `setCount` cambia el estado
+**y React re-renderiza solo** — no escribes `render()`.
+
+### Vue
+
+```vue
+<script setup>
+import { ref } from "vue";
+const count = ref(0);              // estado reactivo
+</script>
+
+<template>
+  <p>Count: {{ count }}</p>
+  <button @click="count++">+1</button>
+</template>
+```
+
+`ref` hace el dato reactivo: `count++` actualiza el estado y el template
+se repinta solo — ni `setCount` ni `render`.
+
+### Angular
+
+```ts
+import { Component } from "@angular/core";
+
+@Component({
+  selector: "app-counter",
+  template: `
+    <p>Count: {{ count }}</p>
+    <button (click)="count = count + 1">+1</button>
+  `,
+})
+export class CounterComponent {
+  count = 0;   // el estado es un campo de la clase
+}
+```
+
+Angular organiza en clases + decoradores: el template reacciona a cambios
+del campo. Más estructura impuesta, más "framework completo".
+
+### Svelte
+
+```svelte
+<script>
+  let count = 0;    // variable normal — Svelte la hace reactiva al compilar
+</script>
+
+<p>Count: {count}</p>
+<button on:click={() => count++}>+1</button>
+```
+
+Svelte es el más "mágico": escribes JS casi normal y el compilador genera
+el código reactivo — el que menos boilerplate tiene.
+
+:::
+
+## ¿Por qué cada framework lo hace así?
+
+**Lo único que necesitas llevarte:** los cinco hacen `estado → UI`. La
+diferencia real es *cuánto decides tú* vs *cuánto decide el framework*:
+React y Svelte te dan un mecanismo; Vue un sistema; Angular una
+arquitectura completa.
+
+::: {.callout-note collapse="true" title="Detalle: cómo reacciona cada uno"}
+
+- **React**: re-ejecuta la función del componente y compara el resultado
+  (virtual DOM) — explícito, predecible.
+- **Vue**: `ref` envuelve el dato y rastrea qué lo usa — reactividad
+  automática por proxys.
+- **Angular**: detección de cambios sobre la clase + signals modernos —
+  el más estructurado (inyección de dependencias nativa, como el backend
+  de NestJS).
+- **Svelte**: el compilador detecta qué variables usa el template y genera
+  updates quirúrgicos del DOM — sin virtual DOM, más rápido y simple.
+
+:::
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Muéstrame el MISMO componente (un contador con botón que incrementa) en
+React, Vue, Angular y Svelte. Para cada uno: el código mínimo completo,
+qué línea declara el estado, y qué línea hace que la UI se actualice.
+Después compáralos en una tabla: sintaxis de estado, cómo se re-renderiza,
+y qué tanto decide el framework por mí.
+```
+
+:::
+
+## Herramientas: cómo arranca un proyecto frontend
+
+Todos comparten el mismo ritual (idéntico al del backend del Cap. 2):
+
+```bash
+npm create vite@latest my-app -- --template react   # o vue / svelte / vanilla
+cd my-app && npm install
+npm run dev    # → http://localhost:5173 con hot reload
+```
+
+**Vite** es el dev server estándar hoy: sirve tus archivos, compila
+JSX/TS al vuelo y recarga al guardar. El `npm run dev` del frontend es el
+gemelo del `uvicorn --reload` del backend.
+
+## Errores comunes
+
+- **"Aprender React" sin entender estado**: si no entiendes
+  `estado → UI` del Cap. F3, los hooks se sienten mágicos y frágiles.
+- **Mutar el estado directamente en React**: `count++` no repinta —
+  hay que llamar `setCount`. En Vue/Svelte sí se muta.
+- **Peleas de frameworks**: el mejor framework es el del equipo que te
+  contrata — el concepto transferible es lo que importa.
+
+## Buenas prácticas
+
+- **Aprende UNO bien, lee los demás**: con React sólido, Vue/Svelte se
+  aprenden en días — el concepto es el mismo.
+- **Componentes pequeños**: un componente = una pieza de UI; si crece,
+  se divide.
+- **Estado lo más cerca posible de quien lo usa** — el global es para
+  lo que de verdad comparten muchos.
+
+## Ejercicio
+
+1. `npm create vite@latest counter -- --template react`, corre
+   `npm run dev` y cambia el texto del botón a "incrementar".
+2. Agrega un segundo botón "-1" al contador.
+
+## Mini reto
+
+Explica con tus palabras por qué en React escribes `setCount(count + 1)`
+pero en Vue/Svelte basta `count++`. ¿Qué está haciendo cada framework por
+debajo?
+
+::: {.callout-note collapse="true" title="Soluciones"}
+
+**Ejercicio 2.**
+
+```jsx
+<button onClick={() => setCount(count - 1)}>-1</button>
+```
+
+**Mini reto.** React necesita el setter porque re-ejecuta el componente
+solo cuando el estado cambia *a través de su API* — `count++` mutaría la
+variable sin avisarle a React. Vue/Svelte interceptan la asignación
+(proxy/compilador) y *saben* que el dato cambió solos. Misma reactividad,
+distinto mecanismo de "aviso".
+
+:::
+
+## Lo que deberías saber hacer ahora
+
+- [ ] Explicar qué es un componente y el ciclo estado→UI
+- [ ] Leer un componente en React, Vue o Svelte e identificar su estado
+- [ ] Arrancar un proyecto con Vite y explicar qué hace `npm run dev`
+- [ ] Argumentar por qué elegir framework es contexto, no religión

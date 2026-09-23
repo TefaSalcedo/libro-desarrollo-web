@@ -283,6 +283,19 @@ framework?" — muchas empresas dicen que no.
 
 :::
 
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Crea un servidor HTTP mínimo que exponga GET /health respondiendo
+{ "status": "ok" } en el puerto 8000, en [Express+TypeScript /
+FastAPI+Python / net/http+Go]. Requisitos: código mínimo pero real,
+comando para instalar dependencias y arrancar, y un curl para probarlo.
+Después explícame línea por línea qué hace cada parte — quiero entender
+qué es la "app" y qué es el "servidor" en este stack.
+```
+
+:::
+
 ## ¿Por qué cada stack lo hace así?
 
 **Lo único que necesitas llevarte:** los tres hacen lo mismo; lo que cambia

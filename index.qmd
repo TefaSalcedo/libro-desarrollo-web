@@ -1,20 +1,24 @@
 # Prefacio {.unnumbered}
 
-Ya sabes programar. Sabes JavaScript, React, `fetch`, `async/await`, JSON.
-Has consumido decenas de APIs. Este libro empieza exactamente ahí: **del otro
-lado del `fetch`**.
+Este libro te lleva de **cero a desarrollo web completo**: primero
+aprendes frontend (lo que el navegador hace con tu código), luego backend
+y bases de datos (lo que tu servidor hace con los datos), y finalmente la
+nube (dónde vive todo eso en producción). Ningún prerrequisito asumido —
+si vienes "de la era de la AI" y nunca aprendiste esto en orden, el libro
+empieza donde estás.
 
-## Para quién es este libro
+## Las tres secciones
 
-Para desarrolladores frontend que quieren construir sistemas backend reales:
-APIs, bases de datos, autenticación, testing, Docker y despliegue. No es un
-curso de "Python desde cero" ni de "JavaScript desde cero" — los lenguajes se
-aprenden **dentro de problemas reales**, justo cuando hacen falta.
+| Sección | Aprendes | Proyecto |
+|---|---|---|
+| **I · Aprende Frontend** | El navegador como runtime, JS/TS, componentes, llamadas a APIs, build | La UI de Taskflow |
+| **II · Aprende Backend y BD juntos** | HTTP, APIs, validación, PostgreSQL, auth, testing — en 3 lenguajes | Taskflow + Nexus |
+| **III · Aprende Nube** | Servidores reales, Docker, AWS/Azure/GCP, serverless | Taskflow en producción |
 
 ## Un concepto, tres lenguajes
 
-Cada funcionalidad se explica como concepto universal de backend y luego se
-implementa en tres stacks minimalistas:
+En la Sección II, cada funcionalidad se explica como concepto universal y
+luego se implementa en tres stacks minimalistas:
 
 ::: {.panel-tabset}
 
@@ -30,48 +34,32 @@ FastAPI — validación declarativa con type hints y Pydantic.
 :::
 
 Después de cada ejemplo viene la pregunta importante: **¿por qué cada
-ecosistema lo resuelve así?** Ahí es donde se aprende backend de verdad.
+ecosistema lo resuelve así?** — y el bloque clicable **"Otras
+cimentaciones"**: las alternativas con su precio.
 
 ## La filosofía
 
-> Aprender el concepto JUSTO CUANDO se necesita para construir algo real.
+> Aprender el concepto JUSTO CUANDO se necesita para construir algo real —
+> y reconocer el patrón, no memorizar la sintaxis.
 
-No hay capítulos de "variables", "strings" ni "for loops". Hay capítulos de
-"necesitamos recibir datos del cliente", "necesitamos que los datos sobrevivan
-al reinicio", "necesitamos que robar una sesión no sea suficiente".
-
-## Los proyectos
-
-| Parte | Proyecto | De… | A… |
-|---|---|---|---|
-| 0 | — | Frontend dev | Entiende qué construye |
-| 1 | Taskflow en memoria | Cero backend | API con arquitectura real |
-| 2 | Taskflow + PostgreSQL | Datos volátiles | Persistencia seria |
-| 3 | Usuarios + auth | API abierta | Sistema multiusuario seguro |
-| 4 | Integraciones | API aislada | Backend conectado al mundo |
-| 5 | Robustez | "Funciona" | "Opera" |
-| 6 | Testing | Confianza ciega | Confianza verificable |
-| 7 | Docker | "En mi máquina" | Reproducible |
-| 8 | Deploy | Local | Internet |
-| 9 | Nexus | Piezas sueltas | Backend profesional completo |
+- **En una frase** al abrir cada capítulo: qué vas a aprender antes de la teoría.
+- **Prompts listos**: los ejemplos clave traen un prompt copiable para tu AI CLI.
+- **No memorices**: usa la búsqueda del sidebar y lee con un AI al lado.
 
 ## Etiquetas de concepto
 
-Cada concepto lleva una etiqueta que responde *"¿esto me sirve fuera de este
-framework?"*:
-
-- <span class="tag tag-u">U</span> Universal de backend — vale en cualquier stack
+- <span class="tag tag-u">U</span> Universal — vale en cualquier stack
 - <span class="tag tag-ts">TS</span> Específico de Node/TypeScript
 - <span class="tag tag-py">Py</span> Específico de Python
 - <span class="tag tag-go">Go</span> Específico de Go
 - <span class="tag tag-d">D</span> Bases de datos y persistencia
-- <span class="tag tag-ops">Ops</span> Infraestructura y operación
+- <span class="tag tag-ops">Ops</span> Infraestructura, nube y operación
 
 ## Cómo leer este libro
 
-- Si vienes de frontend: sigue las pestañas de **TypeScript** y contrasta con
-  las otras dos — las diferencias son la lección.
-- Elige **un** lenguaje para implementar los proyectos; los otros dos te dan
-  las soluciones de referencia.
-- Cada capítulo cierra con un checklist: "qué deberías saber hacer ahora".
-  Si no puedes marcarlo, vuelve atrás antes de seguir.
+- **¿No sabes frontend?** Empieza en la Sección I — está hecha para ti.
+- **Ya sabes frontend:** salta directo a la Sección II; la I queda como
+  repaso rápido.
+- Elige **un** lenguaje para implementar en la Sección II; los otros dos
+  dan las soluciones de referencia.
+- Cada capítulo cierra con un checklist: si no puedes marcarlo, vuelve atrás.
