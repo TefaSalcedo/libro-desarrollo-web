@@ -3,17 +3,32 @@ title: "34. Necesitamos que nadie rompa main"
 subtitle: "Si depende de la memoria, fallará"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+"¿Pasaste los tests antes del merge?" — en un equipo real nadie pregunta:
+**el pipeline corre lint + typecheck + tests + build en cada PR, y si
+algo falla, el merge está bloqueado.** CI no es burocracia: es la
+memoria del equipo convertida en máquina — lo que se olvida en la
+cabeza, no se olvida en el YAML.
+:::
 
 ## El problema
 
-"¿Pasaste los tests antes del merge?" — CI con lint, typecheck, tests y build en cada PR.
+El flujo manual: tú corres los tests (cuando te acuerdas), el compañero
+pushea sin correrlos "porque era un cambio chiquito", main se rompe el
+viernes y nadie sabe desde qué commit. Y el deploy: `ssh` + `git pull`
+desde la laptop de una persona — si esa laptop se pierde, nadie despliega.
+Todo lo que depende de *acordarse* acaba fallando.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio convierte las verificaciones en **eventos automáticos**:
+cada PR dispara el pipeline — instala deps, corre migraciones sobre un
+Postgres efímero, corre la suite completa, buildea — y GitHub marca el
+PR en verde o rojo. El gate de merge ("CI verde obligatorio") convierte
+la regla de equipo en regla de máquina. Y CD continúa: merge → build de
+imagen → registry → deploy — ningún `ssh` desde laptops.
 
 ## Conceptos nuevos
 
@@ -24,42 +39,172 @@ subtitle: "Si depende de la memoria, fallará"
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  PR[Pull Request] --> CI{Pipeline CI}
+  CI --> L[lint + typecheck]
+  CI --> T[tests<br/>+ Postgres de servicio]
+  CI --> B[build]
+  L & T & B -->|todo verde| M[merge a main]
+  L & T & B -->|algo rojo| X[merge bloqueado]
+  M --> CD{Pipeline CD}
+  CD --> IMG[build imagen :sha]
+  IMG --> REG[registry]
+  REG --> DEP[deploy a prod]
+```
+
+El pipeline es el mismo para los tres stacks — lo que cambia son los
+comandos de cada paso (`npm run lint` / `ruff` / `go vet`), no la forma.
 
 ## Implementación
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+Capítulo agnóstico — el pipeline de GitHub Actions que sirve para los
+tres (los comandos por stack van comentados):
 
-<!-- proyecto: pipeline completo de Taskflow -->
+```yaml
+# .github/workflows/ci.yml
+name: ci
+on:
+  pull_request:
+  push: { branches: [main] }
 
-## ¿Por qué cada stack lo hace así?
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:                              # a REAL Postgres for the integration tests
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: ci, POSTGRES_DB: taskflow_test }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready" --health-interval 2s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:ci@localhost:5432/taskflow_test
+      JWT_SECRET: ci-secret-key-for-tests-only-32chars
+    steps:
+      - uses: actions/checkout@v4
 
-<!-- TODO: la lección transferible tras el tabset -->
+      - uses: actions/setup-node@v4          # TS: setup-node · Py: setup-python · Go: setup-go
+        with: { node-version: 20, cache: npm }
+
+      - run: npm ci                          # Py: pip install -r requirements.txt
+      - run: npm run lint                    # Py: ruff check · Go: go vet ./...
+      - run: npm run typecheck               # Py: mypy · Go: (compiler does it)
+      - run: npm run migrate                 # the schema is reproducible — that's the point
+      - run: npm test                        # Py: pytest · Go: go test ./...
+      - run: npm run build                   # proves it compiles, not just that tests pass
+
+  image:
+    needs: verify
+    if: github.ref == 'refs/heads/main'      # only after merge to main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t registry.example.com/taskflow:${{ github.sha }} .
+      - run: docker push registry.example.com/taskflow:${{ github.sha }}
+      # deploy step: platform-specific (ECS update / kubectl set image / Render hook)
+```
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Crea el workflow de GitHub Actions para mi API [Express+TS/FastAPI/Go]
++ Postgres. Requisitos: en cada PR y push a main correr lint, typecheck,
+migraciones y tests contra un Postgres 16 de servicio con healthcheck
+y DATABASE_URL+JWT_SECRET de test como env vars; un segundo job que solo
+corre tras merge a main: build de la imagen Docker taggeada con el sha
+del commit y push al registry; caché de dependencias; y los comandos
+correctos para mi stack en cada paso.
+```
+
+:::
+
+## ¿Por qué así y no "cada quien corre los tests en su máquina"?
+
+**Lo único que necesitas llevarte:** CI convierte la regla en
+*infraestructura* — no hay que acordarse ni confiar en que cada uno
+corrió la suite: el PR lo dice, y main solo acepta código verificado.
+La laptop que despliega es un riesgo; el pipeline que despliega es un
+proceso.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: dónde corre el pipeline"}
+
+| Alternativa | Qué es | Cuándo |
+|---|---|---|
+| GitHub Actions | YAML en el repo, runners de GitHub | El default si el repo está en GitHub |
+| GitLab CI / Azure DevOps | Lo mismo en otras plataformas | Si el equipo ya vive ahí |
+| Pre-commit hooks | Verificación *antes* de pushear | Complemento: atrapa lo rápido (lint) sin esperar CI |
+| Jenkins self-hosted | CI que tú operas | Empresas con requisitos de infra propia — pagas el ops |
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| CI que no bloquea el merge | "Está para informar" | Branch protection: status check requerido — el gate es la mitad del valor |
+| Tests conectando a una BD compartida | "Ya existe el staging" | Postgres efímero del pipeline — reproducible, aislado, sin estado |
+| Secretos de prod en el CI | "Necesitaba el deploy" | Secrets del repo + OIDC — nunca en el YAML ni en logs |
+| Pipeline de 20 minutos | Todo en un solo job | Paralelizar lint/typecheck/test + caché de deps — CI lento es CI que se salta |
+| Tests de CI distintos a los locales | "En mi máquina pasan" | Mismos comandos en ambos — el pipeline corre lo que tú corres |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **El pipeline corre lo mismo que tú corres** — si tu test local es
+  `npm test`, el paso es `npm test`: una sola forma de verificar, no
+  dos dialectos.
+- **Las migraciones corren en CI** sobre la BD efímera — el test
+  "¿el esquema se construye de cero?" se responde en cada PR, gratis.
+- **CD separado del CI**: verificar ≠ desplegar — el build de imagen
+  solo tras merge a main, taggeado con el sha (rollback = tag anterior,
+  cap. 35).
+- **Secretos solo en el almacén de secretos** del repo/plataforma — el
+  YAML referencia, nunca contiene.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. ¿Por qué el pipeline corre *migraciones + tests* y no solo tests?
+   ¿Qué bug del mundo real detecta eso que "tests con BD ya poblada"
+   no detecta?
+2. Ordena el CD: ¿por qué el deploy va *después* del build de imagen
+   y no en paralelo?
+3. Tu compañero propone correr la suite contra staging "porque ya
+   tiene datos reales". ¿Dos problemas con eso?
 
 ## Mini reto
 
-Hacer fallar el build a propósito con un test roto y ver el gate funcionar.
+Hacer fallar el build a propósito con un test roto y ver el gate
+funcionar.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. Las migraciones en CI verifican que el esquema *se construye desde
+   cero* — detecta la migración que funciona sobre tu BD de dev "porque
+   la columna ya existía" pero falla en una base vacía. El bug clásico:
+   migración que asume estado que solo existe en tu máquina.
+2. El deploy consume el *artefacto* del build — deployar sin imagen es
+   deployar nada, y deployar una imagen del build que aún corre es una
+   carrera: puedes publicar algo que no compiló. `needs: verify` es la
+   cola ordenada.
+3. (a) Los tests *escriben y borran* — correrlos contra datos reales
+   de staging contamina lo que otros ven/usan; (b) staging es
+   compartido: dos PRs corriendo se pisan datos entre sí → falsos
+   rojos que enseñan a ignorar CI. La BD efímera es aislada y gratis.
+
+**Mini reto.** Cambia un `expect` a algo falso, abre un PR, y mira:
+CI rojo → merge bloqueado por el gate → el botón gris que dice "checks
+failing". Revierte el test: verde. El experimento de 5 minutos que
+convierte "el gate existe" en algo que viste funcionar — y demuestra
+por qué ningún "era un cambio chiquito" pasa sin tests.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Escribir un workflow de GitHub Actions con lint+typecheck+tests+build
+- [ ] Levantar Postgres como servicio efímero del pipeline con healthcheck
+- [ ] Configurar el gate de merge (CI verde obligatorio)
+- [ ] Separar CI (verificar) de CD (build imagen → registry → deploy)
+- [ ] Mantener secretos fuera del YAML y la BD de test efímera

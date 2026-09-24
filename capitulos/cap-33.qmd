@@ -5,17 +5,36 @@ subtitle: "uvicorn --reload es para tu máquina"
 
 ![Parte 8 — Deployment](../imagenes/parte-08.png)
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+`npm run dev`, `uvicorn --reload`, `go run` — todo eso es para *tu*
+máquina: un proceso, sin HTTPS, que muere y nadie lo revive. Producción
+es otra arquitectura: **workers para usar todos los núcleos, un reverse
+proxy que termina TLS, y health checks que le dicen al orquestador si
+estás vivo** — y en Go, la mitad de eso ya viene en el binario.
+:::
 
 ## El problema
 
-Producción exige otra cosa: workers, reverse proxy, HTTPS y health checks de verdad.
+La imagen de prod corre… y un solo proceso de Node/Python usa **un solo
+núcleo** de los 8 del servidor — estás pagando 8 y usando 1. Encima:
+¿quién termina el HTTPS? ¿quién te revive si el proceso crashea? ¿cómo
+sabe el balanceador que el contenedor nuevo ya acepta tráfico? Servir
+a usuarios reales es una topología, no un comando.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio pone tres piezas delante de tu código:
+
+1. **Workers/procesos**: N procesos detrás del mismo puerto (o la
+   plataforma escala N contenedores — misma idea) → los núcleos
+   trabajan todos.
+2. **Reverse proxy** (nginx/Traefik/el balanceador de la nube):
+   termina TLS (el candado), sirve estáticos si los hay, y reenvía a tu
+   app — que solo habla HTTP interno.
+3. **Health checks**: el orquestador pregunta `/health` cada X
+   segundos — si no respondes, te saca del tráfico y te reinicia.
 
 ## Conceptos nuevos
 
@@ -26,59 +45,196 @@ Producción exige otra cosa: workers, reverse proxy, HTTPS y health checks de ve
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  U[Usuarios HTTPS] --> LB[Reverse proxy<br/>TLS, X-Forwarded-For]
+  LB --> W1[worker 1]
+  LB --> W2[worker 2]
+  LB --> W3[worker N...]
+  LB -->|GET /health cada 10s| W1
+  W1 & W2 & W3 --> DB[(Postgres)]
+```
+
+El proxy es la *única* cara pública: habla HTTPS afuera, HTTP adentro,
+y distribuye entre workers. Tu app nunca ve TLS — pero sí necesita
+saber que el request original era HTTPS (por eso `X-Forwarded-*`).
 
 ## Implementación
+
+Cómo cada stack usa todos los núcleos:
 
 ::: {.panel-tabset}
 
 ### TypeScript
-```ts
-// TODO
+
+```bash
+# PM2: process manager — N processes, restart on crash, logs
+pm2 start dist/index.js -i max --name taskflow   # one process per core
+pm2 save && pm2 startup                          # survive reboots
+```
+
+```nginx
+# nginx in front: TLS + proxy to the node processes
+server {
+  listen 443 ssl;
+  server_name api.taskflow.dev;
+  ssl_certificate     /etc/letsencrypt/live/api.taskflow.dev/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/api.taskflow.dev/privkey.pem;
+  location / {
+    proxy_pass http://localhost:3000;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;   # the app reads this for secure cookies
+  }
+}
 ```
 
 ### Python
-```python
-# TODO
+
+```bash
+# gunicorn manages N uvicorn workers — each is an event loop on its own process
+gunicorn app.main:app -k uvicorn.workers.UvicornWorker \
+  --workers 4 --bind 0.0.0.0:8000
+# rule of thumb: workers ≈ (2 × cores) + 1 for I/O-bound APIs
+```
+
+```text
+Same nginx config — proxy_pass http://localhost:8000
+Why workers: the GIL means ONE Python process uses ONE core;
+N processes = N cores (cap. 20's honest concurrency table)
 ```
 
 ### Go
+
 ```go
-// TODO
+// nothing extra: ONE Go binary already uses all cores —
+// the runtime schedules goroutines across OS threads (GOMAXPROCS = cores)
+func main() {
+    srv := &http.Server{
+        Addr: ":8080", Handler: router,
+        ReadTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second,
+        IdleTimeout: 60 * time.Second,          // production timeouts
+    }
+    log.Fatal(srv.ListenAndServe())              // that's the whole prod server
+}
+```
+
+```text
+Same nginx in front if you want TLS/static — or terminate TLS at
+the cloud load balancer and run the binary behind it.
 ```
 
 :::
 
-<!-- proyecto: Taskflow detrás de un proxy con HTTPS -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Prepara mi API [Express/FastAPI/Go] para servir usuarios reales detrás
+de nginx. Requisitos: N workers/procesos usando todos los núcleos
+[PM2 -i max / gunicorn+uvicorn workers / nada extra en Go — explícame
+por qué], config de nginx que termine TLS y haga proxy_pass con
+X-Forwarded-For y X-Forwarded-Proto, la app leyendo el proto original
+para cookies Secure, timeouts de servidor configurados, y /health
+ligero para el balanceador + /health/deep con check de BD para
+diagnóstico.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** Node y Python escalan a núcleos
+*multiplicando procesos* (un proceso = un núcleo útil); Go ya paraleliza
+dentro de un proceso — por eso "un binario" es una respuesta completa,
+no una simplificación.
+
+::: {.callout-note collapse="true" title="Detalle: procesos vs el modelo de cada runtime"}
+
+| Stack | Para usar 8 núcleos | Por qué |
+|---|---|---|
+| Node | `pm2 -i 8` o 8 contenedores | Un proceso = un event loop = un hilo |
+| Python | `gunicorn --workers N` | El GIL: un proceso ejecuta un hilo de Python a la vez — N procesos = N núcleos |
+| Go | `./server` — ya está | Las goroutines se reparten en threads OS sobre todos los núcleos |
+
+**En la nube esto se simplifica**: el orquestador (ECS, Cloud Run, App
+Service) escala *contenedores*, no workers — corres 1 proceso por
+contenedor y escala horizontal. Los workers importan cuando *tú* operas
+la máquina (VPS, cap. nu-01) — y para entender qué estás pagando.
+
+**`X-Forwarded-Proto` y las cookies**: tras el proxy, tu app ve HTTP —
+sin ese header, "¿el request original era HTTPS?" es imposible de saber
+y las cookies `Secure` se rompen o se desactivan. El proxy lo declara;
+la app lo confía *solo desde el proxy* (`trust proxy` en Express, el
+middleware correspondiente en los demás).
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| `uvicorn --reload` en prod | "Es como lo corro en dev" | Reload watches files + un proceso — prod es gunicorn/PM2/orquestador |
+| Un proceso en máquina de 8 núcleos | El default | Workers × núcleos — o contenedores × réplicas |
+| La app habla TLS ella misma | "Pongo el cert en Express" | TLS en el proxy — la app ve HTTP interno + `X-Forwarded-Proto` |
+| `/health` que toca la BD | "Chequeo todo" | El balanceador pega cada 10s × N instancias — `/health` barato, `/health/deep` aparte |
+| Confiar `X-Forwarded-*` de cualquiera | `trust proxy` global | Solo confiar cuando viene *del proxy* — el cliente puede falsificarlo directo |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Un proceso por contenedor** en orquestadores: la plataforma escala
+  réplicas; meter PM2 dentro del contenedor es orquestar dentro de la
+  orquestación — señales y healthchecks se confunden.
+- **Timeouts en el servidor** (Read/Write/Idle): el servidor sin
+  timeouts guarda conexiones muertas hasta morir él.
+- **Graceful + healthchecks en el deploy**: el orquestador marca
+  "unhealthy" → te reinicia; marca "starting" → no te manda tráfico
+  aún. Tu `/health` *es* el contrato con la plataforma.
+- **El proxy también cachea/comprime**: gzip y estáticos en nginx —
+  tu app no paga esos ciclos.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Tienes un VPS de 8 núcleos con FastAPI. ¿Cuántos procesos corren tu
+   código en un setup serio y qué los levanta?
+2. ¿Por qué `/health` NO debe verificar la BD, si "salud real" suena
+   mejor?
+3. Tras el proxy, Express ve `req.secure === false` aunque el usuario
+   entró por HTTPS. ¿Qué falta y dónde?
 
 ## Mini reto
 
-Explicar el camino completo de un request desde el navegador hasta tu handler en prod.
+Explicar el camino completo de un request desde el navegador hasta tu
+handler en prod.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. ~(2×8)+1 ≈ 17 es la regla teórica para I/O-bound; en la práctica
+   4-8 workers + autoscale según medición — los levanta `gunicorn -k
+   uvicorn.workers.UvicornWorker`. Si el orquestador es de contenedores:
+   1 proceso por contenedor × N réplicas.
+2. El balanceador pega cada ~10s a *todas* las instancias — si `/health`
+   toca la BD, multiplicas carga y, peor: un flap de BD marca TODAS las
+   instancias unhealthy y el orquestador las tumba a la vez — conviertes
+   un problema de BD en una caída total. `/health` = "el proceso sirve";
+   `/health/deep` = diagnóstico para ti.
+3. `app.set("trust proxy", ...)` + el proxy enviando
+   `X-Forwarded-Proto: https`. Sin lo primero, Express ignora el header
+   (correcto — no confiar en headers del cliente); sin lo segundo, la
+   cookie `Secure` nunca se setea.
+
+**Mini reto.** DNS → IP del balanceador/proxy → handshake TLS (el
+candado) → nginx/balanceador termina TLS → `proxy_pass` a un worker
+sano (preguntó `/health` recién) → tu router → middleware (request_id,
+auth, rate limit) → handler → servicio → pool → Postgres. Nueve saltos,
+y cada uno es un capítulo del libro — por eso la cadena es repasable.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Correr N workers en tu stack (PM2/gunicorn) y explicar por qué Go no los necesita
+- [ ] Configurar un reverse proxy con TLS + `X-Forwarded-*`
+- [ ] Distinguir `/health` (barato, orquestador) de `/health/deep` (BD, diagnóstico)
+- [ ] Confiar en `X-Forwarded-Proto` solo desde el proxy
+- [ ] Narrar el camino completo navegador→handler en producción

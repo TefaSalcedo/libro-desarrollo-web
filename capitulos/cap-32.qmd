@@ -3,17 +3,32 @@ title: "32. Necesitamos una imagen que producción acepte"
 subtitle: "Funciona, pero pesa 1.2 GB y corre como root"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+El Dockerfile del cap. 30 *funciona* — y es inaceptable para prod:
+lleva el toolchain completo (tsc, devDependencies, pip), corre como
+root, y arranca sin migraciones ni healthcheck. La imagen de producción
+se construye **en etapas** (multi-stage): la herramienta de build se
+queda atrás; solo viaja lo que el runtime necesita.
+:::
 
 ## El problema
 
-La imagen de desarrollo no es la de producción: multi-stage, config en runtime, migraciones al arranque.
+"Funciona" no es el checklist de producción. La imagen de dev pesa
+1.2GB (toolchain + dev deps + cache de paquetes), corre como `root`
+(un proceso escapado = root en el host), no verifica que la app esté
+viva, y asume que la BD ya tiene el esquema — el primer deploy en un
+entorno limpio crashea contra tablas inexistentes.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio separa **build** de **runtime**: el multi-stage build
+usa una imagen gorda para *compilar* y copia solo el artefacto a una
+imagen mínima para *correr*. Encima: usuario no-root, healthcheck
+declarado, entrypoint que corre migraciones antes de servir, y la
+misma imagen en staging y prod — lo que cambia son las env vars
+(cap. 24: el artefacto no sabe dónde está).
 
 ## Conceptos nuevos
 
@@ -24,46 +39,163 @@ La imagen de desarrollo no es la de producción: multi-stage, config en runtime,
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  subgraph "Stage 1: build (se descarta)"
+    B[imagen full<br/>tsc/pip/go toolchain<br/>instala TODO + compila]
+  end
+  subgraph "Stage 2: runtime (lo que viaja)"
+    R[imagen slim/distroless<br/>solo el artefacto<br/>USER no-root<br/>HEALTHCHECK]
+  end
+  B -->|COPY --from=build<br/>solo dist/ o el binario| R
+```
+
+El stage de build puede pesar 2GB — no importa: **se descarta**. Lo que
+cuenta es lo que el `COPY --from` cruza a la imagen final.
 
 ## Implementación
+
+Dockerfile de producción por stack:
 
 ::: {.panel-tabset}
 
 ### TypeScript
-```ts
-// TODO
+
+```dockerfile
+FROM node:20-slim AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci                          # all deps incl. dev (tsc lives here)
+COPY . .
+RUN npm run build
+
+FROM node:20-slim
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci --omit=dev               # prod deps only — no tsc, no vitest
+COPY --from=build /app/dist ./dist
+USER node                           # not root
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD node -e "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["sh", "-c", "npm run migrate && node dist/index.js"]   # migrate, then serve
 ```
 
 ### Python
-```python
-# TODO
+
+```dockerfile
+FROM python:3.12-slim AS build
+WORKDIR /app
+RUN pip install --upgrade pip
+COPY requirements.txt .
+RUN pip install --prefix=/install --no-cache-dir -r requirements.txt
+
+FROM python:3.12-slim
+WORKDIR /app
+COPY --from=build /install /usr/local
+COPY . .
+RUN useradd -m app && chown -R app /app
+USER app                            # not root
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD python -c "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
 ```
 
 ### Go
-```go
-// TODO
+
+```dockerfile
+FROM golang:1.22 AS build
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o server ./cmd/server
+
+FROM gcr.io/distroless/static
+COPY --from=build /app/server /server
+COPY --from=build /app/migrations /migrations
+USER nonroot                        # distroless has no root shell anyway
+EXPOSE 8080
+# no shell in distroless → migrations run as a separate one-shot job,
+# or embed golang-migrate into the binary and run at boot
+CMD ["/server"]
 ```
 
 :::
 
-<!-- proyecto: Dockerfile de producción serio por lenguaje -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Convierte mi Dockerfile a producción [Node+TS/Python/Go]. Requisitos:
+multi-stage (build con toolchain → runtime solo con artefacto),
+dependencias solo de producción en la imagen final, usuario no-root,
+HEALTHCHECK contra /health, entrypoint que corre migraciones antes de
+servir (o job separado si no hay shell), ENV de producción, y la misma
+imagen servirá en staging y prod — solo cambian las env vars. Dame el
+Dockerfile + el checklist de lo que cambió y por qué.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** el patrón es universal — *compilar
+gordo, correr flaco*. Lo que cambia es qué es "el artefacto": `dist/` +
+deps de prod (Node), el site-packages instalado (Python), o un binario
+que es literalmente todo (Go — por eso su stage final puede ser
+`distroless`, sin shell ni OS).
+
+::: {.callout-note collapse="true" title="Detalle: el checklist de producción"}
+
+| Requisito | Qué compra | En el Dockerfile de arriba |
+|---|---|---|
+| Multi-stage | Imagen final sin toolchain | `AS build` + `COPY --from` |
+| Prod deps only | Menos superficie y peso | `npm ci --omit=dev` |
+| No-root | Un exploit no es root en el host | `USER node` / `useradd` / `nonroot` |
+| HEALTHCHECK | El orquestador sabe si estás vivo | `HEALTHCHECK CMD ...` |
+| Migrate antes de servir | El esquema viaja con la versión | `migrate && serve` en el CMD |
+| Graceful shutdown | Termina requests antes de morir | `SIGTERM` → cerrar server + pool (app-side) |
+
+**Shutdown limpio**: cuando el orquestador hace rolling deploy manda
+`SIGTERM` — la app debe parar de aceptar requests, terminar los en
+curso (5-10s de gracia), cerrar el pool de BD y salir. Un `process.exit(0)`
+instantáneo corta requests a la mitad.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| El toolchain en la imagen final | "Build y run en la misma" | Multi-stage — `COPY --from` solo el artefacto |
+| `USER root` por omisión | Es el default | `USER` explícito — plataformas serias lo exigen |
+| Imagen distinta por entorno | `Dockerfile.prod` vs `Dockerfile.staging` | UNA imagen + env vars — la paridad es el punto |
+| Migraciones olvidadas | "La corrí a mano una vez" | En el entrypoint o job — el esquema viaja con el deploy |
+| `SIGTERM` ignorado | El proceso muere a la fuerza | Handler: stop accepting → drain → close pool → exit |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **La imagen es inmutable y versionada** (`:1.4.2`, `:sha-abc123`) —
+  nunca `latest` en prod: el rollback es cambiar el tag, no rebuildar.
+- **Build una vez, promocionar la misma imagen** dev→staging→prod —
+  si se rebuilda por entorno, no estás probando lo que despliegas.
+- **Healthcheck vs la app**: el `HEALTHCHECK` del Dockerfile es el
+  fallback; el orquestador (cap. 33) usa `/health` del cap. 20 del
+  Ap. G — ligero para el balanceador, `/health/deep` para ti.
+- **Escanea la imagen** (`docker scout`, Trivy en CI, cap. 34): las
+  CVEs de la base son tuyas también — las bases slim/distroless tienen
+  menos que escanear y menos que temer.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. ¿Por qué `npm ci --omit=dev` en el stage final si `dist/` ya está
+   compilado? ¿Qué queda dentro y qué se excluye?
+2. El CMD corre `migrate && serve`. ¿Qué pasa si dos réplicas arrancan
+   a la vez y ambas intentan migrar? ¿Cómo lo resuelve el mundo real?
+3. Enumera qué hace tu app *idealmente* al recibir `SIGTERM` antes de
+   salir.
 
 ## Mini reto
 
@@ -71,12 +203,33 @@ Auditar la imagen contra un checklist de producción.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. `dist/` es el JS compilado, pero el runtime aún necesita las deps
+   de producción (`express`, `pg`, `zod` — imports en runtime). `--omit=dev`
+   excluye `typescript`, `vitest`, `@types/*` — lo que solo servía para
+   compilar/testear.
+2. Las migraciones serias toman un *advisory lock* (pg_migrate/golang-
+   migrate lo hacen): una réplica migra, las demás esperan — la
+   migración es idempotente y ordenada. Alternativa de plataforma:
+   correr migraciones como **job separado** antes de rotar instancias
+   (release phase de Heroku, init job de k8s) — la app solo sirve.
+3. (a) Dejar de aceptar conexiones nuevas, (b) terminar las en curso
+   con gracia (~10s), (c) cerrar el pool de BD y workers, (d) `exit(0)`.
+   Requests cortados a la mitad son los errores fantasma de cada deploy.
+
+**Mini reto.** El checklist: multi-stage ✓, prod-deps only ✓, no-root ✓,
+healthcheck ✓, migraciones automáticas ✓, `.dockerignore` ✓, tag
+versionado ✓, SIGTERM manejado ✓, imagen escaneada sin CVEs críticas ✓,
+misma imagen en todos los entornos ✓. Cada ❌ es una línea concreta de
+trabajo — la imagen de prod es un checklist, no una sensación.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Escribir un Dockerfile multi-stage para tu stack
+- [ ] Explicar qué viaja del stage de build al de runtime y por qué
+- [ ] Correr la app como no-root con healthcheck declarado
+- [ ] Integrar migraciones al arranque sin romper el multi-replica
+- [ ] Manejar SIGTERM para shutdown limpio con drenado de requests

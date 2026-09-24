@@ -3,17 +3,30 @@ title: "31. Necesitamos la app y Postgres levantándose juntas"
 subtitle: "El entorno completo en un archivo"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+`docker run postgres`, `docker run app`, crear la red a mano, acordarse
+del orden… funciona *si no se te olvida un paso*. `docker-compose.yml`
+declara **el entorno completo — app + BD + su red + sus volúmenes — en
+un archivo** que se levanta con un comando y se versiona con el código.
+:::
 
 ## El problema
 
-`docker run postgres` + `docker run app` + red manual = script frágil. Necesitamos docker-compose.
+La receta manual: crear una red, lanzar Postgres con 5 flags, esperar a
+que esté listo, lanzar la app apuntando al host correcto, repetir
+mañana. Cada dev lo hace distinto, nadie documenta el orden, y "Postgres
+arrancó" no significa "Postgres acepta conexiones" — la app crashea en
+el arranque por llegar 2 segundos temprano.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio declara el entorno como código: `docker-compose.yml`
+dice qué servicios existen, cómo se conectan, qué volúmenes persisten
+sus datos y qué espera a qué. El onboarding es `git clone` +
+`docker compose up`. Y como el archivo vive en el repo, *el entorno
+también tiene code review*.
 
 ## Conceptos nuevos
 
@@ -24,29 +37,134 @@ subtitle: "El entorno completo en un archivo"
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart TB
+  subgraph docker-compose.yml
+    subgraph net[taskflow_net — red privada]
+      APP[app<br/>tu imagen<br/>env: DATABASE_URL=postgres://db:5432/...]
+      DB[(db<br/>postgres:16<br/>vol: pgdata)]
+      APP -->|"db" resuelve por nombre| DB
+    end
+    DEV[Tu máquina] -->|localhost:3000| APP
+  end
+  DB -.->|persiste| V[(volumen pgdata<br/>sobrevive al contenedor)]
+```
+
+La magia silenciosa: dentro de la red de compose, **`db` es un nombre
+DNS** — la app conecta a `postgres://db:5432` sin saber IPs. El volumen
+`pgdata` guarda los datos *fuera* del contenedor: `docker compose down`
+mata contenedores, no datos.
 
 ## Implementación
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+El `docker-compose.yml` completo — agnóstico de lenguaje (cambia la
+imagen del servicio `app`):
 
-<!-- proyecto: docker-compose.yml con app + Postgres + migraciones automáticas -->
+```yaml
+services:
+  app:
+    build: .                          # the Dockerfile from cap. 30
+    ports: ["3000:3000"]              # host:container
+    environment:
+      DATABASE_URL: postgres://taskflow:taskflow@db:5432/taskflow
+      JWT_SECRET: ${JWT_SECRET}       # from your shell's env / .env file
+      CORS_ORIGIN: http://localhost:5173
+    depends_on:
+      db:
+        condition: service_healthy    # wait for READY, not just started
+    command: ["sh", "-c", "npm run migrate && node dist/index.js"]
 
-## ¿Por qué cada stack lo hace así?
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: taskflow
+      POSTGRES_PASSWORD: taskflow
+      POSTGRES_DB: taskflow
+    volumes:
+      - pgdata:/var/lib/postgresql/data   # data outlives the container
+    healthcheck:                          # what "ready" means
+      test: ["CMD-SHELL", "pg_isready -U taskflow"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
 
-<!-- TODO: la lección transferible tras el tabset -->
+volumes:
+  pgdata:
+```
+
+El workflow diario:
+
+```bash
+docker compose up --build     # build images + start everything
+docker compose logs -f app    # follow one service's logs
+docker compose down           # stop and remove containers (data persists)
+docker compose down -v        # ALSO wipe the volume — fresh DB
+docker compose exec db psql -U taskflow   # jump inside the DB container
+```
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Escribe el docker-compose.yml de mi proyecto [Express+TS/FastAPI/Go] +
+Postgres 16. Requisitos: servicio app que buildea del Dockerfile local,
+expone el puerto, recibe DATABASE_URL apuntando al servicio db por
+nombre, espera a db con depends_on + healthcheck (pg_isready), corre
+las migraciones antes de arrancar el servidor, credenciales de dev en
+environment, JWT_SECRET desde .env del host, volumen nombrado para los
+datos, y los comandos del workflow diario (up, logs, exec psql, down -v).
+```
+
+:::
+
+## ¿Por qué así y no "un script bash que lanza todo"?
+
+**Lo único que necesitas llevarte:** compose convierte *pasos* en
+*declaración* — describes el estado final ("estos servicios, esta red,
+estos volúmenes") y Docker calcula cómo llegar. El script describe
+pasos; el YAML describe la realidad — y se puede leer, revisar y
+versionar.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: orquestar el entorno de dev"}
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo |
+|---|---|---|---|
+| docker-compose | Declarativo, un archivo, en el repo | Solo local/dev — no es orquestador de prod | El default para dev |
+| Makefile/script | Comandos encadenados | Frágil: orden manual, sin healthchecks | Proyecto de un servicio |
+| Devcontainers | El IDE vive *dentro* del contenedor | Config extra, IDE dependiente | Onboarding cero-instalación |
+| Kubernetes local | kind/minikube — prod-like | Overkill para dev diario | Cuando prod es k8s y quieres paridad |
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| `depends_on: [db]` sin healthcheck | "Ya depende de db" | `depends_on` solo ordena el *arranque* — `service_healthy` espera a que Postgres acepte conexiones |
+| `localhost` en DATABASE_URL dentro de compose | Es el host que siempre funciona | Dentro de la red de compose el host es `db` — el nombre del servicio es DNS |
+| Datos dentro del contenedor | Sin volumen declarado | `docker compose down` = adiós BD → volumen nombrado siempre |
+| Secretos en el compose commiteado | `POSTGRES_PASSWORD: prod123` | Dev passwords ok en compose; lo real viene de `${VAR}` del entorno |
+| Rebuild manual olvidado | "Cambié el código y no se ve" | `up --build` o `watch` — la imagen no se regenera sola |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Las migraciones corren en el `command` de `app`** (o un servicio
+  `migrate` one-shot): `git clone` + `up` = entorno *funcional*, no
+  solo servicios vivos.
+- **Un `.env` para compose** con las llaves no-secretas del entorno de
+  dev — compose lo lee automáticamente para `${VAR}`.
+- **Servicios con nombres de dominio**: `db`, `api`, `frontend` — el
+  DNS interno los resuelve; nunca hardcodees IPs.
+- **`docker compose exec`** para entrar (psql, shell) — el contenedor
+  es una máquina que se puede inspeccionar, no una caja sellada.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. ¿Por qué `depends_on` sin `condition` no evita el crash de arranque?
+   ¿Qué hace `service_healthy` que el default no hace?
+2. Corriste `docker compose down` y tus datos siguen ahí al próximo
+   `up`. ¿Dónde vivían? ¿Qué flag los habría borrado?
+3. La app conecta a `postgres://db:5432` — ¿quién resuelve `db` a una
+   IP y por qué no puedes usar `localhost`?
 
 ## Mini reto
 
@@ -54,12 +172,32 @@ Un compañero clona el repo y levanta todo con un solo comando.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. `depends_on` por defecto espera a que el contenedor *exista*
+   (`service_started`), no a que Postgres acepte conexiones — la app
+   arranca contra una BD aún inicializándose → crash. `service_healthy`
+   espera al `healthcheck` (`pg_isready` devuelve ok) = "listo de
+   verdad".
+2. En el volumen nombrado `pgdata` — los volúmenes viven fuera del
+   ciclo de vida del contenedor. `docker compose down -v` los borra
+   (la BD fresca del siguiente `up`).
+3. La red interna de compose tiene DNS: cada servicio es alcanzable
+   por su nombre. `localhost` dentro del contenedor de la app es *el
+   contenedor mismo* — no tu máquina, no el contenedor de Postgres.
+
+**Mini reto.** Es la prueba de fuego del capítulo: `git clone` +
+`docker compose up --build` debe bastar — build de la imagen, Postgres
+con healthcheck, `depends_on` ordenado, migraciones en el `command`,
+`.env.example` para las llaves que faltan. Si necesita un paso manual,
+ese paso pertenece al YAML.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Escribir un docker-compose.yml con app + Postgres + volumen + healthcheck
+- [ ] Explicar por qué `db` funciona como hostname y `localhost` no
+- [ ] Correr migraciones automáticamente al levantar el entorno
+- [ ] Usar el workflow diario: up, logs, exec, down / down -v
+- [ ] Distinguir "Postgres arrancado" de "Postgres listo" (healthcheck)

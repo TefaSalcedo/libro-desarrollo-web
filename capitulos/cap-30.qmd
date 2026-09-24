@@ -5,17 +5,33 @@ subtitle: "«En mi máquina funciona» deja de ser una excusa"
 
 ![Parte 7 — Docker](../imagenes/parte-07.png)
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+El nuevo dev tardó dos días en arrancar el proyecto: versión de Node
+distinta, Postgres mal configurado, una variable que nadie documentó.
+**Docker empaqueta la app completa — runtime, dependencias, código — en
+una imagen que corre igual en cualquier máquina.** La receta es el
+`Dockerfile`; la imagen es la clase; el contenedor es la instancia.
+:::
 
 ## El problema
 
-El nuevo dev tarda dos días en arrancar el proyecto. Necesitamos empaquetar la app completa: contenedores.
+"En mi máquina funciona" significa exactamente eso: funciona *en tu
+máquina* — con tu Node 20, tu Postgres 16, tu OS. La laptop del
+compañero tiene Node 18; el servidor tiene Ubuntu sin Node instalado;
+CI tiene otra cosa. Cada entorno es una lotería de versiones. La
+pregunta que Docker responde: **¿cómo hago que "mi máquina" viaje con
+el código?**
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio empaqueta *el entorno como código*: un `Dockerfile` es
+la receta declarativa — "parte de Node 20, instala dependencias, copia
+el código, corre `node dist/index.js`" — que cualquier máquina con
+Docker ejecuta idéntico. El onboarding pasa de dos días de wiki a
+`docker compose up`. Y el mismo artefacto que el dev corre es el que
+prod corre — la paridad dev/prod del cap. 24 llevada al extremo.
 
 ## Conceptos nuevos
 
@@ -26,59 +42,193 @@ El nuevo dev tarda dos días en arrancar el proyecto. Necesitamos empaquetar la 
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  D[Dockerfile<br/>la receta en texto] -->|docker build| I[Imagen<br/>paquete inmutable ~clase]
+  I -->|docker run| C1[Contenedor 1]
+  I -->|docker run| C2[Contenedor 2]
+  I -->|deploy| P[Prod<br/>misma imagen]
+```
+
+**Imagen vs contenedor = clase vs instancia**: la imagen es el paquete
+inmutable (runtime + deps + código); cada `docker run` crea un
+contenedor vivo de esa imagen. Cambiar código = construir *nueva
+imagen* — los contenedores son descartables por diseño.
 
 ## Implementación
+
+El primer Dockerfile por stack — funcional (la versión de producción
+viene en el cap. 32):
 
 ::: {.panel-tabset}
 
 ### TypeScript
-```ts
-// TODO
+
+```dockerfile
+FROM node:20-slim
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci                          # lockfile exact, not "npm install"
+COPY . .
+RUN npm run build                   # tsc → dist/
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
+```
+
+```text
+# .dockerignore — what never enters the image
+node_modules
+dist
+.env
+.git
 ```
 
 ### Python
-```python
-# TODO
+
+```dockerfile
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+```text
+# .dockerignore
+.venv
+__pycache__
+.env
+.git
 ```
 
 ### Go
-```go
-// TODO
+
+```dockerfile
+FROM golang:1.22 AS build
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o server ./cmd/server
+
+FROM gcr.io/distroless/static        # the runtime is just the binary
+COPY --from=build /app/server /server
+EXPOSE 8080
+CMD ["/server"]                      # ~15MB total — static binary, no OS needed
 ```
 
 :::
 
-<!-- proyecto: imagen de Taskflow corriendo con docker run -->
+Correrlo:
+
+```bash
+docker build -t taskflow-api .       # recipe → image
+docker run -p 3000:3000 --env-file .env taskflow-api
+```
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Escribe el Dockerfile de mi API [Express+TS/FastAPI/Go net-http] para
+desarrollo. Requisitos: imagen base slim oficial, instalar dependencias
+por lockfile (npm ci / requirements.txt / go mod download) en capa
+separada para cachear, compilar si aplica (tsc/go build), .dockerignore
+con node_modules|venv|.env|.git, EXPOSE del puerto correcto, y CMD que
+arranque el servidor en 0.0.0.0. Explícame cada instrucción y cómo
+construir y correr la imagen.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** el Dockerfile es siempre la misma
+receta — *base → deps → código → run*. Lo que cambia es cuánto necesita
+el runtime: TS/Python llevan su intérprete dentro de la imagen; Go
+compila un binario que no necesita nada más — por eso su imagen final
+cabe en ~15MB.
+
+::: {.callout-note collapse="true" title="Detalle: capas, caché y tamaños"}
+
+- **Capas y caché**: cada instrucción es una capa cacheada. Por eso
+  `COPY package*.json` + `RUN npm ci` van *antes* de `COPY . .` — las
+  deps solo se reinstalan cuando el lockfile cambia, no en cada build.
+- **Tamaños honestos**: `node:20-slim` ~200MB + node_modules; Python
+  similar + venv; Go `distroless` ~15MB — el binario estático *es* todo
+  el runtime. La diferencia no es estética: menos imagen = menos
+  superficie de ataque y deploys más rápidos.
+- **`CGO_ENABLED=0`**: fuerza el binario 100% estático — sin esa flag,
+  Go enlaza libc y el `distroless` no la tiene.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| `COPY . .` antes de instalar deps | El orden "natural" de escribir | Deps primero (cachea), código después (cambia seguido) |
+| `.env` dentro de la imagen | `COPY . .` lo incluye | `.dockerignore` — la imagen que lleva secretos es un incidente |
+| `node_modules` copiado al build | Sin `.dockerignore` | Excluirlo — la imagen instala las suyas para *su* OS |
+| `npm install` en vez de `npm ci` | Es el comando que conoces | `ci` = lockfile exacto, reproducible; `install` puede resolver distinto |
+| Correr en dev lo que es de dev | `--reload`, debugger, sourcemaps | La imagen de prod es otro Dockerfile (cap. 32) |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Bases oficiales y slim**: `node:20-slim`, `python:3.12-slim` — el
+  `-slim` quita lo que no necesitas; Alpine existe pero sus libc
+  distintas muerden a veces.
+- **`.dockerignore` desde el día uno**: `.env`, `.git`, `node_modules`,
+  `dist` — lo que no entra no puede filtrarse ni pesar.
+- **Un proceso por contenedor**: el contenedor *es* tu app — si muere,
+  muere el contenedor y el orquestador lo nota.
+- **Tags con sentido**: `taskflow-api:1.4.2` / `:commit-sha` — `latest`
+  es el tag que "nadie sabe qué versión es".
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. ¿Por qué `COPY package*.json` + `RUN npm ci` van *antes* de
+   `COPY . .`? ¿Qué se rompe si inviertes el orden?
+2. Lista tres cosas que tu `.dockerignore` debe excluir y el daño
+   concreto de cada una si entra.
+3. La imagen de Go pesa ~15MB y la de Node ~250MB+. ¿Qué hay *dentro*
+   de cada una que explica la diferencia?
 
 ## Mini reto
 
-Reducir el tamaño de la imagen a la mitad explicando cada decisión (spoiler: Go gana).
+Reducir el tamaño de la imagen a la mitad explicando cada decisión
+(spoiler: Go gana).
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. La caché de capas: deps cambian poco (lockfile estable) → su capa
+   se reutiliza en cada build. Código cambia siempre → su capa va al
+   final. Invertir el orden: cada cambio de código invalida también la
+   capa de deps → `npm ci` completo en cada build (minutos en vez de
+   segundos).
+2. `.env` (secretos *dentro* de la imagen — cualquiera con la imagen
+   los tiene), `node_modules`/`.venv` (deps del OS equivocado + peso —
+   la imagen instala las suyas), `.git` (historial completo = secretos
+   históricos + peso).
+3. Node/Python llevan el *intérprete completo* + stdlib + deps en la
+   imagen (~200-400MB). Go compila a binario estático: la imagen es
+   literalmente el ejecutable + nada — `distroless` no tiene ni shell.
+
+**Mini reto.** Los pasos típicos: base `slim` en vez de full (−150MB),
+multi-stage para dejar el toolchain fuera de la imagen final (cap. 32),
+`.dockerignore` agresivo, `npm ci --omit=dev` (sin devDependencies),
+y en Go el salto a `distroless`/scratch. Cada decisión responde "¿esto
+lo necesita el *runtime* o solo el *build*?" — lo del build no viaja.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Explicar imagen vs contenedor vs Dockerfile con la analogía clase/instancia
+- [ ] Escribir un Dockerfile funcional para tu stack con capas ordenadas para caché
+- [ ] Configurar `.dockerignore` para que secretos y deps no entren
+- [ ] Construir y correr la imagen con `docker build`/`run` + env-file
+- [ ] Explicar por qué Go produce imágenes ~15MB y los otros no

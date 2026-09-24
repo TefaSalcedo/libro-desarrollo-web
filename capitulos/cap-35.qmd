@@ -3,17 +3,41 @@ title: "35. Necesitamos cambiar producción sin tumbarla"
 subtitle: "Deploy a las 4 PM del viernes, con migración. ¿Qué puede salir mal?"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Deployar es reemplazar el avión en vuelo: la versión vieja y la nueva
+conviven unos minutos — y la BD es *una sola* para las dos. Por eso los
+deploys sin downtime no son un flag de la plataforma: son una
+**disciplina — migraciones compatibles hacia atrás (expand/contract),
+rollback que sabe qué se revierte y qué no, y ojos en los logs después
+del deploy.**
+:::
 
 ## El problema
 
-Deploys sin downtime, migraciones compatibles hacia atrás y la diferencia entre revertir código y revertir datos.
+`git push` a prod a las 4 PM del viernes: la plataforma levanta la
+versión nueva mientras apaga la vieja. En esos 90 segundos, la v1.4 y la
+v1.5 conviven — y ambas hablan con la *misma* base de datos. Si la
+migración de la v1.5 renombró `name` → `full_name`, la v1.4 que sigue
+viva escribe `name` en una columna que ya no existe: errores por todas
+partes, en el mejor momento posible.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio asume la coexistencia: durante el deploy, **dos
+versiones del código comparten una BD** — por tanto la migración debe
+ser segura para *las dos*. La técnica se llama **expand/contract**:
+
+1. **Expand**: agregar lo nuevo sin tocar lo viejo (columna nueva,
+   tabla nueva — nunca renombrar ni borrar).
+2. Código que escribe en *ambos* (o migra datos en segundo plano).
+3. **Contract**: cuando todo usa lo nuevo, otra migración retira lo
+   viejo — un deploy *después*, no en el mismo.
+
+Y el seguro: el rollback de *código* es cambiar el tag de imagen; el
+rollback de *datos* no existe gratis — los datos que la v1.5 escribió
+en `full_name` no se des-escriben al volver a v1.4.
 
 ## Conceptos nuevos
 
@@ -24,29 +48,112 @@ Deploys sin downtime, migraciones compatibles hacia atrás y la diferencia entre
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+sequenceDiagram
+  participant LB as Balanceador
+  participant V1 as v1.4 (vieja)
+  participant V2 as v1.5 (nueva)
+  participant DB as Postgres
+  Note over LB,V2: Rolling deploy: las dos conviven
+  LB->>V1: tráfico
+  LB->>V2: tráfico (salud ok)
+  V1->>DB: escribe columnas VIEJAS
+  V2->>DB: escribe columnas VIEJAS + NUEVAS
+  Note over V1: apaga cuando V2 está sana
+  Note over DB: expand/contract = la BD<br/>sirve a las dos versiones
+```
+
+La regla de oro: **la BD debe entender a la versión vieja y a la nueva
+a la vez** — toda migración se evalúa contra esa pregunta.
 
 ## Implementación
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+Capítulo agnóstico — la receta expand/contract del cambio clásico
+"`name` → `first_name` + `last_name`":
 
-<!-- proyecto: deploy seguro con migración -->
+```sql
+-- Paso 1 (deploy N): EXPAND — add only, nothing removed
+ALTER TABLE users ADD COLUMN first_name TEXT;
+ALTER TABLE users ADD COLUMN last_name  TEXT;
 
-## ¿Por qué cada stack lo hace así?
+-- Paso 2 (mismo deploy N): el código escribe las TRES columnas
+-- (name sigue poblada para la v1.4 que aún vive)
+-- + backfill en segundo plano:
+UPDATE users SET first_name = split_part(name, ' ', 1),
+                 last_name  = split_part(name, ' ', 2)
+WHERE first_name IS NULL;
 
-<!-- TODO: la lección transferible tras el tabset -->
+-- Paso 3 (deploy N+2, cuando TODO lee las nuevas): CONTRACT
+ALTER TABLE users ALTER COLUMN first_name SET NOT NULL;
+ALTER TABLE users DROP COLUMN name;
+```
+
+Tres deploys para "renombrar una columna" — parece excesivo hasta que
+comparas con la alternativa: el deploy que la renombra de golpe tumba
+la versión vieja en plena rotación.
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Diseña el plan de deploy sin downtime para este cambio: renombrar
+users.name → users.first_name + last_name en mi API [stack] con Postgres
+y rolling deploys. Dame el plan expand/contract completo: qué
+migraciones en qué orden, qué escribe cada versión del código mientras
+conviven, cómo se hace el backfill sin bloquear la tabla (batches),
+cuándo es seguro el DROP COLUMN, y qué se revierte (y qué NO) si hay
+que hacer rollback en cada etapa.
+```
+
+:::
+
+## ¿Por qué así y no "apagar, migrar, encender"?
+
+**Lo único que necesitas llevarte:** el downtime programado funciona
+mientras tienes 40 usuarios; con usuarios reales el deploy es en
+caliente — y en caliente la BD es el punto único compartido, así que
+toda la disciplina es *mantener la BD compatible con dos versiones*.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: estrategias de deploy"}
+
+| Estrategia | Qué es | Qué te cuesta | Cuándo |
+|---|---|---|---|
+| Rolling | Reemplaza instancias de a una | Convivencia de versiones (este capítulo) | El default en orquestadores |
+| Blue-green | Dos entornos completos; el balanceador cambia de golpe | Doble infra mientras dura | Rollback instantáneo crítico |
+| Canary | La nueva versión recibe 1% del tráfico primero | Más plomería de routing | Cambios riesgosos a escala |
+| Recreate | Apagar todo, subir nuevo | Downtime real | Dev/staging, apps internas |
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Migración destructiva en el deploy | `DROP`/`RENAME` con v1.4 viva | Expand/contract — destructivo solo cuando nada viejo corre |
+| Migración que bloquea la tabla | `ALTER` pesado en horario | Operaciones baratas en el hot path (`ADD COLUMN` es instantáneo en PG 11+); lo pesado, por pasos/ventana |
+| Rollback = "deployar la imagen vieja" | Olvida que los datos ya cambiaron | Saber qué se revierte: código sí, datos escritos no — por eso expand/contract también es rollback-friendly |
+| Deployar y mirar el techo | "Salió verde el pipeline" | Post-deploy: logs, tasa de errores, latencia los primeros 15 min (cap. 23) |
+| Viernes 4 PM sin poder revertir | Ritmo | Deployar cuando hay equipo despierto — la valentía no es un plan |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Toda migración pasa el test**: "¿la versión anterior del código
+  sigue funcionando con este esquema?" — si no, va por pasos.
+- **Backfill en batches** (`UPDATE ... WHERE id BETWEEN` o por lotes)
+  — un UPDATE de millones de filas de golpe bloquea la tabla que
+  atiende tráfico.
+- **El deploy taggeado = el rollback**: `registry/app:sha-viejo` —
+  revertir código es cambiar una etiqueta, no rebuildar nada.
+- **Post-deploy checklist**: error rate, p95, logs de excepciones nuevas
+  — los 15 minutos después del deploy son donde vive el downtime real.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. ¿Por qué `RENAME COLUMN name TO full_name` en un solo deploy tumba
+   la versión vieja aunque la nueva esté lista?
+2. Diseña el expand/contract para *eliminar* la columna `legacy_flag`
+   — ¿qué va primero, el código o la migración?
+3. La v1.5 lleva 20 minutos en prod escribiendo en `first_name` cuando
+   hay que hacer rollback a v1.4. ¿Qué se pierde y qué no?
 
 ## Mini reto
 
@@ -54,12 +161,34 @@ Planear "dividir name en first_name/last_name" sin downtime.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. Porque durante el rolling, la v1.4 (que consulta `name`) sigue
+   viva mientras la migración ya la renombró → sus queries fallan.
+   Renombrar es destructivo *para la otra versión* — siempre hay dos
+   versiones durante la ventana del deploy.
+2. Código primero: deploy que *deja de leer* `legacy_flag` (la columna
+   queda huérfana pero presente — la v1.4 sigue feliz). Cuando nada la
+   lee, la migración `DROP COLUMN` en el deploy siguiente — contract
+   es el último paso, nunca el primero.
+3. Se revierte el *código* (imagen vieja, un tag) — los datos escritos
+   en `first_name` durante esos 20 min **no** se revierten: v1.4 no
+   los lee (lee `name`, que v1.5 también mantuvo escrita por diseño).
+   Si la migración hubiera sido destructiva, el rollback sería una
+   restauración de backup, no un tag.
+
+**Mini reto.** El plan de la sección Implementación de arriba: expand
+(agregar columnas) → dual-write + backfill en batches → todo el código
+lee lo nuevo → contract (NOT NULL + DROP). Cada paso es deploy seguro
+porque cada esquema intermedio sirve a ambas versiones — *esa* es la
+frase que se responde en la entrevista.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Explicar por qué dos versiones conviven durante un rolling deploy
+- [ ] Diseñar migraciones expand/contract para cambios destructivos
+- [ ] Hacer backfills en batches sin bloquear la tabla caliente
+- [ ] Distinguir qué se revierte (código/tag) de qué no (datos)
+- [ ] Definir el checklist post-deploy: errores, latencia, logs nuevos
