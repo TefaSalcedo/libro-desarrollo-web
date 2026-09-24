@@ -106,6 +106,7 @@ book:
     - capitulos/ap-h.qmd
     - capitulos/ap-i.qmd
     - capitulos/ap-j.qmd
+    - capitulos/ap-k.qmd
 
 format:
   html:

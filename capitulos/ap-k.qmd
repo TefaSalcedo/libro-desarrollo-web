@@ -1,0 +1,479 @@
+---
+title: "K. Preguntas decisivas: ¿X o Y?"
+subtitle: "El arte de elegir — criterios, no gustos"
+---
+
+::: {.callout-note}
+## En una frase
+
+El trabajo real son decisiones disfrazadas de preguntas: "¿fetch o
+axios?", "¿React o Vue?", "¿monolito o microservicios?", "¿me quedo en
+Postgres o me voy a Mongo?". Aquí practicas **decidir con criterio**:
+cada tarjeta te da la situación, tú eliges en voz alta, y la respuesta
+te dice qué criterio mandaba — y cuál era la trampa.
+:::
+
+## La meta-habilidad: 5 preguntas que resuelven casi cualquier "¿X o Y?"
+
+Antes de las tarjetas, el patrón detrás de todas ellas. Cuando alguien te
+pregunte "¿usamos X o Y?", corre esta lista en tu cabeza:
+
+1. **¿Cuál es la *forma* del problema?** Forma del dato (relacional o
+   documento), del tráfico (constante o picos), de la UI (dashboard o
+   página pública). La mayoría de dilemas se resuelven aquí.
+2. **¿A qué escala?** Con 10 usuarios casi todo sirve; con 10.000
+   cambian las respuestas. Decide para la escala *real de hoy* más un
+   margen — no para el Netflix que no eres.
+3. **¿Quién lo mantiene?** Tú solo, o un equipo que ya sabe X. La
+   herramienta que tu equipo conoce suele ganarle a la "mejor" que nadie
+   sabe.
+4. **¿Qué cuesta cambiar de opinión?** Decisiones de *una vía* (la BD,
+   el proveedor de nube) merecen análisis serio. Decisiones de *dos
+   vías* (fetch→axios, una librería de UI) se cambian en una tarde —
+   no les des semanas.
+5. **¿Qué viene incluido?** Ecosistema, librerías, empleos, tutoriales.
+   React no gana por su sintaxis: gana porque el mercado ya está ahí.
+
+**Los defaults del libro** — la respuesta correcta hasta que tengas una
+razón para irte:
+
+```text
+Base de datos → PostgreSQL    API → REST + JSON      Arquitectura → monolito
+HTTP client → fetch           Frontend → React       Deploy → managed platform
+Estado UI → useState local    Auth → JWT + refresh persistido
+```
+
+*Regla de oro: el default gana hasta que haya una razón. "Mejor tecnología"
+sin razón concreta es gusto, no criterio.*
+
+---
+
+## Frontend
+
+::: {.callout-tip collapse="true" title="Decisión 1 — fetch, axios o TanStack Query"}
+**La situación:** tu componente lista tareas. El compañero instala axios
+"porque es lo que usan todos". Otro dice "fetch ya viene, no instales
+nada". ¿Quién tiene razón?
+
+**La decisión.** Los dos y ninguno — depende de *qué* estás haciendo:
+
+- `fetch` es nativo: cero dependencias, suficiente para llamadas simples.
+  Su precio: no rechaza en 4xx/5xx (`res.ok` es tu trabajo), no trae
+  timeout, JSON manual.
+- `axios` agrega: JSON automático, errores en 4xx/5xx, interceptors
+  (agregar el token a *todas* las llamadas en un solo lugar), timeouts.
+  Su precio: +13KB y una dependencia más.
+- **TanStack Query / SWR** no es un cliente: es manejo de *server state*
+  (caché, refetch, loading/error por ti). Cuando tu lista recarga datos,
+  deduplica llamadas y cachea — es lo correcto, con fetch o axios
+  debajo.
+
+**La señal:** ¿es "una llamada suelta"? → fetch. ¿La app entera necesita
+headers/interceptors consistentes? → axios. ¿Los datos son *estado del
+servidor* que hay que cachear y refrescar? → TanStack Query encima de
+cualquiera. → *fe-05*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 2 — React, Vue, Angular o Svelte"}
+**La situación:** empiezas un proyecto nuevo y te preguntan "¿qué
+framework?". Todos "hacen lo mismo" — ¿cómo se decide de verdad?
+
+**La decisión.** La estructura (reactividad, componentes, estado) es la
+misma en los cuatro — lo que cambia es el material:
+
+- **React**: el mercado más grande. Más empleos, más librerías, más
+  respuestas en Google. El default cuando no hay razón para otra cosa.
+- **Vue**: curva más suave, todo integrado (router + estado oficiales).
+  Excelente para equipos pequeños o quien viene de HTML/CSS.
+- **Angular**: trae *todo* decidido (DI, RxJS, estructura) — pesa, pero
+  en equipos enterprise esa imposición es una ventaja. Su DI se parece
+  al backend (FastAPI `Depends` te sonará familiar).
+- **Svelte**: menos boilerplate, sin virtual DOM — ecosistema menor y
+  menos empleos. Brillante, pero revisa el mercado antes de apostarle
+  tu carrera.
+
+**El criterio honesto:** mercado de empleos → qué sabe tu equipo → qué
+pide el proyecto. *No* la sintaxis — la aprendes en una semana; el
+ecosistema es lo que no puedes cambiar en una semana. → *fe-04*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 3 — ¿TypeScript o JavaScript?"}
+**La situación:** el starter viene en TS y a un compañero "le estorban
+los tipos" — propone volver a JS puro.
+
+**La decisión.** TypeScript, casi siempre — pero entiende *por qué*:
+los tipos son documentación que la máquina verifica. El error `task.tile`
+(donde era `title`) JS lo deja pasar hasta producción; TS te lo subraya
+mientras escribes. El costo real: configuración, curva inicial, y
+verbosidad. JS puro es defendible en scripts pequeños, prototipos de
+un día, o cuando el equipo entero es junior y el tipo extra confunde más
+que lo que protege. Pero en código que va a prod y lo toca más de una
+persona, TS se paga solo — el backend ya valida contratos (cap. 4);
+TS es el mismo contrato dentro de tu código. → *fe-02*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 4 — CSR, SSR o SSG"}
+**La situación:** hay que decidir cómo se renderiza la app y tres
+voces dicen tres siglas distintas.
+
+**La decisión.** Pregunta: ¿quién necesita ver qué, y cuándo?
+
+- **CSR** (client-side): el servidor manda un HTML vacío + JS. Perfecto
+  para apps detrás de login (dashboards, Nexus) — nadie indexa tu panel
+  en Google, y la interactividad es lo que importa.
+- **SSR** (server-side): HTML completo por request. Cuando SEO y
+  primera-pintura-rápida importan *y el contenido cambia por usuario*:
+  tiendas, perfiles públicos.
+- **SSG** (static): HTML pre-generado en build. Blogs, docs, marketing —
+  contenido igual para todos, servido desde CDN por centavos.
+
+**La trampa:** elegir SSR "porque es moderno" para un dashboard que
+nadie googleará — pagas complejidad de hidratación sin comprar nada.
+→ *fe-06*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 5 — useState, Context o librería de estado"}
+**La situación:** el estado del proyecto creció y alguien grita
+"¡necesitamos Redux!".
+
+**La decisión.** Escala del problema, no moda:
+
+- `useState` local: el 80% de los casos — estado que vive y muere en un
+  componente (modales, inputs, toggles).
+- `Context` / props: compartir a pocos niveles, baja frecuencia (tema,
+  usuario actual). Su trampa: cada cambio re-renderiza todo el árbol.
+- Zustand/Redux/jotai: estado complejo compartido por muchas vistas con
+  lógica de actualización no trivial.
+
+Y la pregunta que ahorra la mitad de los stores: **¿esto es server
+state?** Si los datos viven en la BD (tareas, usuarios), no van en un
+store — van en TanStack Query (decisión 1). Los stores son para estado
+*de la UI*. → *fe-03, fe-05*
+:::
+
+---
+
+## Backend
+
+::: {.callout-tip collapse="true" title="Decisión 6 — Node/TypeScript, Python o Go"}
+**La situación:** el proyecto nuevo puede ser en cualquiera de los tres
+del libro. ¿Cuál?
+
+**La decisión.** Los tres hacen *el mismo backend* — el libro entero lo
+demuestra capítulo a capítulo. La elección real:
+
+- **TypeScript/Node**: un solo lenguaje en front y back — la opción
+  natural para fullstack pequeños; ecosistema npm gigante.
+- **Python/FastAPI**: si el producto toca datos/AI/ML, el ecosistema ya
+  está ahí; FastAPI es el framework más didáctico de los tres.
+- **Go**: cuando la concurrencia y el rendimiento por núcleo importan
+  (workers, proxies, alto throughput) — y un binario único de deploy
+  hermoso.
+
+**El criterio:** qué sabe el equipo → qué pide el dominio (AI→Python,
+I/O masivo→Go, fullstack unificado→TS) → mercado local de empleos. La
+trampa: elegir "el más rápido" para un CRUD — el cuello de botella será
+la BD, no el lenguaje. → *cap-02*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 7 — Monolito o microservicios"}
+**La situación:** alguien propone "hagámoslo microservicios desde el
+día uno, así escala".
+
+**La decisión.** **Monolito** hasta que un límite *real* lo pida. Un
+monolito es un deploy, una transacción, un log — y se puede partir
+después porque tus capas (cap. 7) ya separaron el dominio.
+Microservicios compran deploys independientes y escala por pieza — y
+pagas: red entre servicios, transacciones distribuidas, debugging que
+cruza procesos, devops por servicio. La señal real para partir: un
+equipo que necesita deployar sin pisar a otro, o una pieza que escala
+10× distinto al resto. La trampa: microservicios con un equipo de 2 —
+compraste todos los costos sin tener el problema. → *cap-07*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 8 — REST, GraphQL o RPC"}
+**La situación:** la app nueva podría ser "algo más moderno que REST".
+
+**La decisión.** **REST** es el default: recursos con URL, verbos HTTP,
+caché gratis, cualquier cliente lo habla. **GraphQL** cuando el cliente
+debe *elegir campos* o componer muchas entidades en un request (una
+misma API para apps muy distintas) — pagas runtime de queries y caché
+manual. **RPC/acciones** (`/tasks/complete`) cuando el dominio son
+operaciones, no recursos — es REST honesto, no un pecado. La señal para
+salir de REST: *los clientes* necesitan flexibilidad que tú no controlas.
+→ *cap-03*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 9 — Express, Fastify, NestJS u otro"}
+**La situación:** elegiste Node — ahora ¿qué framework?
+
+**La decisión.**
+
+- **Express**: el default — ecosistema gigante, todo tutorial lo usa.
+  Su precio: no impone nada; la estructura la pones tú (cap. 7).
+- **Fastify**: la misma idea con ~2× throughput y validación integrada —
+  cuando el rendimiento del framework *realmente* medido importa.
+- **NestJS**: impone arquitectura (DI, módulos, decoradores) — para
+  equipos grandes donde "cada quien hace su estructura" es el problema;
+  se siente como Angular/Spring en el backend.
+- **Hono**: ultraligero y corre en edge/runtimes no-Node.
+
+**La señal:** ¿equipo grande y código heterogéneo? → NestJS. ¿Todo lo
+demás? → Express hasta medir una razón. → *cap-01, cap-07*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 10 — ¿En el request o en un job?"}
+**La situación:** al registrarse hay que enviar email, generar un PDF de
+bienvenida y notificar a Slack. El endpoint ahora tarda 4 segundos.
+
+**La decisión.** Todo lo que el usuario no necesita *para continuar*
+sale del request → cola de trabajos (BullMQ/Celery/asynq). El response
+necesita solo "usuario creado" — 201 en ~50ms, el resto lo hace un
+worker. La pregunta decisiva: **"¿el usuario está esperando esto para
+seguir?"** Sí → request. No → job. La trampa: "es solo un email" × 20
+features = cada endpoint lento. → *cap-21, ticket 49 del Ap. G*
+:::
+
+---
+
+## Datos
+
+::: {.callout-tip collapse="true" title="Decisión 11 — SQL o NoSQL"}
+**La situación:** "¿Y si mejor Mongo? Total, devolvemos JSON."
+
+**La decisión.** Relacional por defecto — tus datos son relaciones
+(tareas *de* usuarios) y `REFERENCES` las enforza gratis. Documento solo
+si la *forma* de cada registro varía de verdad. Y la respuesta del 80%:
+`JSONB` dentro de Postgres cuando necesitas campos variables. La trampa
+es confundir el *formato* de salida (JSON) con la *estructura* del dato
+(relaciones). La sección completa está en cap-08: familias NoSQL,
+señales y local-vs-prod. → *cap-08*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 12 — ORM o SQL a mano"}
+**La situación:** el ORM se siente "más profesional", pero hay queries
+que no sabes traducir.
+
+**La decisión.** **SQL primero** — por eso el libro te hizo escribir a
+mano los caps. 8–13: quien solo sabe ORM no sabe qué está generando (el
+N+1 del cap. 12 nació de un ORM bonito). El ORM gana cuando: el equipo
+es grande y la velocidad+tipado pesan más que el control fino; o las
+queries son 95% CRUD aburrido. Punto medio real: *query builders*
+(Kysely, SQLAlchemy Core) — SQL con tipos, sin caja negra. El criterio:
+usa el ORM como **generador de un SQL que tú ya sabrías escribir**, no
+como sustituto de entenderlo. → *cap-09, cap-12*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 13 — Postgres, MySQL o SQLite"}
+**La situación:** tres opciones relacionales — ¿en qué difieren para tu
+caso?
+
+**La decisión.**
+
+- **Postgres**: el default del libro — features (JSONB, tipos ricos,
+  extensibilidad), comunidad, managed en todas las nubes.
+- **MySQL**: igual de capaz para lo común; se elige cuando el equipo/
+  hosting ya vive ahí (mucho hosting legacy y WordPress lo trae).
+- **SQLite**: la BD *es un archivo* — perfecta para apps locales,
+  embebidas, prototipos y tests rápidos. Su límite: escrituras
+  concurrentes (un writer a la vez) — no es la BD de una API con
+  usuarios simultáneos.
+
+**La trampa:** SQLite en dev "y ya Postgres en prod" — motores distintos
+= bugs que solo existen en prod. Mismo motor en todos los entornos.
+→ *cap-08*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 14 — ¿Necesito Redis?"}
+**La situación:** suena a que "todo sistema serio lleva Redis".
+
+**La decisión.** Redis es un *complemento*, no una BD principal — es
+clave-valor en memoria: rápido porque no promete durabilidad ni
+relaciones. Lo necesitas cuando aparece una de estas necesidades
+**concretas**: caché de lecturas calientes (la misma query 10.000
+veces/seg), sesiones a escala multi-instancia, rate limiting
+distribuido, colas de trabajos, pub/sub para realtime. Si ninguna
+existe, no lo instales "por si acaso" — cada pieza de infra es algo que
+hay que operar. La señal: un problema *medido* que Postgres no resuelve
+solo, no una arquitectura copiada de Netflix. → *cap-08, cap-18*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 15 — ¿Migraciones del ORM o manuales?"}
+**La situación:** el ORM ofrece "sync automático del schema" — ¿tomarlo?
+
+**La decisión.** Auto-sync en desarrollo temprano es cómodo; en
+producción es un incidente esperando turno — un `ALTER` automático sobre
+millones de filas bloquea la tabla. El flujo serio: migraciones como
+**archivos versionados con el código** (up/down, numeradas, en el mismo
+PR que las usa), revisables, aplicables por pasos expand-contract en
+prod (cap. 11). Que el ORM *genere el borrador* de la migración está
+bien — que la aplique solo, no. La señal: si el cambio toca prod, un
+humano lo revisa línea por línea. → *cap-11*
+:::
+
+---
+
+## Infraestructura
+
+::: {.callout-tip collapse="true" title="Decisión 16 — VPS, PaaS, contenedor o serverless"}
+**La situación:** "¿Dónde lo desplegamos?" — cuatro respuestas
+distintas en la sala.
+
+**La decisión.** Forma del tráfico + equipo disponible:
+
+- **VPS** (una VM tuya): control total, precio fijo — pagas con *tu
+  tiempo*: parches, firewall, deploys, la 3am. Bien si hay alguien de
+  ops o es aprendizaje deliberado.
+- **PaaS** (Render, Railway, App Engine): `git push` y ya — para la
+  mayoría de productos chicos/medianos es el punto dulce: pagas más por
+  hora, menos por tus horas.
+- **Contenedor administrado** (ECS, Cloud Run): el medio camino — tu
+  imagen, ellos orquestan. Cuando PaaS se queda corto en control.
+- **Serverless** (Lambda, Functions): eventos irregulares y sin estado —
+  pagas por ejecución; un proceso 24/7 para 50 invocaciones/día es un
+  taxi encendido en la puerta.
+
+La señal: ¿quién opera esto a las 3am y cuánto vale su hora? → *nu-01,
+nu-02, nu-05*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 17 — AWS, Azure o GCP — ¿y eso decide mi lenguaje?"}
+**La situación:** "Si vamos a Azure habrá que usar C#, ¿no? Y en AWS
+¿Python?"
+
+**La decisión.** **El proveedor NO decide tu lenguaje** — es el mito más
+común. AWS, Azure y GCP corren Node, Python, Go, Java, .NET y PHP por
+igual: las funciones, VMs y contenedores son agnósticos. Azure es de
+Microsoft *como empresa*, no "la nube de C#" — corre FastAPI igual de
+bien que GCP. Lo que sí se acopla al proveedor son los *servicios
+propietarios* (Cosmos DB, S3, BigQuery) — ahí vive el lock-in real, no
+en el runtime. El criterio real entre nubes: qué usa tu empresa/objetivo
+laboral (empleos y contratos ya firmados) → precio de los 3-4 servicios
+que usarás → quién en el equipo ya lo conoce. La funcionalidad es la
+misma: el supermercado del cap. nu-03 tiene los mismos pasillos en los
+tres. → *nu-03, nu-04*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 18 — ¿Docker o 'a pelo' en el servidor?"}
+**La situación:** deployar es `git pull && npm start` en el VPS — ¿para
+qué Docker?
+
+**La decisión.** Docker compra **reproducibilidad**: el mismo artefacto
+corre en tu laptop, CI y prod — "en mi máquina sí funcionaba" deja de
+existir, y el onboarding es `docker compose up`. Lo pagas: una capa más
+que entender (imágenes, volúmenes, redes). "A pelo" con systemd es
+defendible cuando: un solo servicio, un solo servidor, un solo dev — y
+así fue el deploy clásico de nu-01. La señal para migrar a Docker:
+segundo desarrollador, segundo entorno, o CI — cuando "funciona en mi
+máquina" cueste la primera tarde. → *nu-01, cap-30*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 19 — ¿BD administrada o la instalo yo?"}
+**La situación:** "Postgres es gratis — la instalamos en la misma VM y
+nos ahorramos RDS."
+
+**La decisión.** El costo real de la BD no es la licencia: son los
+**backups, las réplicas, los parches y la 3am**. Una BD auto-instalada
+te los cobra todos en horas y riesgo — y justo la BD es *lo último* que
+puede fallar. RDS/Cloud SQL cuesta más por mes y menos por incidente:
+backups automáticos con point-in-time, failover, parches del proveedor.
+Auto-instalar es defendible: presupuesto cero real, aprendizaje
+deliberado, o datos que *legalmente* no pueden salir. La señal: si la
+respuesta a "¿y si se corrompe a las 3am?" es silencio → managed.
+→ *nu-02, nu-04, cap-08*
+:::
+
+---
+
+## Forma de trabajar
+
+::: {.callout-tip collapse="true" title="Decisión 20 — git merge, rebase o squash"}
+**La situación:** tu rama está lista y el PR ofrece tres botones —
+¿cuál aprietas? *(Y de paso: por qué Git existe — varias personas
+editando el mismo código sin pisarse, con la historia completa para
+volver atrás.)*
+
+**La decisión.**
+
+- **Merge commit**: preserva la historia real — cuándo se integró qué.
+  El default seguro.
+- **Squash**: toda tu rama → un solo commit. Perfecto para "fix typo,
+  fix typo2, wip, ahora sí" — la historia queda limpia de ruido.
+- **Rebase**: re-escribe tu rama *sobre* main — historia lineal y
+  legible. **Regla sagrada: solo en ramas tuyas, nunca en ramas que otro
+  ya tiene** (reescribe historia = conflictos para los demás).
+
+El criterio real: **la convención del equipo gana** — pregunta en tu
+primer día, no decidas solo. Si no hay convención: squash para features
+con commits ruidosos, merge para ramas grandes con historia valiosa.
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 21 — ¿TDD o tests después?"}
+**La situación:** "TDD o nada" vs "los tests son burocracia, codeo
+primero".
+
+**La decisión.** TDD brilla cuando el *contrato es claro y la precisión
+importa*: dinero, auth, reglas de negocio — el test primero te obliga a
+pensar la API antes del código (ticket 41-42 del Ap. G). Tests-después
+es defendible en exploración (prototipos, spikes) donde aún no sabes la
+forma. Lo que *no* es negociable: **los tests existen antes de prod** —
+TDD es una herramienta de *diseño*, no una religión de cobertura. La
+señal para ir TDD: si puedes escribir "debería rechazar X" antes de
+tener X, el test ya es tu especificación gratis. → *cap-27, Ap. G*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 22 — ¿Deploy manual o CI/CD?"}
+**La situación:** hoy deployas con `ssh + git pull` — funciona, ¿para
+qué un pipeline?
+
+**La decisión.** El manual funciona hasta que: olvidas un paso
+(migración sin correr), te vas de vacaciones y nadie más puede deployar,
+o el "funciona en mi máquina" llega a prod. CI/CD (GitHub Actions y
+familia) compra: **el mismo proceso siempre** — tests corren solos en
+cada PR, el deploy es un botón o un merge, y cualquiera del equipo puede
+hacerlo. El criterio: segundo dev en el proyecto → ya merece pipeline.
+La señal clásica: "solo X sabe deployar" es un riesgo, no un honor.
+→ *cap-33*
+:::
+
+::: {.callout-tip collapse="true" title="Decisión 23 — ¿Logs, métricas o tracing?"}
+**La situación:** "¿Cómo sabemos qué pasa en prod?" y te nombran tres
+herramientas que no distingues.
+
+**La decisión.** Son tres preguntas distintas, no tres alternativas:
+
+- **Logs**: "¿qué pasó en *este* request?" — texto con contexto. La base;
+  estructurados (JSON) desde el día uno para poder buscarlos.
+- **Métricas**: "¿cómo va el *sistema*?" — números en el tiempo:
+  latencia p95, errores/minuto, CPU. Las alarmas viven aquí.
+- **Tracing**: "¿por dónde viajó *este* request entre servicios?" — solo
+  cuando hay múltiples servicios/procesos que seguir.
+
+Orden de adopción honesto: logs primero (casi gratis), métricas cuando
+hay usuarios reales que avisar antes que te avisen, tracing cuando
+"¿dónde se perdió el request?" deje de poder responderse con logs.
+→ *cap-23*
+:::
+
+---
+
+## La checklist decisiva — llévatela impresa
+
+Cuando llegue el próximo "¿X o Y?" que no esté en este apéndice:
+
+```text
+1. ¿Cuál es la FORMA del problema? (dato / tráfico / UI / equipo)
+2. ¿Qué escala REAL tiene hoy? (no la aspiracional)
+3. ¿Quién lo mantiene y qué ya sabe?
+4. ¿Es puerta de una vía o de dos? (¿cuánto cuesta desdecidirse?)
+5. ¿Qué trae el ecosistema? (empleos, librerías, respuestas)
+→ Y si no hay razón concreta: el DEFAULT gana.
+```
+
+**El reto final:** agarra cualquier decisión de este apéndice, cuéntasela
+a tu AI CLI como si fuera tu lead ("estamos por elegir X o Y, contexto:
+..."), y compara su criterio con el tuyo. Donde difieran, ahí está tu
+siguiente hora de estudio.
+
+*Las decisiones no se memorizan — se reconocen. Después de estas 23, la
+siguiente "¿X o Y?" dejará de sentirse como adivinanza.*
