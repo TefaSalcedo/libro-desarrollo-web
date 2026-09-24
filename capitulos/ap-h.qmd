@@ -1,0 +1,190 @@
+---
+title: "H. Preguntas de entrevista: diseño, arquitectura y bases de datos"
+subtitle: "Las que separan 'sé hacer endpoints' de 'sé diseñar sistemas'"
+---
+
+::: {.callout-note}
+## Cómo usar esto
+
+Repaso activo: lee la pregunta, respóndela **en voz alta**, *después*
+despliega la respuesta modelo. Las respuestas son de largo "hablado" —
+en una entrevista nadie quiere un ensayo, quieren oír cómo piensas.
+Si una te cuesta, la referencia te dice qué capítulo releer.
+:::
+
+## Diseño y arquitectura
+
+::: {.callout-tip collapse="true" title="P: Walk me through building a fullstack app from scratch."}
+**R:** "Empiezo por el dominio: entidades y relaciones en un diagrama ER
+antes de cualquier código. Luego el contrato — rutas, schemas de
+entrada/salida, códigos de error — porque el frontend y el backend pueden
+construirse en paralelo contra ese contrato. Arquitectura por capas:
+rutas traducen HTTP, servicios deciden, storage persiste. Primero lo que
+demuestra el riesgo: en Nexus fue el versionado de documentos, no el
+login." *El entrevistador busca: orden (dominio→contrato→capas), no
+"instalo React".* → *cap-36*
+:::
+
+::: {.callout-tip collapse="true" title="P: What is a REST API and why is it used?"}
+**R:** "Una API donde los recursos tienen URL (`/tasks/42`), los verbos
+HTTP llevan la acción (GET lee, POST crea, DELETE borra), el servidor es
+stateless — cada request trae todo lo necesario — y los status codes son
+parte del contrato (201, 422, 404). Se usa porque es simple, cacheable y
+universal: cualquier cliente HTTP lo habla." → *cap-03*
+:::
+
+::: {.callout-tip collapse="true" title="P: How would you design an API?"}
+**R:** "Contrato primero: recursos en plural y minúscula, verbos que
+respetan semántica (GET nunca muta), errores estructurados con `code`
+estable + `message`, paginación por cursor si la lista crece, versionado
+en la URL o headers cuando el contrato tenga que cambiar. El schema de
+entrada y de salida se definen una sola vez — y la salida filtra lo
+interno (`password_hash` jamás sale)." → *cap-03, 04, 05*
+:::
+
+::: {.callout-tip collapse="true" title="P: REST vs GraphQL — when would you pick each?"}
+**R:** "REST cuando el dominio es recursos claros y quieres caché HTTP y
+simplicidad — el default. GraphQL cuando el cliente necesita *seleccionar
+campos* o componer muchas entidades en un request (apps con vistas muy
+distintas) — pagas un runtime de queries y caché más difícil. RPC/actions
+cuando el dominio no es recursos sino *operaciones* (`/tasks/complete`).
+En Nexus elegí REST: el dominio son documentos y miembros." → *cap-03*
+:::
+
+::: {.callout-tip collapse="true" title="P: Explain MVC / layered architecture and why it matters."}
+**R:** "Separación por responsabilidad: la capa HTTP traduce requests,
+el servicio decide reglas de negocio sin saber de HTTP, el storage habla
+SQL sin saber de negocio. Las dependencias apuntan hacia adentro — el
+servicio no importa Express. Lo compras: cada capa se puede testear y
+cambiar sola. Lo pagas: más archivos para un CRUD simple." → *cap-07*
+:::
+
+::: {.callout-tip collapse="true" title="P: What is dependency injection and why is it useful?"}
+**R:** "En vez de que el componente *cree* sus dependencias, se las dan.
+En FastAPI `Depends(get_current_user)` declara la dependencia en la
+firma y el framework la resuelve. Sirve para dos cosas: el handler no
+sabe cómo se construye lo que usa (puedo cambiar la implementación), y
+en tests puedo inyectar una versión falsa — una sesión de mentira, una
+BD en memoria." → *cap-16*
+:::
+
+::: {.callout-tip collapse="true" title="P: How would you design a URL shortener?"}
+**R:** "El clásico de system design junior. Modelo: `links(id, slug,
+long_url, user_id, created_at)`. Redirect: `GET /{slug}` → 301 a la URL —
+un index único en slug hace el lookup O(log n). Generación del slug:
+base62 del id o hash corto con reintento en colisión. Escala: lecturas
+» escritas, así que caché caliente (Redis) delante y la BD aguanta. La
+pregunta de seguimiento siempre es: ¿qué pasa cuando el slug colisiona
+y cómo lo resuelves?"
+:::
+
+::: {.callout-tip collapse="true" title="P: Why document architecture decisions (ADRs)?"}
+**R:** "Porque el código dice *qué* y el ADR dice *por qué*. En seis
+meses nadie recuerda por qué se eligió snapshot+diff y no CRDT — el ADR
+captura el contexto, las alternativas descartadas y el costo aceptado.
+Corta: media página por decisión. En Nexus hay tres: capas, modelo de
+versionado, y last-writer-wins." → *cap-36*
+:::
+
+## Bases de datos
+
+::: {.callout-tip collapse="true" title="P: What is a database index and why can it make a query slower?"}
+**R:** "Una estructura aparte (B-tree) que mantiene columnas ordenadas con
+punteros a las filas — como el índice de un libro: buscas sin leer todo.
+Puede 'enlentecer' porque cada INSERT/UPDATE/DELETE tiene que actualizar
+también el índice — los índices aceleran lecturas y cobran escrituras.
+Y si tu query devuelve media tabla, Postgres ignora el índice porque el
+seq scan es honestamente más barato." → *cap-12*
+:::
+
+::: {.callout-tip collapse="true" title="P: What does ACID mean?"}
+**R:** "Las cuatro promesas de una transacción. **Atomicidad**: todo o
+nada — el INSERT y el UPDATE van juntos o ninguno. **Consistencia**: la
+BD nunca queda violando sus constraints. **Aislamiento**: transacciones
+concurrentes no se ven a medias. **Durabilidad**: lo confirmado sobrevive
+al crash — está en disco. El ejemplo universal: transferir dinero —
+debitar sin acreditar no puede pasar." → *cap-13*
+:::
+
+::: {.callout-tip collapse="true" title="P: What is a transaction and when do you need one?"}
+**R:** "Un grupo de operaciones que se confirman como una unidad:
+`BEGIN`, las queries en UNA conexión, `COMMIT` o `ROLLBACK`. La necesitas
+cuando varios writes son un solo hecho de negocio — crear tarea +
+registrar evento + descontar crédito. La trampa: la transacción vive en
+una conexión del pool — si usas `pool.query()` por query, cada una viaja
+por cable distinto y no hay transacción." → *cap-13*
+:::
+
+::: {.callout-tip collapse="true" title="P: Explain the N+1 problem."}
+**R:** "Una query para la lista + una query por cada elemento: 20 tareas
+= 21 round trips. Invisible en dev, asesino en prod — y los ORMs lo
+disfrazan de código limpio (`task.tags` dispara una query). La cura: una
+sola query con JOIN, o `WHERE task_id IN (...)`, agrupando en código.
+Detector: loguea queries en dev — un request que dispara N queries es
+la alarma." → *cap-12*
+:::
+
+::: {.callout-tip collapse="true" title="P: How do you optimize a slow SQL query?"}
+**R:** "Medir antes de tocar: `EXPLAIN ANALYZE` muestra el plan real —
+busco `Seq Scan` en tablas grandes (falta índice), `Rows Removed by
+Filter` altos (leyó millones para entregar veinte), y estimados que no
+coinciden con realidad (estadísticas viejas → `ANALYZE`). Arreglo típico:
+índice compuesto con las columnas de igualdad primero y la de ORDER BY
+al final. Luego verifico que el plan cambió — el índice que Postgres
+ignora no existe." → *cap-12*
+:::
+
+::: {.callout-tip collapse="true" title="P: Index scan vs sequential scan — when is each right?"}
+**R:** "Seq scan lee la tabla entera — correcto cuando la tabla es
+pequeña o la query devuelve gran parte de ella. Index scan baja por el
+árbol a las filas exactas — correcto cuando filtras poco de mucho. Un
+seq scan en `EXPLAIN` no es automáticamente un bug; lo es cuando la
+tabla creció y el plan no cambió." → *cap-12*
+:::
+
+::: {.callout-tip collapse="true" title="P: What is a composite index and how do you order its columns?"}
+**R:** "Un índice sobre varias columnas: `(user_id, done, created_at)`.
+El orden importa porque el árbol está ordenado por la primera, luego la
+segunda dentro de cada valor — regla práctica: **columnas de igualdad
+primero, rango/orden al final**. `WHERE user_id=? AND done=? ORDER BY
+created_at` usa el índice completo; `WHERE done=?` solo, no — el índice
+no 'empieza' por ahí." → *cap-12*
+:::
+
+::: {.callout-tip collapse="true" title="P: How do you change a schema in production without downtime?"}
+**R:** "Expand-contract en migraciones: agregar lo nuevo (columna,
+tabla) sin tocar lo viejo → el código escribe en ambos → backfill de
+datos → deploy que solo usa lo nuevo → última migración retira lo viejo.
+Cada paso es seguro solo. Reglas: `ADD COLUMN` es barato (Postgres 11+:
+instantáneo con default), `ALTER TYPE`/`DROP` bloquean → se hacen por
+pasos; índices en tablas grandes con `CREATE INDEX CONCURRENTLY`."
+→ *cap-11*
+:::
+
+::: {.callout-tip collapse="true" title="P: What is a connection pool?"}
+**R:** "Un conjunto de conexiones abiertas a la BD que se *prestan* por
+request en vez de abrirse y cerrarse — abrir una conexión cuesta
+handshake+auth+proceso nuevo (~50ms). Con `max: 10` atiendes cientos de
+usuarios porque cada query dura milisegundos y devuelve su conexión.
+Si el pool se agota, los requests *esperan en cola* — por eso olvidar
+`release()`/`close()` cuelga la app a los minutos." → *cap-10*
+:::
+
+::: {.callout-tip collapse="true" title="P: How would you model document versioning (undo/redo) in a DB?"}
+**R:** "El modelo de Nexus — como git interno: tabla
+`revisions(document_id, rev, snapshot, created_at)` y el documento
+guarda `current_revision` como puntero. Undo = mover el puntero atrás;
+redo = adelante; editar tras undo = truncar el 'futuro' — exactamente
+`git commit`. Snapshot completo por revisión (no solo diffs) porque el
+restore es O(1): lees un estado, no re-ejecutas la historia." → *cap-37*
+:::
+
+::: {.callout-tip collapse="true" title="P: SQL vs NoSQL — defend a real choice you made."}
+**R:** "En Nexus elegí PostgreSQL aunque los documentos son JSON:
+(a) la *mayoría* del dominio es relacional — miembros, proyectos,
+permisos con FKs que la BD enforza; (b) `JSONB` guarda el contenido del
+documento sin renunciar a lo relacional — es 'lo mejor de los dos' con
+índices GIN si hace falta; (c) las revisiones necesitan transacciones
+fuertes. NoSQL habría sido pereza disfrazada de flexibilidad."
+→ *cap-08, cap-37*
+:::

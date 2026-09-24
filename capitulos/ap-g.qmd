@@ -1,0 +1,924 @@
+---
+title: "G. Un día de trabajo: 50 tickets"
+subtitle: "Del «conecta a esta API» al «escribe el test primero»"
+---
+
+::: {.callout-note}
+## En una frase
+
+50 tareas como las daría un lead en tu primer trabajo — de "haz un fetch
+a esta API" hasta "aquí está el test, escribe la implementación". Cada
+ticket tiene su solución colapsada: **intenta resolverlo primero**, luego
+compara. Si uno te cuesta, la referencia `→ cap. X` te dice qué releer.
+:::
+
+**Cómo usarlo:** un nivel por sesión, en orden — están graduados como una
+semana real de onboarding. Tu AI CLI es el lead: si una solución no te
+queda clara, pégale el ticket y pídele que te lo explique distinto.
+
+---
+
+## Nivel 1 · Primeros tickets
+
+*Los que te asignan la primera semana: leer, conectar, no romper.*
+
+::: {.callout-tip collapse="true" title="Ticket 1 — Conecta a esta API"}
+**Te llega:** "Necesito saber si esta API pública responde. Trae la lista
+de usuarios de `https://jsonplaceholder.typicode.com/users` e imprime
+sus nombres. Cualquier stack."
+
+**Solución.**
+
+```ts
+const res = await fetch("https://jsonplaceholder.typicode.com/users");
+const users = await res.json();
+users.forEach(u => console.log(u.name));
+```
+
+`fetch` devuelve una Promise del *response*; `.json()` devuelve otra
+Promise del body parseado — por eso dos `await`. → *fe-05, cap-00*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 2 — El mismo, pero que falle bien"}
+**Te llega:** "El ticket 1 explota si la API responde 500 — agrega manejo
+de error real: status no-ok y JSON malformado."
+
+**Solución.**
+
+```ts
+const res = await fetch(url);
+if (!res.ok) throw new Error(`HTTP ${res.status}`);  // 404/500 are NOT exceptions
+const users = await res.json();                      // throws if body isn't JSON
+```
+
+`fetch` solo rechaza por falla de *red* — un 500 es un response "exitoso"
+para fetch. `res.ok` es tu frontera. → *fe-05, cap-06*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 3 — Inspecciona el endpoint sin código"}
+**Te llega:** "Antes de escribir nada, mira qué devuelve
+`GET /tasks/7` del staging. Quiero status, headers y body."
+
+**Solución.**
+
+```bash
+curl -i https://staging.taskflow.dev/tasks/7
+# -i includes response headers — status line + headers + body
+```
+
+`-i` muestra el intercambio completo: status code, `content-type`, el
+JSON. Inspeccionar antes de codificar es el hábito — el endpoint te dice
+su contrato. → *cap-00*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 4 — Lee este stack trace"}
+**Te llega:** `TypeError: Cannot read properties of undefined (reading
+'map') at listTasks (src/services/tasks.ts:14) at handler
+(src/routes/tasks.ts:8)`. ¿Qué pasó y dónde miras primero?
+
+**Solución.** Se lee de arriba abajo: *qué* (`undefined.map` — algo que
+creíste array vino vacío), *dónde* (`tasks.ts:14` — la primera línea tuya
+en el stack), *desde quién* (el handler de `routes/tasks.ts:8`). La BD
+devolvió `undefined` donde esperabas `rows[]` — típico cuando la query
+falla silenciosamente o se desestructura mal. → *cap-06*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 5 — Saca la URL a variable de entorno"}
+**Te llega:** "Hay `https://api.stripe.com` quemada en el código. En
+staging apunta a otro host. Corrígelo."
+
+**Solución.**
+
+```python
+API_URL = os.environ["API_URL"]   # fails fast if missing — better at boot
+# requests.get(f"{API_URL}/charges")
+```
+
+Config por entorno, no por código: el mismo artefacto corre en dev,
+staging y prod. El `[]` que lanza error si falta es a propósito —
+mejor explotar al arrancar que a las 3am. → *cap-02, cap-24*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 6 — Filtra y ordena esta lista"}
+**Te llega:** "Del array de tareas, dame las pendientes ordenadas por
+prioridad (1 primero), solo id y título."
+
+**Solución.**
+
+```ts
+const open = tasks
+  .filter(t => !t.done)
+  .sort((a, b) => a.priority - b.priority)
+  .map(t => ({ id: t.public_id, title: t.title }));
+```
+
+`filter` elige filas, `sort` ordena, `map` proyecta columnas — es
+`WHERE`/`ORDER BY`/`SELECT` en memoria. El pipeline de colecciones ES
+SQL mental. → *cap-00, cap-09*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 7 — Convierte este callback a async/await"}
+**Te llega:** código legacy con `fetch(url).then(r =>
+r.json()).then(data => ...)`. Reescríbelo legible.
+
+**Solución.**
+
+```ts
+const res = await fetch(url);
+const data = await res.json();
+// same Promise chain — await is syntax for .then(), not new machinery
+```
+
+`.then()` y `await` son la *misma* asincronía con distinta sintaxis.
+`await` se lee como pasos; `.then()` se encadena. Saber ambas = leer
+código viejo y escribir nuevo. → *fe-05*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 8 — Cancela este fetch si el usuario navega"}
+**Te llega:** "En la pantalla de detalle, si el usuario sale antes de
+que responda la API, el setState sobre un componente muerto ensucia la
+consola."
+
+**Solución.**
+
+```ts
+const ctrl = new AbortController();
+fetch(url, { signal: ctrl.signal }).then(/* ... */);
+return () => ctrl.abort();   // cleanup del useEffect
+```
+
+`AbortController` es el "cancelar" de fetch — en React va en el cleanup
+del `useEffect`. → *fe-05*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 9 — POST con JSON"}
+**Te llega:** "Crea la tarea llamando `POST /tasks` con
+`{title: '...'}` — el servidor espera JSON."
+
+**Solución.**
+
+```ts
+const res = await fetch("/tasks", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ title }),      // serialize — don't interpolate
+});
+```
+
+Tres piezas obligatorias: `method`, el header que declara el formato, y
+el body *serializado* (string, no objeto). → *fe-05, cap-03*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 10 — Distingue estos errores"}
+**Te llega:** el endpoint devuelve a veces 400, 401, 403, 404, 422,
+500. Para cada uno: ¿quién tiene la culpa y qué revisas?
+
+**Solución.** 400/422: el *request* está mal (tu body/schema) → revisa lo
+que envías. 401: no autenticado → el token. 403: autenticado sin permiso
+→ roles. 404: no existe (o no debes saber que existe). 500: *ellos* —
+revisa logs del servidor, no tu cliente. La familia 4xx es "arregla tu
+pedido"; 5xx es "avisar al backend". → *cap-00, cap-06*
+:::
+
+---
+
+## Nivel 2 · El día a día: endpoints
+
+*Tu primera semana construyendo: un CRUD que no avergüence.*
+
+::: {.callout-tip collapse="true" title="Ticket 11 — POST que crea de verdad"}
+**Te llega:** "`POST /tasks` debe crear la tarea, devolver 201 con el
+objeto creado, y el `public_id` (no el id interno)."
+
+**Solución.**
+
+```python
+@app.post("/tasks", status_code=201)
+def create_task(body: TaskIn, user=Depends(get_current_user)):
+    row = create_task_service(user.id, body.title)
+    return TaskPublic(public_id=row["public_id"], title=row["title"],
+                      done=row["done"], created_at=row["created_at"])
+```
+
+201 + el recurso creado con su forma *pública* — el `id` interno no sale.
+→ *cap-03, cap-05*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 12 — Valida o devuelve 422"}
+**Te llega:** "Están entrando tareas sin título y con prioridad 99.
+Rechaza en la entrada con errores por campo."
+
+**Solución.**
+
+```ts
+const TaskIn = z.object({
+  title: z.string().min(1).max(200),
+  priority: z.number().int().min(1).max(5).default(3),
+});
+const parsed = TaskIn.safeParse(req.body);
+if (!parsed.success) throw new ValidationError(parsed.error.issues);
+// → 422 {"error":{"code":"VALIDATION","fields":[{"field":"priority",...}]}}
+```
+
+Schema declarativo una vez, validación antes del handler — el body malo
+nunca toca la BD. → *cap-04*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 13 — El 404 correcto"}
+**Te llega:** "`GET /tasks/{id}` devuelve el objeto aunque sea de otro
+usuario. Y cuando no existe, devuelve un stack trace."
+
+**Solución.**
+
+```go
+task, err := getTask(ctx, user.ID, publicID)   // WHERE public_id AND user_id
+if errors.Is(err, pgx.ErrNoRows) {
+    writeError(w, 404, `{"error":{"code":"TASK_NOT_FOUND"}}`)
+    return
+}
+```
+
+Dos fixes en uno: la query filtra por dueño (cap. 17) y el error pasa
+por el mapper — el cliente ve el formato `{error:{code}}`, el stack
+queda en logs. → *cap-05, cap-06, cap-17*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 14 — DELETE: 204 o 404, nunca 200 con basura"}
+**Te llega:** "DELETE responde 200 con la tarea borrada. Y si no existe,
+200 igual con `null`. Estándar, porfa."
+
+**Solución.**
+
+```sql
+DELETE FROM tasks WHERE public_id = $1 AND user_id = $2;
+-- rows affected: 1 → 204 No Content · 0 → 404
+```
+
+204 sin body = "borrado, no hay nada que devolver". 0 filas = 404 (no
+existe *o no es tuya* — indistinguibles a propósito). → *cap-03, cap-17*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 15 — Pagina esta lista"}
+**Te llega:** "La lista de tareas ya son 40.000. Pagina — y no con
+`?page=` que se degrada."
+
+**Solución.**
+
+```sql
+SELECT public_id, title, created_at FROM tasks
+WHERE user_id = $1 AND (created_at, id) < ($2, $3)
+ORDER BY created_at DESC, id DESC LIMIT 21;   -- 21: one extra to know if there's a next page
+```
+
+Respuesta: `{items, next_cursor}` — el cursor es `created_at,id` de la
+última fila. El índice salta directo; OFFSET cuenta y descarta.
+→ *cap-12*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 16 — El contrato de salida"}
+**Te llega:** "`GET /me` está devolviendo `password_hash` en el JSON.
+Literalmente."
+
+**Solución.**
+
+```python
+class UserPublic(BaseModel):          # the output contract
+    public_id: str
+    email: str
+    created_at: datetime
+    # password_hash doesn't exist here — can't leak
+```
+
+Whitelist, no blacklist: defines lo que *sí* sale. `SELECT *` + devolver
+la fila es cómo se filtran secretos. → *cap-05, cap-14*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 17 — PATCH parcial"}
+**Te llega:** "El toggle de 'hecha' manda la tarea entera. Quiero
+`PATCH /tasks/{id}` que solo acepte `{done}`."
+
+**Solución.**
+
+```ts
+const PatchTask = z.object({ done: z.boolean() });
+// PATCH = partial update: only declared fields, only changed ones
+```
+
+PATCH declara *solo* los campos mutables — `title` no viaja si no cambia.
+Más seguro que PUT-por-costumbre: menos superficie para pisar datos.
+→ *cap-03, cap-04*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 18 — Errores consistentes"}
+**Te llega:** "Unos endpoints devuelven `{message}`, otros `{errors}`,
+otros un string. Un solo formato, todos."
+
+**Solución.**
+
+```json
+{"error": {"code": "TASK_NOT_FOUND", "message": "task not found"}}
+```
+
+Un mapper central (cap. 6): toda excepción de dominio se traduce a ese
+formato — `code` estable para el cliente programático, `message` para
+humanos. El frontend escribe UN parser de errores. → *cap-06*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 19 — Filtros por query param"}
+**Te llega:** "`GET /tasks?done=false&priority=1` — dos filtros
+combinables."
+
+**Solución.**
+
+```sql
+SELECT ... FROM tasks
+WHERE user_id = $1
+  AND ($2::boolean IS NULL OR done = $2)
+  AND ($3::int IS NULL OR priority = $3)
+ORDER BY created_at DESC;
+```
+
+Parámetros opcionales: si no vienen, el filtro se desactiva (`IS NULL OR`).
+La validación del query param también es schema — `done=banana` → 422.
+→ *cap-03, cap-09*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 20 — Health checks reales"}
+**Te llega:** "El orquestador necesita saber si estamos vivos, y yo
+necesito saber si la BD responde — sin que uno dispare alarmas del otro."
+
+**Solución.**
+
+```python
+@app.get("/health")         # liveness: process up — cheap, for the orchestrator
+def health(): return {"status": "ok"}
+
+@app.get("/health/deep")    # readiness: dependencies reachable — for you
+def health_deep():
+    conn.execute("SELECT 1")
+    return {"status": "ok", "db": "up"}
+```
+
+`/health` barato para el load balancer; `/health/deep` toca la BD para
+diagnóstico real. Separarlos evita que un flap de BD tumbe instancias
+sanas. → *cap-33*
+:::
+
+---
+
+## Nivel 3 · Base de datos
+
+*Te dejan tocar la BD. Cada ticket es una query o una migración.*
+
+::: {.callout-tip collapse="true" title="Ticket 21 — La query del reporte"}
+**Te llega:** "Necesito: tareas abiertas de cada usuario, cuántas son —
+usuarios con cero también cuentan."
+
+**Solución.**
+
+```sql
+SELECT u.email, COUNT(t.id) AS open_tasks
+FROM users u
+LEFT JOIN tasks t ON t.user_id = u.id AND t.done = FALSE
+GROUP BY u.id, u.email
+ORDER BY open_tasks DESC;
+```
+
+`LEFT JOIN` porque "con cero cuentan" — `INNER` los borraría. El
+`COUNT(t.id)` cuenta filas emparejadas: NULL (sin tareas) cuenta 0.
+→ *cap-09*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 22 — Tareas con sus tags en UNA query"}
+**Te llega:** "El endpoint de detalle hace 1 query por tarea más 1 por
+sus tags. Una sola query."
+
+**Solución.**
+
+```sql
+SELECT t.public_id, t.title, tg.name AS tag
+FROM tasks t
+LEFT JOIN task_tags tt ON tt.task_id = t.id
+LEFT JOIN tags tg ON tg.id = tt.tag_id
+WHERE t.public_id = $1;
+-- 3 rows if 3 tags — group in code: one task, tag list
+```
+
+Una tarea con 3 tags devuelve 3 filas — agrupas en código. Una ida a la
+BD, cero N+1. → *cap-09, cap-12*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 23 — Índice que falta"}
+**Te llega:** "`WHERE user_id=? AND done=? ORDER BY created_at DESC` va
+a 400ms con 2M de filas. El EXPLAIN dice Seq Scan."
+
+**Solución.**
+
+```sql
+CREATE INDEX CONCURRENTLY idx_tasks_user_done_created
+  ON tasks (user_id, done, created_at DESC);
+-- re-EXPLAIN: Index Scan, ~0.5ms
+```
+
+Igualdad primero (`user_id`, `done`), orden al final (`created_at`).
+`CONCURRENTLY` en prod: no bloquea escrituras mientras se construye.
+→ *cap-12*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 24 — Migración aditiva"}
+**Te llega:** "Hay que agregar `tasks.completed_at TIMESTAMPTZ`. Prod
+tiene 500k filas. Sin downtime."
+
+**Solución.**
+
+```sql
+-- 000003_add_completed_at.up.sql
+ALTER TABLE tasks ADD COLUMN completed_at TIMESTAMPTZ;
+-- down: ALTER TABLE tasks DROP COLUMN completed_at;
+```
+
+Aditivo puro: filas viejas quedan NULL, nada se reescribe, la migración
+viaja con el código que la usa en el mismo PR. → *cap-11*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 25 — Todo o nada"}
+**Te llega:** "Al completar una tarea hay que: marcarla, registrar el
+evento y dar el punto. Si el paso 2 falla, hoy queda a medias."
+
+**Solución.**
+
+```python
+with pool.connection() as conn:
+    with conn.transaction():                    # BEGIN
+        conn.execute("UPDATE tasks SET done=TRUE WHERE public_id=%s", (tid,))
+        conn.execute("INSERT INTO events (type, ref) VALUES ('task.done', %s)", (tid,))
+        conn.execute("UPDATE users SET points=points+1 WHERE id=%s", (uid,))
+    # exit → COMMIT; exception → ROLLBACK, all or nothing
+```
+
+Una conexión, un BEGIN, los tres writes juntos. El `with` garantiza el
+ROLLBACK si algo lanza. → *cap-13*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 26 — Caza el N+1"}
+**Te llega:** "En logs veo que `GET /projects` ejecuta 61 queries. El
+código tiene un loop con tres `await` dentro."
+
+**Solución.** Tres N+1 anidados: 1 + 20×3 = 61. La cura — una query con
+agregación:
+
+```sql
+SELECT p.id, u.email AS owner, COUNT(DISTINCT t.id) AS task_count,
+       array_agg(DISTINCT tg.name) AS tags
+FROM projects p
+JOIN users u ON u.id = p.owner_id
+LEFT JOIN tasks t ON t.project_id = p.id
+LEFT JOIN project_tags pt ON pt.project_id = p.id
+LEFT JOIN tags tg ON tg.id = pt.tag_id
+GROUP BY p.id, u.email;
+```
+
+→ *cap-12*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 27 — Mata la concatenación"}
+**Te llega:** (code review) `cursor.execute("SELECT * FROM users WHERE
+email = '" + email + "'")` — el junior dice "funciona".
+
+**Solución.**
+
+```python
+cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+```
+
+El dato viaja por canal separado — `' OR '1'='1` se trata como texto
+literal, no como SQL. En code review: "funciona" no es el criterio;
+"es segura" sí. → *cap-09*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 28 — Diseña el FK"}
+**Te llega:** "`comments` cuelga de `tasks` y de `users`. ¿Qué ON DELETE
+y por qué?"
+
+**Solución.**
+
+```sql
+task_id BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+```
+
+CASCADE en ambos: comentario sin tarea ni autor no tiene sentido.
+Alternativa defendible: `SET NULL` en `user_id` si los comentarios deben
+sobrevivir al usuario borrado (columna nullable entonces). Lo que no se
+vale: que el framework lo elija sin que tú lo decidieras. → *cap-08*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 29 — El UPDATE condicional"}
+**Te llega:** "Dos usuarios completan la misma tarea a la vez y ambos
+ganan el punto. Solo el primero debe ganar."
+
+**Solución.**
+
+```sql
+UPDATE tasks SET done = TRUE
+WHERE public_id = $1 AND done = FALSE
+RETURNING id;
+-- first tx: 1 row → award point · second: 0 rows → "already completed"
+```
+
+Compare-and-set: el `WHERE` convierte check-then-act (con carrera) en
+un acto atómico. No necesitas `FOR UPDATE` cuando el UPDATE *es* la
+condición. → *cap-13*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 30 — Replica esta query en tu stack"}
+**Te llega:** "Esta query anda en `psql` — pásala al servicio con el
+driver, parametrizada, mapeada al struct."
+
+**Solución (Go).**
+
+```go
+rows, err := pool.Query(ctx,
+    `SELECT public_id, title, done FROM tasks
+     WHERE user_id = $1 AND done = FALSE
+     ORDER BY priority`, userID)
+if err != nil { return nil, err }
+defer rows.Close()
+return pgx.CollectRows(rows, pgx.RowToStructByName[Task])
+```
+
+Pool prestado, `$1` parametrizado, `defer rows.Close()` devuelve la
+conexión, `CollectRows` mapea a structs. → *cap-10*
+:::
+
+---
+
+## Nivel 4 · Auth y seguridad
+
+*Te confían la puerta. Cada error aquí es un incidente.*
+
+::: {.callout-tip collapse="true" title="Ticket 31 — Registro que no traiciona"}
+**Te llega:** "POST /auth/register — y obvio, la contraseña no puede
+quedar legible."
+
+**Solución.**
+
+```ts
+const passwordHash = await bcrypt.hash(password, 10);
+await pool.query(
+  "INSERT INTO users (email, password_hash) VALUES ($1, $2)",
+  [email, passwordHash],
+);
+```
+
+bcrypt con salt por usuario y costo 10. La clave en claro vive solo
+durante el request — nunca en la tabla, nunca en logs. → *cap-14*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 32 — Login + cookie"}
+**Te llega:** "Login que devuelva el JWT — en cookie, no en el body.
+Y el mismo error si falla email o password."
+
+**Solución.**
+
+```python
+token = jwt.encode({"sub": str(user["id"]), "exp": now()+timedelta(minutes=15)},
+                   SECRET, algorithm="HS256")
+response.set_cookie("token", token, httponly=True, secure=True,
+                    samesite="lax", max_age=900)
+# wrong email OR wrong password → same 401 "invalid credentials"
+```
+
+httpOnly contra XSS, Secure para HTTPS, SameSite contra CSRF, `exp`
+corto. Error genérico = no enumerar usuarios. → *cap-15*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 33 — Protege el grupo, una línea"}
+**Te llega:** "Las 8 rutas de /tasks y /projects necesitan auth. No
+copies la verificación en cada una."
+
+**Solución.**
+
+```ts
+app.use("/tasks", auth);
+app.use("/projects", auth);
+// or in FastAPI: user = Depends(get_current_user) per route
+// or in Go: mux.HandleFunc("GET /tasks", auth(listTasks))
+```
+
+El middleware verifica una vez, propaga el usuario, corta con 401.
+Proteger = una palabra, no un copipega. → *cap-16*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 34 — Lo ajeno no existe"}
+**Te llega:** "`GET /tasks/42` devuelve 403 si es de otro. Se puede
+enumerar qué tareas existen probando ids."
+
+**Solución.**
+
+```sql
+SELECT ... WHERE public_id = $1 AND user_id = $2
+-- 0 rows → 404, identical to "doesn't exist"
+```
+
+404 para lo ajeno: "no existe" y "no es tuya" producen respuestas byte a
+byte iguales — no hay nada que enumerar. El 403 se reserva para miembros
+con rol insuficiente (cap. 17). → *cap-17*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 35 — Roles por proyecto"}
+**Te llega:** "Los proyectos se comparten: viewer solo lee, editor edita,
+admin todo. El rol es *de ese* proyecto, no global."
+
+**Solución.**
+
+```sql
+CREATE TABLE project_members (
+  project_id BIGINT REFERENCES projects(id) ON DELETE CASCADE,
+  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('viewer','editor','admin')),
+  PRIMARY KEY (project_id, user_id)
+);
+```
+
++ un factory `requireRole("editor")` que consulta la membresía:
+no-miembro → 404, rol insuficiente → 403. → *cap-17*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 36 — Rate limit al login"}
+**Te llega:** "Están probando contraseñas contra /auth/login a máquina."
+
+**Solución.**
+
+```text
+POST /auth/login → rate_limit(5 req/min per IP AND per email)
+  attempt #6 → 429 {"error":{"code":"RATE_LIMITED"}} + Retry-After: 42
+```
+
+Por IP *y* por cuenta (el botnet tiene IPs, no tu cuenta). Antes de
+bcrypt — no gastes el hash caro en intentos que rechazarás.
+→ *cap-18*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 37 — Arregla el CORS"}
+**Te llega:** "El frontend en :5173 no puede llamar la API en :8000 —
+'blocked by CORS policy' y con cookies encima."
+
+**Solución.**
+
+```text
+Access-Control-Allow-Origin: http://localhost:5173   ← exact, never * with credentials
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Headers: Content-Type
+```
+
+Con cookies, `*` está prohibido por el estándar — se nombra el origen
+exacto. Y recuerda: CORS lo enforcea el navegador; curl no pide permiso.
+→ *cap-18*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 38 — Refresh con rotación"}
+**Te llega:** "Los refresh tokens viven 30 días y se reusan — si uno se
+filtra, es un mes de sesión regalada."
+
+**Solución.**
+
+```python
+if session.used_at or session.revoked_at:
+    revoke_family(session.user_id)      # used token came back = theft
+    raise UnauthorizedError("session reuse detected")
+mark_used(session.id)
+return issue_access(), issue_refresh()  # new pair every time
+```
+
+Cada canje mata el viejo y emite uno nuevo. El viejo reapareciendo =
+robo detectado → sesión entera revocada. → *cap-18*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 39 — El refresh también es secreto"}
+**Te llega:** "La tabla sessions guarda el refresh token en texto plano."
+
+**Solución.**
+
+```sql
+refresh_hash TEXT NOT NULL UNIQUE,   -- store the hash, send the token
+```
+
+Misma lección que contraseñas: si `sessions` se filtra, tokens en claro
+= sesiones regaladas. Se guarda `sha256(token)`; el opaco viaja al
+cliente. → *cap-14, cap-18*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 40 — 'Cerrar sesión en todos lados'"}
+**Te llega:** "El usuario perdió su laptop. Quiere matar todas sus
+sesiones ya."
+
+**Solución.**
+
+```sql
+UPDATE sessions SET revoked_at = now()
+WHERE user_id = $1 AND revoked_at IS NULL;
+```
+
+Por eso el refresh es *persistido*: revocar es un UPDATE. Los access
+viven hasta su `exp` (~15 min — el precio conocido del híbrido).
+Re-pedir contraseña antes de ejecutar esto: es operación sensible.
+→ *cap-18*
+:::
+
+---
+
+## Nivel 5 · Senior
+
+*Donde el ticket es un problema, no una instrucción. Aquí se gana el
+título.*
+
+::: {.callout-tip collapse="true" title="Ticket 41 — El test ya está escrito (TDD)"}
+**Te llega:** "Aquí está el test. Hazlo pasar con lo mínimo — no escribas
+una línea que el test no pida."
+
+```python
+def test_create_task_rejects_empty_title():
+    with pytest.raises(ValidationError):
+        create_task(user_id=1, title="")
+```
+
+**Solución.**
+
+```python
+def create_task(user_id: int, title: str) -> Task:
+    if not title.strip():
+        raise ValidationError("title is required")
+    return insert_task(user_id, title.strip())
+```
+
+Esto es TDD: el test *es* la especificación. Red (falla) → Green (lo
+mínimo que pasa) → Refactor (mejora sin romper). Programar "al revés" —
+primero qué debe ser verdad, luego el código. → *cap-27*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 42 — TDD otra vez: contrato de paginación"}
+**Te llega:** "El test dice: `GET /tasks` devuelve `{items: [...],
+next_cursor: str|null}` y con `?cursor=` continúa la lista. Hazlo pasar."
+
+**Solución.**
+
+```python
+def list_tasks(user_id: int, cursor: str | None):
+    where = "AND (created_at, id) < (%s, %s)" if cursor else ""
+    params = (user_id, *decode(cursor)) if cursor else (user_id,)
+    rows = fetch(f"SELECT ... WHERE user_id=%s {where} LIMIT 21", params)
+    next_cursor = encode(rows[20]) if len(rows) == 21 else None
+    return {"items": rows[:20], "next_cursor": next_cursor}
+```
+
+El test definió el contrato *antes* que el código — por eso TDD produce
+APIs pensadas desde el consumidor. → *cap-12, cap-28*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 43 — Refactor: el handler gordo"}
+**Te llega:** "Este handler valida, consulta la BD, decide reglas y
+serializa — 80 líneas. Sácale capas."
+
+**Solución.**
+
+```text
+handler:   parse → call service → status code          (5 líneas)
+service:   business rules, domain errors               (decisiones)
+storage:   SQL + row mapping                           (persistencia)
+schemas:   TaskIn / TaskPublic                         (contratos)
+```
+
+El handler queda *tonto*: traduce HTTP y delega. La regla de negocio se
+puede testear sin HTTP ni request falso — es la paga real del refactor.
+→ *cap-07*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 44 — POST idempotente"}
+**Te llega:** "El cliente reintenta `POST /payments` tras timeout y
+cobra dos veces."
+
+**Solución.**
+
+```python
+key = request.headers["Idempotency-Key"]
+if existing := find_by_idempotency_key(key):
+    return existing, 200                          # same request → same answer
+result = process_payment(...)
+store_idempotency(key, result)
+return result, 201
+```
+
+El cliente manda una llave única por *operación* (no por intento); el
+servidor recuerda el resultado y lo repite en reintentos en vez de
+re-ejecutar. Así funcionan Stripe y toda API de pagos seria. → *cap-21*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 45 — 'Se puso lento, arregla'"}
+**Te llega:** "El listado pasó de 200ms a 2s después del release de
+ayer. Sin más info."
+
+**Solución.** El método, en orden: (1) ¿qué cambió? — el diff del
+release. (2) Medir: logs/APM → qué endpoint; `EXPLAIN ANALYZE` → qué
+hace la query. (3) Sospechosos usuales: Seq Scan nuevo (¿índice
+perdido?), N+1 (¿un loop nuevo?), lock contention (¿una transacción
+larga?). (4) Fix + misma medición para confirmar. Lo que nunca: más
+máquina a un problema no medido. → *cap-12, cap-23*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 46 — Elige la cimentación"}
+**Te llega:** "Un webhook de facturación llega ~50 veces al día con
+picos. ¿VPS, PaaS o Lambda? Defiende tu respuesta."
+
+**Solución.** Lambda/FaaS: eventos irregulares, pagas por ejecución —
+un proceso 24/7 por 50 eventos/día es un taxi corriendo en la puerta.
+Si los picos fueran sostenidos y altos → PaaS/contenedor. La defensa no
+es la elección, es el *criterio*: forma del tráfico + estado +
+operación disponible. → *cap-01, nu-05*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 47 — Escribe el ADR"}
+**Te llega:** "En 6 meses nadie va a saber por qué elegiste Postgres
+con JSONB para los documentos. Documéntalo."
+
+**Solución.**
+
+```markdown
+# ADR-03: Postgres + JSONB para documentos
+## Contexto: contenido variable + miembros/permisos relacionales
+## Decisión: JSONB en documents.content, relacional para el resto
+## Alternativas: MongoDB (pierde FKs), columnas fijas (rígido)
+## Consecuencias: +flexibilidad con índices GIN; -validación en app
+```
+
+Media página: contexto, decisión, alternativas descartadas, precio
+aceptado. El código dice qué; el ADR dice por qué. → *cap-36*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 48 — Webhook receptor"}
+**Te llega:** "Vamos a recibir webhooks de un proveedor. Que nadie pueda
+falsificarlos y que si fallamos reintente bien."
+
+**Solución.**
+
+```python
+signature = request.headers["X-Signature"]
+expected = hmac_sha256(WEBHOOK_SECRET, request.body)
+if not hmac.compare_digest(signature, expected):   # verify BEFORE parsing
+    return 401
+# respond 200 fast → process async (job queue): provider retries on failure
+```
+
+Firma HMAC con secreto compartido — verificas *antes* de procesar. Y
+respondes rápido: el procesamiento va a una cola — si tardas, el
+proveedor reintenta y duplicas trabajo. → *cap-22*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 49 — El email que no bloquea"}
+**Te llega:** "El registro tarda 3s porque el email de bienvenida se
+envía dentro del request."
+
+**Solución.**
+
+```python
+# in the register service — respond first, work after
+insert_user(...)
+enqueue("send_welcome_email", {"user_id": user.id})   # job queue
+return user                                            # 201 in ~50ms
+```
+
+El response no espera al email: `enqueue` lo deja para un worker
+(BullMQ / Celery / asynq). "Responder ya, terminar después" — el
+patrón de toda tarea que excede la paciencia HTTP. → *cap-21*
+:::
+
+::: {.callout-tip collapse="true" title="Ticket 50 — Code review de un junior"}
+**Te llega:** este endpoint en review. Lista qué cambiarías antes de
+aprobar:
+
+```python
+@app.get("/users/{id}")
+def get_user(id: str):
+    row = conn.execute(f"SELECT * FROM users WHERE id = {id}").fetchone()
+    return row
+```
+
+**Solución.** Cinco hallazgos: (1) `f-string` = inyección SQL → `%s`
+parametrizado. (2) `SELECT *` + devolver la fila → `password_hash` se
+filtra: contrato `UserPublic`. (3) Sin autenticación ni ownership →
+`WHERE id = %s AND id = %s` con el usuario del token, 404 a lo ajeno.
+(4) Sin manejo de `None` → 404 estructurado, no 500. (5) `id` como str
+→ tipo en la firma para validación. Un endpoint de 3 líneas enseña
+cinco capítulos. → *caps. 5, 9, 16, 17*
+:::
+
+---
+
+## Cierre del apéndice
+
+50 tickets después, el patrón es visible: el trabajo real no es "saber
+sintaxis" — es **reconocer qué tipo de problema es cada ticket** y saber
+qué capítulo lo resuelve. Para seguir: convierte cualquiera de estos en
+un prompt para tu AI (el formato de los "Prompt listo" de cada capítulo)
+y compara su respuesta con la solución de aquí. Donde difieran, aprendes
+dos veces.

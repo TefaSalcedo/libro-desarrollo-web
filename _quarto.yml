@@ -102,6 +102,10 @@ book:
     - capitulos/ap-d.qmd
     - capitulos/ap-e.qmd
     - capitulos/ap-f.qmd
+    - capitulos/ap-g.qmd
+    - capitulos/ap-h.qmd
+    - capitulos/ap-i.qmd
+    - capitulos/ap-j.qmd
 
 format:
   html:

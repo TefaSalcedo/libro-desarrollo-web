@@ -1,0 +1,208 @@
+---
+title: "I. Preguntas de entrevista: frontend, tiempo real, seguridad y operación"
+subtitle: "La mitad «full» del fullstack — y lo que separa funciona de publicable"
+---
+
+::: {.callout-note}
+## Cómo usar esto
+
+Repaso activo: responde en voz alta antes de desplegar. Si una te cuesta,
+la referencia `→ cap. X` te dice qué releer.
+:::
+
+## Frontend y tiempo real
+
+::: {.callout-tip collapse="true" title="P: What happens when you type a URL and press Enter?"}
+**R:** "El clásico — respóndelo en capas: el navegador resuelve el dominio
+vía DNS → abre conexión TCP → negocia TLS (certificados, el candado) →
+manda el HTTP request → el servidor (reverse proxy → app → BD) responde
+HTML → el navegador parsea el DOM, pide CSS/JS, ejecuta el JS que quizá
+pide más datos vía fetch a la API. Si me piden profundidad, bajo a
+cualquier capa — el libro entero vive en esa cadena." → *nu-01, fe-01*
+:::
+
+::: {.callout-tip collapse="true" title="P: WebSockets vs HTTP — when do you need each?"}
+**R:** "HTTP es request/response: el cliente pregunta, el servidor
+responde, se cierra. WebSocket abre un canal *persistente y
+bidireccional*: el servidor puede empujar datos sin que el cliente
+pregunte. Necesario cuando el servidor sabe algo que el cliente quiere
+ya — presencia, colaboración en vivo, notificaciones. Para 'cada tanto'
+alcanza polling/SSE; WS se justifica cuando la latencia y el push son el
+producto — en Nexus, dos cursores viéndose en <300ms." → *cap-38*
+:::
+
+::: {.callout-tip collapse="true" title="P: How do you implement real-time collaboration?"}
+**R:** "Conexión WebSocket autenticada (el upgrade lleva la misma cookie
+httpOnly — la auth aplica). El servidor mantiene un mapa
+documento→conexiones; cada edición hace broadcast a los demás del
+documento. Presencia: heartbeats para saber quién está. Conflictos:
+last-writer-wins es el pragmático — CRDT/OT solo cuando el merge fino
+por carácter es requisito, que es otro proyecto de complejidad."
+→ *cap-38*
+:::
+
+::: {.callout-tip collapse="true" title="P: What is the DOM?"}
+**R:** "La representación del documento HTML como árbol de objetos que
+JavaScript puede leer y mutar — `document.querySelector`, crear nodos,
+escuchar eventos. El browser renderiza el DOM, no el HTML: por eso
+modificar el árbol cambia la pantalla sin recargar. React existe porque
+mutar el DOM a mano se desordena con estado complejo." → *fe-03*
+:::
+
+::: {.callout-tip collapse="true" title="P: What are React hooks — useState and useEffect?"}
+**R:** "`useState` guarda estado por componente y re-renderiza al
+cambiarlo: la UI es función del estado, no comandos de DOM.
+`useEffect` corre *efectos* tras el render — fetch, suscripciones —
+con un array de dependencias que dice cuándo re-ejecutarse y una
+función de limpieza para cancelar (AbortController, unsubscribe).
+El error clásico: fetch en useEffect sin cleanup → race conditions
+cuando el usuario navega rápido." → *fe-03, fe-05*
+:::
+
+::: {.callout-tip collapse="true" title="P: How do you manage state across frontend and backend?"}
+**R:** "Separando dos tipos: **server state** (las tareas viven en la BD
+— el frontend solo cachea y muestra: TanStack Query/SWR manejan caché,
+refetch, loading) y **client state** (qué modal está abierto, el tema —
+useState/context). El error de novato es tratar el server state como si
+fuera tuyo: copiarlo a un store global y mantenerlo a mano. La fuente de
+verdad es el servidor; tu UI es una vista cacheada." → *fe-05*
+:::
+
+::: {.callout-tip collapse="true" title="P: Explain event bubbling."}
+**R:** "Un evento sube por el árbol: click en un botón dispara handlers
+del botón, luego del div padre, hasta `document`. Por eso
+`stopPropagation()` existe — y por eso funciona la delegación: UN
+listener en la lista padre maneja clicks de mil hijos leyendo
+`event.target`. La captura es el viaje inverso (de afuera hacia adentro,
+antes del bubbling)." → *fe-03*
+:::
+
+::: {.callout-tip collapse="true" title="P: CSR vs SSR — what's the difference and when does it matter?"}
+**R:** "CSR: el servidor manda un HTML casi vacío + JS que construye todo
+en el navegador — primera pintura lenta, interacción rica después.
+SSR: el servidor devuelve HTML completo ya renderizado — first paint
+rápido, SEO real, y luego el JS 'hidrata' para la interactividad.
+Importa para SEO y tiempo-de-primera-vista; apps detrás de login
+(dashboards) suelen bastar con CSR, páginas públicas piden SSR."
+→ *fe-06*
+:::
+
+::: {.callout-tip collapse="true" title="P: Walk me through authentication end to end, frontend to backend."}
+**R:** "El form manda `POST /auth/login` → el servidor verifica bcrypt
+→ firma un JWT y lo devuelve en cookie httpOnly+Secure+SameSite → el
+navegador la adjunta sola en cada request → el middleware del servidor
+verifica firma, carga el usuario, y decide 401 o sigue → el frontend
+pregunta `GET /me` para saber si hay sesión (nunca lee el token —
+httpOnly lo impide a propósito). Logout = cookie borrada + sesión
+revocada en la tabla." → *cap-14..16*
+:::
+
+::: {.callout-tip collapse="true" title="P: What is CORS and how do you handle it?"}
+**R:** "Política del navegador: una página del origen A no puede leer
+respuestas del origen B sin permiso explícito del servidor. Para requests
+'no simples' el navegador manda primero un `OPTIONS` (preflight)
+preguntando; el servidor responde `Access-Control-Allow-Origin:
+<origen exacto>` (+ `-Methods`, `-Headers`, `-Credentials` si hay
+cookies — que prohiben el `*`). Es el *navegador* el que enforcea: curl
+no pide permiso — CORS protege al usuario, no a tu API." → *cap-18*
+:::
+
+## Seguridad y operación
+
+::: {.callout-tip collapse="true" title="P: How do you secure an API?"}
+**R:** "Por capas, como el libro entero: entrada — validación por schema
+y queries parametrizadas (cero concatenación → cero inyección SQL).
+Identidad — bcrypt para claves, JWT en cookie httpOnly, sesiones
+revocables con rotación. Permisos — ownership en la query, 404 a lo
+ajeno. Superficie — rate limit en /auth, CORS con orígenes explícitos,
+HTTPS siempre. Secretos — env vars/secret manager, nunca en el repo.
+Errores — el 500 genérico afuera, el stack trace solo en logs."
+→ *caps. 4, 6, 14–18, 26*
+:::
+
+::: {.callout-tip collapse="true" title="P: JWT vs session cookies — which do you choose?"}
+**R:** "No es o/es — el diseño serio es híbrido. Access JWT stateless
+(15 min): el servidor solo verifica firma, escala sin consultar BD —
+pero no se revoca. Refresh opaco persistido (30 días, tabla sessions):
+una consulta cada 15 min a cambio de revocación real — 'cerrar sesión
+en todos los dispositivos' existe. Rotación del refresh: cada uso emite
+uno nuevo; un viejo reutilizado = robo detectado → sesión entera fuera."
+→ *cap-15, cap-18*
+:::
+
+::: {.callout-tip collapse="true" title="P: How do you store passwords?"}
+**R:** "No se guardan — se guardan verificadores. bcrypt (o argon2) con
+salt aleatorio por usuario y costo ~10-12: lento a propósito, ~100ms por
+intento — imperceptible en login, una eternidad en fuerza bruta. Nunca
+cifrado (la clave que descifra también se filtra) y nunca MD5/SHA-256
+(rápidos = regalo para GPUs). El login hashea lo que escribió el usuario
+y compara; el error es el mismo para 'no existe' y 'clave mala'."
+→ *cap-14*
+:::
+
+::: {.callout-tip collapse="true" title="P: What is SQL injection and how do you prevent it?"}
+**R:** "Concatenar datos del usuario en la query: `WHERE email = '" +
+email + "'` — si escribe `' OR '1'='1` la condición se vuelve verdadera
+para toda la tabla. Se previene con consultas parametrizadas: `$1`/`%s`
+envían el dato por un canal separado — la BD lo trata como texto, jamás
+como código. Regla sin excepciones, incluidos 'valores que yo controlo'."
+→ *cap-09*
+:::
+
+::: {.callout-tip collapse="true" title="P: XSS vs CSRF — what are they and how do you defend?"}
+**R:** "XSS: JS malicioso corriendo en tu página (un comentario que
+renderiza `<script>`) — roba lo que JS puede tocar. Defensa: sanitizar
+entrada, no `innerHTML` con datos de usuario, y cookies httpOnly (el XSS
+no puede leerlas). CSRF: un sitio maligno hace que el navegador *logueado*
+del usuario mande requests a tu API — porque la cookie viaja sola.
+Defensa: `SameSite=lax/strict` + origen verificado. Son ataques gemelos:
+uno abusa del script en tu página, el otro de la cookie automática."
+→ *cap-15, cap-26*
+:::
+
+::: {.callout-tip collapse="true" title="P: What is rate limiting and where do you apply it?"}
+**R:** "Un techo de requests por ventana — responde 429 + `Retry-After`
+cuando se pasa. Lo pones donde cada intento te cuesta o te revela:
+`/auth/login` (fuerza bruta de claves), `/auth/refresh`, `register`,
+`forgot-password` (enumeración de emails), códigos OTP, y endpoints
+caros (exports, reportes). Por IP *y* por cuenta — el botnet tiene mil
+IPs pero la cuenta objetivo es una." → *cap-18*
+:::
+
+::: {.callout-tip collapse="true" title="P: Your API went from 200ms to 2s. How do you troubleshoot?"}
+**R:** "La pregunta real de entrevista. Orden: (1) ¿qué cambió? — deploy
+reciente, migración, crecimiento de datos. (2) Medir, no adivinar:
+logs/APM dicen qué endpoint; `EXPLAIN ANALYZE` dice qué hace la query —
+busco Seq Scan nuevo (¿se perdió un índice?), N+1 (¿un loop nuevo?), rows
+escaneadas explotando. (3) CPU alto + queries iguales → carga o lock
+contention. (4) Fix y verificación con la misma medición. Lo que nunca
+hago: tirarle más máquina a un problema que no medí." → *cap-12, cap-23*
+:::
+
+::: {.callout-tip collapse="true" title="P: What are environment variables and why use them?"}
+**R:** "Configuración que vive fuera del código: `DATABASE_URL`,
+`JWT_SECRET`, `PORT`. Por dos razones: el mismo artefacto corre en dev,
+staging y prod (la diferencia es el entorno, no el binario), y los
+secretos no tocan el repo — el código se publica, las env vars no.
+En producción viven en un secret manager con rotación y auditoría, no
+en un `.env` del servidor." → *cap-24, nu-04*
+:::
+
+::: {.callout-tip collapse="true" title="P: Docker — image vs container, and why use it?"}
+**R:** "La imagen es la receta inmutable (capas: SO base + runtime +
+deps + tu código); el contenedor es la ejecución viva de una imagen —
+como clase vs instancia. Sirve porque resuelve 'en mi máquina sí
+funcionaba': el mismo artefacto corre idéntico en dev, CI y prod. El
+Dockerfile declara la receta; docker-compose orquesta app+BD locales
+para que el onboarding sea un comando." → *cap-30..32*
+:::
+
+::: {.callout-tip collapse="true" title="P: What does your testing strategy look like?"}
+**R:** "Pirámide honesta: muchos tests de unidad en la capa de servicio
+(la regla de negocio pura — 'no borrar tarea con subtareas'), tests de
+integración contra BD real en los repositorios, y pocos end-to-end por
+los flujos críticos (login→crear→listar). Cobertura donde importa: la
+frontera de errores y la autorización, no getters. El test como
+contrato: si rompe la API pública, el test falla antes que el cliente."
+→ *cap-27..29*
+:::
