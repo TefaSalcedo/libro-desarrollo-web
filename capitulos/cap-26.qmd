@@ -3,17 +3,33 @@ title: "26. Necesitamos defendernos de lo que el frontend no puede ver"
 subtitle: "El checklist de seguridad antes de exponer una API"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Todo lo anterior fue *construir* seguridad pieza por pieza. Este
+capítulo es **auditar**: recorrer tus endpoints reales con el OWASP API
+Top 10 en la mano y responder "¿dónde rompería esto si fuera el
+atacante?". La mayoría de las defensas ya las tienes — este capítulo es
+demostrarlo y tapar lo que falta.
+:::
 
 ## El problema
 
-OWASP no es un capítulo de teoría: es una auditoría sobre nuestros endpoints reales.
+La API funciona, los tests pasan… y alguien pega en el chat un
+`?user_id=1` que devuelve datos de otro usuario. La seguridad no es una
+feature que se agrega: es una *propiedad* que se audita — cada endpoint,
+cada input, cada error. OWASP no es teoría de conferencia: es la lista
+de las formas reales en que APIs como la tuya se rompen cada semana.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio hace la auditoría *sobre los endpoints que existen*, no
+sobre un checklist abstracto: por cada ruta — ¿quién puede llamarla,
+qué devuelve, qué pasa con input malicioso, qué loguea? La OWASP API
+Top 10 traducida a Taskflow es la tabla de abajo: cada amenaza mapea a
+un control que *ya construimos* en los capítulos 4–18 — la auditoría es
+verificar que cada control está *activo en cada endpoint*, no en los
+que te acuerdas.
 
 ## Conceptos nuevos
 
@@ -23,44 +39,156 @@ OWASP no es un capítulo de teoría: es una auditoría sobre nuestros endpoints 
 - <span class="tag tag-u">U</span> Rate limiting generalizado: qué endpoints se protegen primero
 - <span class="tag tag-u">U</span> Validación como seguridad: el 422 también es una muralla
 
-## La explicación visual
+## La auditoría — OWASP API Top 10 contra Taskflow
 
-<!-- TODO: diagrama Mermaid o tabla -->
+| Amenaza OWASP | En Taskflow significa | Tu control (capítulo) | Estado |
+|---|---|---|---|
+| **BOLA** — Broken Object Level Authorization | `GET /tasks/{id}` devuelve tareas ajenas | `WHERE user_id` en la query + 404 a lo ajeno (cap. 17) | ✅ por endpoint — auditar cada uno |
+| Broken Authentication | login sin límite, tokens eternos | bcrypt, JWT corto, rate limit, refresh rotado (cap. 14–18) | ✅ |
+| Excessive Data Exposure | `GET /me` filtra `password_hash` | Contratos de salida whitelist (cap. 5, 16) | ✅ |
+| Unrestricted Resource Consumption | body gigante, uploads infinitos, listas sin paginar | Límites de body/upload, paginación, rate limit (cap. 12, 18, 22) | ✅ parcial |
+| Broken Function Level Authorization | `viewer` llamando `DELETE /projects` | `requireRole` por endpoint (cap. 17) | ⚠️ auditar uno por uno |
+| SSRF | "dame la URL del avatar a descargar" → tu servidor visita `169.254.169.254` | Allowlist de hosts si algún día aceptas URLs | ⚠️ diseño |
+| Security Misconfiguration | headers ausentes, debug on, errores verbosos | Handler global + headers (abajo) | ⚠️ este capítulo |
+| Injection | `WHERE email = '" + email + "'` | Queries parametrizadas *siempre* (cap. 9) | ✅ por disciplina |
+| Improper Inventory | `/v1/tasks` viejo sin auth aún vivo | Versionar y matar lo viejo — inventario de rutas | ⚠️ proceso |
+| Unsafe Consumption of APIs | Creer lo que el webhook dice sin verificar | Firma HMAC + dedupe (cap. 22) | ✅ |
+
+Los ✅ no son permanentes: se ganan *por endpoint y por PR* — por eso la
+auditoría es una tabla viva, no un recuerdo.
 
 ## Implementación
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+Capítulo agnóstico — dos piezas que faltaban:
 
-<!-- proyecto: auditoría de seguridad de Taskflow con checklist y correcciones -->
+**Headers de seguridad** (un middleware, cualquier stack):
 
-## ¿Por qué cada stack lo hace así?
+```text
+Strict-Transport-Security: max-age=31536000      # HTTPS siempre
+X-Content-Type-Options: nosniff                  # no adivines el tipo
+X-Frame-Options: DENY                            # tu API no se embebe
+Cache-Control: no-store                          # respuestas de API no se cachean
+```
 
-<!-- TODO: la lección transferible tras el tabset -->
+**El checklist por endpoint** (la auditoría operativa):
+
+```text
+GET /tasks/{id}
+  [ ] auth requerida (middleware)
+  [ ] ownership en la query (WHERE user_id)
+  [ ] 404 para lo ajeno, no 403 (anti-enumeración)
+  [ ] solo campos del contrato público
+  [ ] query parametrizada
+  [ ] rate limit si es sensible
+  [ ] errores por el handler global (sin stack trace)
+```
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Audita la seguridad de mi API [Express/FastAPI/net-http] contra OWASP
+API Top 10. Para cada endpoint: identifica la amenaza aplicable (BOLA,
+function-level auth, data exposure, injection, resource consumption),
+verifica el control que YA existe en el código (ownership en query,
+requireRole, contrato de salida, parametrización, rate limit, headers),
+y genera la tabla endpoint × amenaza × control × estado con las
+correcciones concretas de lo que falte. Incluye tests de regresión para
+cada control (viewer→403, ajeno→404, injection→literal).
+```
+
+:::
+
+## ¿Por qué así y no "instalar un plugin de seguridad"?
+
+**Lo único que necesitas llevarte:** la seguridad de API no es una
+librería que se enchufa — son ~8 decisiones ya tomadas que deben estar
+*activas en cada endpoint*. El plugin pone headers; no pone
+`WHERE user_id` en tu query.
+
+::: {.callout-note collapse="true" title="Detalle: lo que el framework sí te da"}
+
+| Te lo da el framework/librería | Sigue siendo tuyo |
+|---|---|
+| Headers de seguridad (helmet, secure-headers) | BOLA: `WHERE user_id` en cada query |
+| Parseo seguro de JSON/multipart | Contratos de salida (whitelist) |
+| TLS terminado por el proxy | Rate limiting por endpoint sensible |
+| Query builders parametrizados | Roles por recurso, dedupe de webhooks |
+
+La regla honesta: las herramientas cubren el *transporte*; la seguridad
+de *tu dominio* (quién toca qué) la escribes tú o no existe.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| "Ya está securizado" por memoria | El control existe en 7 de 9 endpoints | La tabla endpoint×control — auditar, no recordar |
+| Confiar la seguridad al frontend | "El botón está oculto para viewers" | El navegador miente; la API enforza — siempre |
+| CORS como defensa | "Solo mi dominio puede llamar" | CORS protege al *usuario*, curl no pide permiso (cap. 18) |
+| Errores verbosos en prod | Debug útil | Stack trace = mapa del código para el atacante → handler global |
+| Rate limit solo en login | "Ahí era el problema" | También refresh, register, forgot-password, OTP, endpoints caros |
+| Endpoints viejos vivos | `/v1/tasks` quedó sin auth tras la migración | Inventario de rutas: lo que no se audita, se expone |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **La tabla de auditoría vive en el repo** (docs/SECURITY.md): cada
+  endpoint nuevo agrega su fila en el mismo PR — seguridad como
+  checklist mergeable, no como auditoría anual.
+- **Tests de regresión de seguridad** (cap. 28): `viewer → 403`,
+  `ajeno → 404`, `inyección → literal` son tests permanentes — el
+  control que no se testea se rompe sin ruido.
+- **Principio de privilegio mínimo** en todo: el usuario de BD de la
+  app no es `postgres`; el token no vive 30 días; el endpoint no
+  devuelve campos "por si acaso".
+- **Asumir que el cliente es hostil**: toda entrada se valida (cap. 4)
+  — el 422 *es* seguridad, no solo UX.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Un pentester reporta: "`GET /tasks/41` da 403 y `GET /tasks/42` da
+   404 — así sé que la 41 existe y es de otro". ¿Qué está mal y cómo
+   se arregla?
+2. Tu API acepta `GET /avatar?url=...` y el servidor descarga esa URL.
+   ¿Qué amenaza OWASP es y cuál es la mitigación?
+3. De la tabla de auditoría: ¿por qué "BOLA" no se puede arreglar con
+   un middleware como sí se arreglan los headers?
 
 ## Mini reto
 
-Encontrar el endpoint donde un `viewer` podría hacer algo que no debería.
+Encontrar el endpoint donde un `viewer` podría hacer algo que no
+debería.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. El 403 delata existencia (enumeración). Fix: lo ajeno responde 404
+   idéntico a lo inexistente — la regla del cap. 17. `WHERE public_id
+   AND user_id` produce 0 filas en ambos casos → mismo 404, sin pista.
+2. **SSRF** (Server-Side Request Forgery): el atacante hace que *tu
+   servidor* visite `http://169.254.169.254/latest/meta-data` (la
+   metadata de la nube, con credenciales) o tu red interna. Mitigación:
+   allowlist de hosts permitidos, nunca URLs arbitrarias; si es avatar
+   de terceros, descargar en un worker aislado sin acceso a metadata.
+3. Porque BOLA es *semántica*: el middleware no sabe que la tarea 41
+   pertenece al usuario 7 — esa relación vive en la BD y se enforza en
+   la query. Headers/cookies son transporte; ownership es dominio. Por
+   eso se audita por endpoint y se testea como regresión.
+
+**Mini reto.** Los sospechosos de siempre: `PATCH/DELETE` de proyectos
+(¿verifica rol editor/admin o solo membresía?), `POST /projects/{id}/members`
+(¿quién puede invitar?), endpoints de exportación (¿viewer exporta
+datos que no ve?), y cualquier ruta agregada "rápido" sin pasar por
+`requireRole`. El patrón del hallazgo: endpoint que verifica *quién
+eres* pero no *qué puedes hacer aquí*.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Auditar tus endpoints contra OWASP API Top 10 con una tabla real
+- [ ] Explicar BOLA y por qué la defensa vive en la query
+- [ ] Mantener headers de seguridad y errores no-verbosos en prod
+- [ ] Convertir cada control de seguridad en un test de regresión
+- [ ] Reconocer SSRF, enumeración y exposición de datos en código real

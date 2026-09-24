@@ -5,17 +5,38 @@ subtitle: "Tu backend ahora es cliente de otro backend"
 
 ![Parte 4 — Integraciones y concurrencia](../imagenes/parte-04.png)
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Hasta aquí tu API *respondía*. Ahora también *llama*: cuando se crea una
+tarea, hay que avisar a Slack/email — una API externa que no controlas.
+Hacer ese request bien no es `fetch(url)` y ya: es **timeout** (el que
+los tutoriales omiten), **reintento con backoff**, y una API tuya que
+sigue viva aunque la de ellos esté caída.
+:::
 
 ## El problema
 
-"Cuando se crea una tarea, notifica a Slack/email". Necesitamos hacer requests salientes — con timeouts, retries y fallos controlados.
+"Cuando se crea una tarea, notifica a Slack". Fácil, ¿no? `fetch` dentro
+del handler y listo. Hasta que: Slack tarda 30 segundos → tu usuario
+espera 30 segundos. Slack devuelve 500 → tu endpoint devuelve 500 aunque
+la tarea sí se creó. Slack está caído un día → tu registro de tareas
+"está caído" un día. **Una dependencia sin reglas convierte sus
+problemas en tus problemas.**
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio trata la API externa como lo que es: **algo que falla,
+lento, y a veces miente**. Tres reglas antes de escribir el `fetch`:
+
+1. **Timeout siempre** — "¿cuánto estoy dispuesto a esperar?" se decide
+   *ahora* (2–5s típico), no cuando el thread quede colgado.
+2. **Reintenta lo transitorio, con pausa creciente** — un 503 puede ser
+   un parpadeo; reintentar al segundo puede salvarlo. Reintentar 50
+   veces por segundo *amplifica* el incendio.
+3. **Degrada elegante** — si la notificación falla, la tarea ya se creó:
+   responde 201, registra el fallo, reintenta después (cap. 21). El
+   usuario no paga la caída de Slack.
 
 ## Conceptos nuevos
 
@@ -27,46 +48,163 @@ subtitle: "Tu backend ahora es cliente de otro backend"
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+sequenceDiagram
+  participant U as Usuario
+  participant API as Tu API
+  participant EXT as API externa
+  U->>API: POST /tasks
+  API->>API: crea la tarea (BD)
+  API->>EXT: POST /notify (timeout 3s)
+  alt externa responde bien
+    EXT-->>API: 200
+  else externa falla o se cuelga
+    API->>API: timeout/retry → log + encolar para luego
+  end
+  API-->>U: 201 (la tarea existe — Slack es asunto nuestro)
+```
+
+La notificación puede fallar; la creación no. Por eso la llamada externa
+va **después** de persistir y su fallo no se traduce en error al usuario.
 
 ## Implementación
+
+Un pequeño cliente con timeout + retry, usado desde el servicio:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+async function notifyExternal(text: string): Promise<void> {
+  const delays = [0, 500, 1500];                // retry with backoff
+  for (let attempt = 0; attempt < delays.length; attempt++) {
+    if (delays[attempt]) await new Promise(r => setTimeout(r, delays[attempt]));
+    try {
+      const res = await fetch(process.env.SLACK_WEBHOOK_URL!, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+        signal: AbortSignal.timeout(3000),      // the part tutorials skip
+      });
+      if (res.ok) return;
+      if (res.status < 500) return;             // 4xx won't fix itself
+    } catch { /* timeout or network: retryable */ }
+  }
+  throw new Error("external notify failed after retries");
+}
 ```
 
 ### Python
+
 ```python
-# TODO
+import httpx
+
+def notify_external(text: str) -> None:
+    delays = [0, 0.5, 1.5]                       # retry with backoff
+    for i, delay in enumerate(delays):
+        if delay: time.sleep(delay)
+        try:
+            res = httpx.post(settings.slack_webhook_url,
+                             json={"text": text}, timeout=3.0)
+            if res.is_success: return
+            if res.status_code < 500: return     # 4xx won't fix itself
+        except httpx.HTTPError:
+            pass                               # timeout/network: retryable
+    raise ExternalServiceError("notify failed after retries")
 ```
 
 ### Go
+
 ```go
-// TODO
+var client = &http.Client{Timeout: 3 * time.Second} // no default timeout!
+
+func notifyExternal(text string) error {
+    body, _ := json.Marshal(map[string]string{"text": text})
+    for attempt, delay := range []time.Duration{0, 500, 1500} {
+        if delay > 0 { time.Sleep(delay * time.Millisecond) }
+        res, err := client.Post(webhookURL, "application/json", bytes.NewReader(body))
+        if err == nil {
+            defer res.Body.Close()
+            if res.StatusCode < 300 { return nil }
+            if res.StatusCode < 500 { return nil } // 4xx won't fix itself
+        }
+        _ = attempt
+    }
+    return errors.New("notify failed after retries")
+}
 ```
 
 :::
 
-<!-- proyecto: notificaciones a servicio externo con timeout + retry -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Crea un módulo para llamar una API externa (webhook de Slack) desde mi
+servicio en [Express/FastAPI/net-http]. Requisitos: timeout de 3s por
+intento, máximo 3 intentos con backoff exponencial, no reintentar errores
+4xx, lanzar un error de dominio ExternalServiceError si todo falla, la
+URL viene de variable de entorno validada al arranque, y la llamada se
+usa DESPUÉS de persistir la entidad — su fallo no debe cambiar la
+respuesta al cliente. Con tests que simulen timeout y 500.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** las tres implementaciones son la
+misma receta — *timeout por intento, backoff entre intentos, no
+reintentar lo que no se arregla solo*. Cambia la sintaxis, no el diseño.
+
+::: {.callout-note collapse="true" title="Detalle: dónde difieren los defaults"}
+
+- **TS:** `fetch` no tenía timeout hasta `AbortSignal.timeout()` — por
+  eso años de código legacy cuelga forever. Axios lo trae desde siempre
+  (`timeout: 3000`).
+- **Python:** `requests` no tiene timeout por defecto (¡peligro
+  histórico!); `httpx` lo pone en 5s de fábrica — por eso usamos httpx.
+- **Go:** `http.Client{}` vacío = **sin timeout** — el error de
+  producción más clásico de Go. `http.Client{Timeout: ...}` es
+  obligatorio.
+
+Librerías de retry existen en los tres (`backoff`, `tenacity`,
+`avast/retry-go`) — úsalas cuando el patrón se repite, pero entiende la
+receta manual primero: es 10 líneas y es lo que todo equipo espera que
+sepas escribir.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Llamada externa sin timeout | El default del cliente es "esperar siempre" | Timeout explícito por intento |
+| Retry sin pausa ni límite | "Si falla, reintenta" | Backoff + tope de intentos; 4xx no se reintenta |
+| Fallo externo → 500 al usuario | El error de Slack burbujea al handler | Persistir primero; el fallo externo se loguea y se encola |
+| API key en el frontend | "La necesito para llamar la API" | La llamas desde tu backend — la key jamás sale del servidor (BFF) |
+| Loguear el request completo | Debugging cómodo | La key/secret queda en logs — loguea status y duración, no headers |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Timeout, retry, dedupe** — el trío mínimo de toda integración. Sin
+  los tres, no vas a prod.
+- **Persiste antes de llamar** — la tarea existe en tu BD aunque la
+  notificación nunca llegue; el trabajo pendiente se reintenta (cap. 21).
+- **Mide la dependencia**: duración y tasa de fallo de cada llamada
+  externa van a logs (cap. 23) — un proveedor lento es tu endpoint lento.
+- **Un adapter, no `fetch` disperso**: `notifyExternal()` es la *única*
+  puerta a Slack — si cambia la API de ellos, cambias un archivo (y es
+  lo que mockeas en cap. 29).
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. El cliente de arriba reintenta 4xx si quitas el `if`. ¿Por qué es
+   incorrecto reintentar un 400 o un 401?
+2. ¿Qué pasa si `SLACK_WEBHOOK_URL` no está definida? ¿Cuándo debería
+   descubrirse ese problema — al arrancar o en el primer request?
+3. Diseña la respuesta al cliente si la notificación falla tras todos
+   los reintentos: ¿qué status, qué body, qué se loguea?
 
 ## Mini reto
 
@@ -74,12 +212,30 @@ Responder: ¿qué ve tu usuario si la API externa está caída?
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. Un 4xx significa que *tu request* está mal (body inválido, key mala)
+   — reintentar solo repite el mismo request defectuoso y amplifica el
+   problema. Se reintenta lo transitorio: 5xx, timeouts, errores de red.
+2. El `!`/validación al arranque (cap. 24): la app debe *reventar al
+   boot* si falta la config — descubrirlo en el primer request es
+   descubrirlo a las 3am en prod.
+3. `201` + la tarea creada — la notificación es asíncrona por
+   naturaleza. Se loguea `ERROR` con contexto (task_id, intentos,
+   último status externo) y se encola el reintento. El usuario ya tiene
+   lo que pidió.
+
+**Mini reto.** Exactamente lo mismo que si estuviera viva: `201` con su
+tarea. La caída de Slack es problema *operativo* tuyo (logs, alertas,
+reintentos), no del usuario — degradación elegante = el usuario nunca se
+entera, tú sí.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Escribir una llamada externa con timeout, retry y backoff en tu stack
+- [ ] Explicar por qué 4xx no se reintenta y 5xx sí
+- [ ] Diseñar qué ve el usuario cuando la dependencia está caída
+- [ ] Mantener API keys solo en el servidor y fuera de los logs
+- [ ] Envolver la integración en un adapter con nombre de negocio

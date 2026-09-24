@@ -3,17 +3,33 @@ title: "29. Necesitamos testear lo que depende de terceros"
 subtitle: "La API externa no puede recibir 500 llamadas en cada test run"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Tu servicio notifica a Slack — ¿cada `npm test` va a pegarle a Slack de
+verdad? No: se reemplaza la dependencia en *la frontera correcta* — tu
+adapter `notifyExternal` del cap. 19, no la librería HTTP. Mockear bien
+es responder: "¿esto verifica que **yo** llamé bien, o que **ellos**
+funcionan?".
+:::
 
 ## El problema
 
-Mocks y fakes en la frontera correcta: testear que llamaste bien, no la librería HTTP.
+El test del registro crea el usuario… y envía el email real, llama a
+Slack real, cobra en Stripe real. Tests lentos, que fallan cuando el
+tercero se cae, que gastan rate limit, y que envían correos de mentira
+a usuarios de verdad. Pero el extremo opuesto es igual de inútil:
+mockear tan adentro que el test solo verifica que el mock funciona.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio mockea en **la frontera que él diseñó**: el adapter con
+nombre de negocio (`notifyExternal`, `chargeCard`) — no `fetch`, no
+`httpx`, no `net/http`. Razón: lo que quieres verificar es *tu* contrato
+("¿llamaste con el texto correcto? ¿degradaste si falló?"), no la
+librería HTTP de alguien. Y la regla que evita el teatro: **un mock que
+siempre responde bien solo prueba el día que todo salió bien** — el
+camino que importa es el del fallo.
 
 ## Conceptos nuevos
 
@@ -24,46 +40,149 @@ Mocks y fakes en la frontera correcta: testear que llamaste bien, no la librerí
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  subgraph Tu código
+    H[Handler] --> S[Servicio] --> A["notifyExternal()<br/>← LA FRONTERA"]
+  end
+  A -->|prod| EXT[Slack real]
+  A -->|test| M["fake: captura args,<br/>devuelve ok o error a elección"]
+```
+
+El mock vive donde *tu* diseño ya separó la integración (cap. 19) — por
+eso el adapter con nombre de negocio era importante: hoy es la costura
+donde cosen los tests.
 
 ## Implementación
+
+Sustituir el adapter en los tres mecanismos:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+vi.mock("./notify", () => ({
+  notifyExternal: vi.fn(),                      // the adapter, not fetch
+}));
+
+it("degrades when slack is down", async () => {
+  vi.mocked(notifyExternal).mockRejectedValue(new ExternalServiceError("down"));
+  const res = await request(app).post("/tasks").set("Cookie", token)
+    .send({ title: "x" });
+  expect(res.status).toBe(201);                  // external failure ≠ your failure
+  expect(notifyExternal).toHaveBeenCalledWith(expect.stringContaining("x"));
+});
 ```
 
 ### Python
+
 ```python
-# TODO
+def test_degrades_when_slack_down(client, monkeypatch):
+    calls = []
+    def fake_notify(text): calls.append(text); raise ExternalServiceError("down")
+    monkeypatch.setattr("app.services.notify.notify_external", fake_notify)
+
+    res = client.post("/tasks", json={"title": "x"}, headers=auth_headers)
+    assert res.status_code == 201                 # external failure ≠ your failure
+    assert calls and "x" in calls[0]
+    # FastAPI alternative: app.dependency_overrides[notify_dep] = lambda: fake_notify
 ```
 
 ### Go
+
 ```go
-// TODO
+// the service takes the dependency as an interface — the seam is in the signature
+type Notifier interface{ Notify(ctx context.Context, text string) error }
+
+type fakeNotifier struct{ err error; got []string }
+func (f *fakeNotifier) Notify(_ context.Context, text string) error {
+    f.got = append(f.got, text); return f.err
+}
+
+func TestDegradesWhenSlackDown(t *testing.T) {
+    fn := &fakeNotifier{err: errors.New("down")}
+    srv := httptest.NewServer(newRouter(testDeps{notifier: fn}))
+    res := postTask(t, srv, token, `{"title":"x"}`)
+    if res.StatusCode != 201 { t.Fatalf("external failure leaked: %d", res.StatusCode) }
+    if len(fn.got) != 1 { t.Fatal("notify not called") }
+}
 ```
 
 :::
 
-<!-- proyecto: tests del módulo de notificaciones con externo mockeado -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Diseña los tests de mi integración con [Slack/email/pagos] en
+[Express/FastAPI/net-http]. Requisitos: sustituir el adapter
+notifyExternal (no fetch/httpx/http.Client) usando
+[vi.mock/monkeypatch/dependency_overrides/interfaz inyectada]; cubrir
+los tres caminos — éxito (llamó con el payload correcto), fallo
+transitorio (reintentó y degradó sin tumbar mi respuesta), y fallo
+permanente (error de dominio registrado, usuario afectado según lo
+diseñado). Verificar también que NO se llama cuando la regla dice que
+no (ej. no notificar si la tarea falló validación).
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** el mock vive en la frontera de *tu*
+diseño — el adapter. Si tienes que mockear `fetch` o `httpx` para
+testear tu lógica, la señal real es que te falta el adapter (cap. 19),
+no que falta el mock.
+
+::: {.callout-note collapse="true" title="Detalle: los tres mecanismos de sustitución"}
+
+- **TS**: `vi.mock` reemplaza el *módulo* — funciona aunque el servicio
+  haga `import` directo; potente pero mágico: el mock reemplaza por
+  nombre de archivo.
+- **Python**: `monkeypatch` cambia el atributo en runtime; FastAPI
+  además tiene `dependency_overrides` — la DI del cap. 16 convertida
+  en costura de tests oficial.
+- **Go**: sin mocks de framework — la *interfaz* en la firma es la
+  costura; inyectar `fakeNotifier` es solo pasar otra implementación.
+  Más explícito: la testabilidad se ve en la firma del servicio.
+
+**Cobertura honesta:** 40% cubriendo servicios+auth vale más que 90%
+de getters. 100% suele comprar tests que no matan bugs — el número es
+un mapa de lo *no* cubierto, no una nota del examen.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Mockear la librería HTTP | "Intercepto fetch" | Mockea tu adapter — si no existe, eso es el hallazgo |
+| Mock que siempre devuelve éxito | El camino feliz es el fácil | Test del fallo: 500, timeout, respuesta rara — ahí vive tu lógica |
+| Assert sobre el mock, no el efecto | `expect(mock).toHaveBeenCalled()` y ya | Ambos: llamó bien **y** mi sistema respondió según lo diseñado |
+| Mockear tu propia capa de servicio | Para "testear el handler" | El handler con servicio mockeado no testea nada real — baja al adapter |
+| 100% cobertura como meta | Métrica bonita | Cobertura en reglas y fronteras; getters no matan bugs |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Tres caminos por integración**: éxito, fallo transitorio, fallo
+  permanente — la degradación elegante del cap. 19 se *demuestra*
+  aquí, no se espera.
+- **El fake también graba**: `got []string` — verificar *con qué* te
+  llamaron importa tanto como que te llamaron.
+- **Tests de no-llamada**: "si la validación falla, NO se notifica" —
+  los efectos colaterales ausentes también son contrato.
+- **Un test de humo real** (opcional, aparte): una llamada verdadera
+  al sandbox del tercero en CI nocturno — el mock dice que llamaste
+  bien; solo el humo dice que la API de ellos no cambió.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. ¿Por qué mockear `fetch`/`httpx` es la frontera *incorrecta* aunque
+   técnicamente funcione?
+2. Tu test mockea `notifyExternal` y verifica que se llamó. ¿Qué dos
+   cosas importantes NO está verificando?
+3. En Go no hay `vi.mock` — ¿por qué se dice que "la DI es el mock de
+   Go" y qué implica para cómo escribes los servicios?
 
 ## Mini reto
 
@@ -71,12 +190,36 @@ El test de "servicio externo caído → la API responde bien igual".
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. Tres razones: (a) testeas la librería, no tu contrato — si el mock
+   de `fetch` simula mal la API real, el test miente; (b) el test se
+   acopla a *cómo* llamas (URL, headers) — refactorizar el cliente
+   rompe tests que no deberían enterarse; (c) el adapter es *tu*
+   frontera semántica: `notifyExternal("task created")` es lo que tu
+   negocio necesita, no `fetch(url, opts)`.
+2. (a) **Con qué** se llamó — el payload correcto (un typo en el texto
+   pasa el test); (b) **qué hizo tu sistema con el resultado** — el
+   assert del mock no verifica tu 201, tu 502, ni tu degradación. El
+   mock verifica la llamada; el test debe verificar la *respuesta*.
+3. La interfaz en la firma *es* la costura: `NewService(n Notifier)`
+  recibe la implementación — en prod el cliente real, en test el fake.
+  Implica que los servicios declaran sus dependencias como interfaces
+  pequeñas (1-3 métodos) en vez de esconder `http.Post` adentro — la
+  testabilidad se *diseña* en la firma, no se parchea después.
+
+**Mini reto.** El test de los ejemplos de arriba: fake que lanza/retorna
+error → POST /tasks → assert `201` (o el status diseñado) + assert de
+que el usuario recibe su tarea + assert de que el error quedó
+registrado. Es el test que *demuestra* la degradación elegante del
+cap. 19 — sin él, "degrada bien" es una esperanza.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Mockear en la frontera del adapter (vi.mock/monkeypatch/interfaz)
+- [ ] Cubrir éxito, fallo transitorio y fallo permanente de una integración
+- [ ] Verificar con qué te llamaron *y* cómo respondió tu sistema
+- [ ] Diseñar servicios con dependencias inyectables para que sean testeables
+- [ ] Leer la cobertura como mapa de huecos, no como nota

@@ -3,17 +3,39 @@ title: "25. Necesitamos que los errores escalen como en un equipo real"
 subtitle: "El frontend no puede programar contra el caos"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+El cap. 6 te enseñó el formato `{error:{code}}`. Ahora el problema es
+de escala: 40 endpoints, errores de BD, de dominio, de terceros — si
+cada uno inventa su traducción, el frontend programa contra el caos.
+La solución es una **jerarquía de errores de dominio** + **un handler
+global** que es la única frontera donde un error se convierte en HTTP.
+:::
 
 ## El problema
 
-Cada endpoint inventa su formato de error. Necesitamos jerarquías de error, handlers globales y un contrato estable.
+`users` devuelve `{message: "nope"}`, `tasks` devuelve un stack trace,
+`projects` devuelve 200 con `{error: null, data: null}` cuando algo
+falla. El frontend necesita un `if` por endpoint — y el día que cambias
+un texto ("not found" → "no encontrado"), un `if (err.message ===
+"not found")` de alguien explota en producción. Los mensajes son para
+humanos; **las máquinas necesitan códigos estables**.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio separa dos mundos con una frontera clara:
+
+- **Dominio**: el servicio lanza `TaskNotFoundError`, `ForbiddenError`,
+  `ValidationError` — errores que *hablan el idioma del negocio* y no
+  saben nada de HTTP.
+- **Transporte**: un handler global (middleware de error / exception
+  handler / mapper central) traduce cada error de dominio a su status +
+  código estable. Es el *único* lugar donde vive esa tabla.
+
+El contrato hacia afuera: `{"error": {"code": "TASK_NOT_FOUND",
+"message": "..."}}` — el `code` es API (estable, testeable), el
+`message` es texto (puede cambiar, traducirse).
 
 ## Conceptos nuevos
 
@@ -25,46 +47,176 @@ Cada endpoint inventa su formato de error. Necesitamos jerarquías de error, han
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  S[Servicio] -->|throw TaskNotFoundError| H{Handler global}
+  D[Driver BD] -->|pgx.ErrNoRows| S
+  H -->|404| C["{error:{code:'TASK_NOT_FOUND'}}"]
+  X[Cualquier panic/error inesperado] -->|500 genérico| C
+  X -->|stack trace completo| L[logs — solo aquí]
+```
+
+El servicio lanza *significado*; el handler traduce; el cliente ve
+contrato; el detalle feo queda en logs.
 
 ## Implementación
+
+Jerarquía + mapper central en los tres stacks:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+export class DomainError extends Error {
+  constructor(public code: string, message: string, public status = 400) {
+    super(message);
+  }
+}
+export class NotFoundError extends DomainError {
+  constructor(what: string) { super(`${what.toUpperCase()}_NOT_FOUND`, `${what} not found`, 404); }
+}
+
+// the ONLY translation point — registered last
+app.use((err, req, res, next) => {
+  if (err instanceof DomainError) {
+    return res.status(err.status).json({ error: { code: err.code, message: err.message } });
+  }
+  logger.error({ err, request_id: req.id }, "unhandled error");   // everything goes to logs
+  res.status(500).json({ error: { code: "INTERNAL", message: "internal error" } });
+});
+// service: throw new NotFoundError("task") — knows no HTTP
 ```
 
 ### Python
+
 ```python
-# TODO
+class DomainError(Exception):
+    code = "DOMAIN"
+    status = 400
+
+class NotFoundError(DomainError):
+    status = 404
+    def __init__(self, what: str):
+        self.code = f"{what.upper()}_NOT_FOUND"
+        super().__init__(f"{what} not found")
+
+@app.exception_handler(DomainError)
+async def domain_handler(request, exc: DomainError):
+    return JSONResponse({"error": {"code": exc.code, "message": str(exc)}},
+                        status_code=exc.status)
+
+@app.exception_handler(Exception)
+async def unhandled_handler(request, exc: Exception):
+    logger.exception("unhandled", extra={"ctx": {"request_id": request.state.request_id}})
+    return JSONResponse({"error": {"code": "INTERNAL", "message": "internal error"}},
+                        status_code=500)
 ```
 
 ### Go
+
 ```go
-// TODO
+var ErrNotFound = errors.New("not found")
+
+type DomainError struct {
+    Code    string
+    Message string
+    Status  int
+}
+func (e *DomainError) Error() string { return e.Message }
+
+func writeErr(w http.ResponseWriter, err error) {
+    var de *DomainError
+    switch {
+    case errors.Is(err, pgx.ErrNoRows):                    // driver error → domain
+        de = &DomainError{"TASK_NOT_FOUND", "task not found", 404}
+    case errors.As(err, &de):
+        // already a domain error
+    default:
+        slog.Error("unhandled", "err", err)
+        de = &DomainError{"INTERNAL", "internal error", 500}
+    }
+    writeJSON(w, de.Status, map[string]any{
+        "error": map[string]string{"code": de.Code, "message": de.Message}})
+}
 ```
 
 :::
 
-<!-- proyecto: sistema de errores coherente de extremo a extremo -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Implementa un sistema de errores coherente para mi API
+[Express/FastAPI/net-http]. Requisitos: jerarquía DomainError con
+status+code (NotFoundError, ValidationError, ForbiddenError,
+UnauthorizedError, ConflictError, ExternalServiceError), un handler
+global que sea la ÚNICA frontera dominio→HTTP y devuelva siempre
+{"error":{"code","message"}} más request_id en logs para errores
+inesperados, el 500 genérico sin stack trace en la respuesta, y tests
+que verifiquen que NINGÚN endpoint filtra stack trace ni devuelve otro
+formato.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** los tres hacen lo mismo — errores
+que *significan* algo en el dominio, un solo lugar que los traduce a
+HTTP, y un contrato estable para el cliente. Cambia el mecanismo
+(herencia vs excepciones vs sentinel errors), no el diseño.
+
+::: {.callout-note collapse="true" title="Detalle: los tres mecanismos"}
+
+- **TS**: clases `extends Error` + `instanceof` — la jerarquía es
+  literal (`NotFoundError` *es un* `DomainError`).
+- **Python**: excepciones con atributos de clase + un handler por tipo —
+  FastAPI elige el handler por la clase de la excepción.
+- **Go**: sin excepciones — el error es un *valor* que viaja por return;
+  `errors.Is/As` pregunta "¿es este tipo?" y `writeErr` es el mapper
+  manual. Más verboso, más explícito: el error está en la firma.
+
+**RFC 9457 (problem details)** es la alternativa "estándar" al contrato
+propio: `{"type","title","status","detail"}` — misma idea,
+vocabulario IETF. Lo que importa no es el formato elegido sino que sea
+*uno solo y estable*.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| `if (err.message === "task not found")` en el cliente | Los mensajes eran la API | Códigos estables: `code` es contrato, `message` es decoración |
+| Stack trace en el body del 500 | El framework lo hacía en dev | Handler global: al cliente "INTERNAL", al log todo |
+| Errores de BD burbujeando al handler | `pgx.ErrNoRows` llega crudo | El servicio traduce driver→dominio en su frontera |
+| Status 200 con error dentro | "Para no romper el frontend" | El status *es* parte del contrato — 4xx/5xx existen por algo |
+| Handler de error por endpoint | Copia pega del try/catch | UN handler global + errores de dominio que viajan solos |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Catálogo de códigos**: `TASK_NOT_FOUND`, `VALIDATION`,
+  `UNAUTHORIZED`, `FORBIDDEN`, `RATE_LIMITED`, `CONFLICT`,
+  `EXTERNAL_SERVICE`, `INTERNAL` — documentados, estables, testeados.
+  Son API pública: se agregan, no se renombran.
+- **El 500 no improvisa**: mismo formato que el resto — el cliente no
+  tiene un parser para "cuando todo explota".
+- **Errores de dominio pequeños y específicos**: `NotFoundError` con el
+  *qué* — el código sale solo (`TASK_NOT_FOUND`), sin decidirlo en
+  cada throw.
+- **El handler global también loguea**: request_id + error completo +
+  contexto (cap. 23) — el cliente ve poco, tú ves todo.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. ¿Por qué `message` no puede ser el contrato aunque sea "estable
+   hoy"? Da dos razones.
+2. El driver lanza `pgx.ErrNoRows`. ¿Quién lo traduce a
+   `TASK_NOT_FOUND` — el storage, el servicio o el handler global?
+   Defiende tu respuesta.
+3. Agrega `ConflictError` (409, para email duplicado) a la jerarquía:
+   ¿qué `code` debería producir `POST /auth/register` con email ya
+   tomado y por qué no 422?
 
 ## Mini reto
 
@@ -72,12 +224,34 @@ Garantizar que ningún endpoint filtra un stack trace — con tests.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. (a) Los mensajes cambian: traducción, mejora de copy, un typo —
+   cada cambio es un breaking change invisible. (b) Las máquinas
+   comparan strings con edge cases (espacios, mayúsculas); un `code`
+   es un identificador *diseñado* para compararse.
+2. **El servicio** — es su frontera: el storage reporta "no había
+   fila" (hecho técnico), el servicio decide "eso significa task no
+   encontrada" (significado de negocio). El handler global solo ve
+   errores de dominio ya traducidos. Si el driver llega al handler
+   crudo, cambiar de Postgres a MySQL cambiaría tu API pública.
+3. `{"error":{"code":"EMAIL_TAKEN","message":"email already
+   registered"}}` con 409 — no es un body malformado (422 sería "tu
+   JSON está mal"), es un *conflicto de estado*: el recurso ya existe.
+   409 es el status honesto para eso.
+
+**Mini reto.** Un test que pega a cada endpoint con inputs que exploten
+(DB caída, error forzado) y verifica: status 500 **y** body parsea como
+`{error:{code:"INTERNAL"}}` **y** no contiene "at ", "Traceback",
+".go:", ni "node_modules". El test es la garantía permanente — si
+alguien rompe el handler global, este test lo grita antes que prod.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Diseñar una jerarquía de errores de dominio en tu stack
+- [ ] Centralizar la traducción dominio→HTTP en un handler global
+- [ ] Mantener `code` estable y `message` libre en el contrato
+- [ ] Traducir errores del driver a dominio en la frontera correcta
+- [ ] Testear que ningún endpoint filtra stack trace ni formato raro

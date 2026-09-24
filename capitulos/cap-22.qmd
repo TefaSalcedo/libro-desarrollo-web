@@ -3,80 +3,233 @@ title: "22. Necesitamos recibir lo que otros nos envían"
 subtitle: "Webhooks entrantes y uploads: el endpoint público peligroso"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Hasta ahora tus endpoints respondían a *tu* frontend logueado. Ahora el
+mundo te llama: Stripe avisa que un pago llegó, el usuario sube su
+avatar. Dos superficies nuevas — **webhooks** (requests firmados de otro
+servidor) y **uploads** (datos que no son JSON) — y las dos son el
+endpoint más atacado de tu API si las tratas como las demás.
+:::
 
 ## El problema
 
-El mundo también te llama a ti: webhooks de pago, uploads de avatar. Necesitamos verificar firmas, deduplicar y parsear multipart.
+El proveedor de pagos avisa `payment.completed` con un POST a tu
+`/webhooks/payments`. Problemas: ¿cómo sabes que el POST vino *de ellos*
+y no de alguien probando `/webhooks/payments` con `{"amount": 999999}`?
+¿Qué pasa cuando el mismo webhook llega dos veces (ellos reintentan si
+tardas)? Y el avatar: `avatar.png` que en realidad es un `.exe` de 50MB
+disfrazado. Todo lo que entra necesita verificación *antes* de procesar.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio trata estos endpoints con tres reglas:
+
+1. **Verifica antes de creer** — el webhook viene firmado (HMAC con
+   secreto compartido): se verifica la firma *sobre el body crudo*,
+   antes de parsear. El upload se valida por contenido (magic bytes),
+   no por nombre ni `Content-Type` declarado.
+2. **Responde rápido, procesa después** — el proveedor reintenta si no
+   respondes en segundos; el procesamiento va a una cola (cap. 21).
+3. **Idempotencia** — el mismo evento puede llegar 5 veces; procesarlo
+   debe tener el efecto de procesarlo 1 vez (dedupe por `event_id`).
 
 ## Conceptos nuevos
 
 - <span class="tag tag-u">U</span> Webhooks entrantes: verificar firma, responder rápido, procesar después
-- <span class="tag tag-u">U</span> Idempotencia: el mismo webhook llega dos veces — `Idempotency-Key` y deduplicación en BD
-- <span class="tag tag-u">U</span> Uploads streaming: parseo multipart, tamaños máximos, validación de tipo real (no el nombre)
+- <span class="tag tag-u">U</span> Idempotencia: el mismo webhook llega dos veces — `event_id` y deduplicación en BD
+- <span class="tag tag-u">U</span> Uploads: multipart, tamaños máximos, validación de tipo real (no el nombre)
 - <span class="tag tag-ops">Ops</span> Dónde van los archivos: disco vs object storage — la decisión, no la implementación
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  P[Proveedor de pagos] -->|POST + firma HMAC| W[/webhooks/payments]
+  W --> V{¿Firma válida?}
+  V -->|no| R1[401]
+  V -->|sí| D{¿event_id ya procesado?}
+  D -->|sí| R2[200 — ya lo vi]
+  D -->|no| Q[Encolar procesamiento] --> R3[200 — rápido]
+```
+
+Verificar → deduplicar → responder → *entonces* procesar. En ese orden.
 
 ## Implementación
+
+El webhook verificado — el patrón completo en compacto:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+app.post("/webhooks/payments",
+  express.raw({ type: "application/json" }),     // RAW body — signature needs bytes
+  async (req, res) => {
+    const expected = crypto.createHmac("sha256", WEBHOOK_SECRET)
+                           .update(req.body).digest("hex");
+    const sig = req.headers["x-signature"] as string;
+    if (!sig || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected)))
+      return res.sendStatus(401);                 // verify BEFORE parsing
+    const event = JSON.parse(req.body.toString());
+    const inserted = await dedupeInsert(event.id); // UNIQUE(event_id)
+    if (!inserted) return res.sendStatus(200);     // already processed: ok
+    enqueue("process_payment", event);             // fast response, work after
+    res.sendStatus(200);
+  });
 ```
 
 ### Python
+
 ```python
-# TODO
+@app.post("/webhooks/payments")
+async def payments_webhook(request: Request):
+    body = await request.body()                    # raw bytes for the signature
+    expected = hmac.new(WEBHOOK_SECRET, body, hashlib.sha256).hexdigest()
+    sig = request.headers.get("x-signature", "")
+    if not hmac.compare_digest(sig, expected):
+        raise HTTPException(401)                   # verify BEFORE parsing
+    event = json.loads(body)
+    if not dedupe_insert(event["id"]):             # UNIQUE(event_id)
+        return {"ok": True}                        # already processed
+    enqueue("process_payment", event)              # fast response, work after
+    return {"ok": True}
 ```
 
 ### Go
+
 ```go
-// TODO
+func paymentsWebhook(w http.ResponseWriter, r *http.Request) {
+    body, _ := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20)) // cap size
+    mac := hmac.New(sha256.New, webhookSecret)
+    mac.Write(body)
+    if !hmac.Equal([]byte(r.Header.Get("X-Signature")),
+                   []byte(hex.EncodeToString(mac.Sum(nil)))) {
+        w.WriteHeader(401); return                 // verify BEFORE parsing
+    }
+    var event PaymentEvent
+    json.Unmarshal(body, &event)
+    if !dedupeInsert(event.ID) {                   // UNIQUE(event_id)
+        w.WriteHeader(200); return                 // already processed
+    }
+    enqueue("process_payment", event)              // fast response, work after
+    w.WriteHeader(200)
+}
 ```
 
 :::
 
-<!-- proyecto: webhook verificado + upload de avatar validado -->
+Y el upload, las reglas sin depender del stack:
+
+```text
+POST /me/avatar (multipart)
+→ MaxBytes/límite: 5MB — el servidor rechaza antes de llenar el disco
+→ Leer los primeros bytes: 89 50 4E 47 = PNG real (magic bytes),
+  no confiar en filename ni Content-Type declarado
+→ Guardar con nombre generado (uuid.png), nunca el nombre del usuario
+→ Destino: object storage (S3/Blob/GCS) — el disco del servidor no escala
+```
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Implementa POST /webhooks/payments en [Express/FastAPI/net-http] que
+reciba eventos de un proveedor. Requisitos: verificar la firma HMAC
+SHA-256 del header X-Signature sobre el body CRUDO antes de parsear,
+deduplicar por event_id con constraint UNIQUE en Postgres, responder
+200 rápido y encolar el procesamiento real, límite de tamaño del body,
+y tests: firma inválida → 401, mismo evento dos veces → procesado una
+sola, y proveedor-caído → reintento seguro.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** el patrón es idéntico en los tres —
+*body crudo → firma → dedupe → 200 rápido → procesar después*. Lo que
+cambia es *cómo* obtienes el body crudo (Express lo re-serializa sin el
+middleware `raw`, por eso va explícito).
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: dónde van los archivos"}
+
+| Destino | Qué es | Qué te cuesta | Cuándo |
+|---|---|---|---|
+| Disco local | Carpeta del servidor | Muere con el contenedor; no escala a 2 instancias | Dev, prototipo |
+| Object storage (S3/Blob/GCS) | Servicio de archivos de la nube | Configurar + URLs firmadas | Prod casi siempre |
+| CDN delante | Cacheo global del archivo | Una capa más | Archivos públicos muy leídos |
+
+La regla: **en prod el archivo vive fuera del proceso** — dos instancias
+de tu API deben ver el mismo avatar.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Verificar la firma sobre el JSON parseado | "Ya lo tengo como objeto" | La firma cubre los *bytes* — parsear puede reordenar/reformatear |
+| Procesar antes de responder | El proveedor reintenta a los 5s | 200 rápido + cola — el patrón del cap. 21 |
+| Sin deduplicación | "¿Por qué cobraría dos veces?" | `event_id` UNIQUE — el mismo evento, una sola ejecución |
+| Confiar en `filename`/`Content-Type` | Lo declara el cliente | Magic bytes + extensión generada por ti |
+| Sin límite de tamaño | Upload de 50GB = disco lleno | MaxBytes/corte en el middleware |
+| Guardar en disco del contenedor | "Funciona en mi máquina" | Object storage — el disco de prod es efímero |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **`timingSafeEqual`/`compare_digest`/`hmac.Equal`** para comparar
+  firmas — el `==` normal puede filtrar por tiempo de respuesta.
+- **Registra `event_id` + tipo en logs**, nunca el payload entero — los
+  webhooks traen datos personales ajenos.
+- **El handler del webhook es *tonto***: verifica, deduplica, encola.
+  La lógica vive en el worker — testeable y reintentable.
+- **Replay endpoint interno**: cuando un evento se procesó mal, querrás
+  re-ejecutarlo desde la BD de eventos sin pedirle al proveedor nada.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. ¿Por qué la deduplicación va en la BD (`UNIQUE(event_id)`) y no en
+   memoria (un `Set` de ids procesados)?
+2. El proveedor manda el mismo evento 5 veces seguidas. Traza qué
+   devuelve tu endpoint cada vez y qué efecto total tiene.
+3. ¿Qué valida *realmente* que `avatar.png` es una imagen: su nombre,
+   su `Content-Type`, o sus primeros bytes? ¿Y por qué los otros dos
+   no sirven?
 
 ## Mini reto
 
-Hacer que procesar el mismo webhook 5 veces tenga el efecto de procesarlo 1 vez.
+Hacer que procesar el mismo webhook 5 veces tenga el efecto de
+procesarlo 1 vez.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. Memoria muere con el proceso y no se comparte entre instancias — el
+   quinto retry puede llegar a otra réplica de tu API. La constraint
+   UNIQUE en Postgres es deduplicación *real*: sobrevive reinicios y
+   escala horizontal.
+2. Primera: firma ok → inserta `event_id` → 200 + encola. Segunda a
+   quinta: firma ok → `dedupe_insert` devuelve "ya existe" → 200 sin
+   encolar. Efecto total: procesado una vez; el proveedor recibió 200
+   las cinco veces (deja de reintentar).
+3. Los primeros bytes (magic bytes: `89 50 4E 47` = PNG, `FF D8` =
+   JPEG). El nombre y el `Content-Type` los declara el cliente — un
+   `.exe` renombrado declara `image/png` sin ruborizarse.
+
+**Mini reto.** La tabla `webhook_events(event_id UNIQUE, payload,
+processed_at)`: insertar el `event_id` *es* la deduplicación — el
+segundo INSERT choca con la constraint y sabes que ya lo viste.
+Idempotencia = mismo efecto sin importar cuántas veces llegue.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Verificar una firma HMAC sobre el body crudo antes de parsear
+- [ ] Deduplicar webhooks por `event_id` con constraint UNIQUE
+- [ ] Responder 200 rápido y procesar en cola
+- [ ] Validar uploads por contenido (magic bytes), tamaño y nombre generado
+- [ ] Elegir dónde viven los archivos (disco vs object storage) con criterio

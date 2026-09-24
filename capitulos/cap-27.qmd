@@ -5,17 +5,33 @@ subtitle: "Sin tests, el miedo es la arquitectura"
 
 ![Parte 6 — Testing](../imagenes/parte-06.png)
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Cada refactor rompe algo en otro lugar, y sin tests te enteras por un
+usuario. La suite no existe para "cumplir cobertura": existe para que
+puedas **cambiar el código sin miedo** — muchos tests baratos en la capa
+de servicio, pocos caros en los bordes, y cada test respondiendo "¿qué
+rompería si esto se borra?".
+:::
 
 ## El problema
 
-Cada refactor rompe algo en otro lugar. Necesitamos una suite de tests — la pirámide correcta, no tests de juguete.
+El refactor del cap. 7 separó handler de servicio — ¿y quién garantiza
+que `complete_task` sigue dando el punto una sola vez, que el título
+vacío se rechaza, que la prioridad 99 no entra? "Lo probé a mano" es la
+respuesta que dura hasta el próximo commit de otro. El miedo a tocar
+código viejo no es prudencia: es la deuda de no tener tests.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio testea **donde viven las decisiones**: la capa de
+servicio (reglas de negocio puras, sin HTTP ni BD si se puede) — ahí un
+test es una función, un input, un assert. La pirámide: muchos unitarios
+rápidos, menos de integración, pocos end-to-end. Y el criterio que
+evita los tests de juguete: cada test debe *matar un bug posible* — si
+borras una línea del servicio y ningún test se queja, esa línea no está
+testeada.
 
 ## Conceptos nuevos
 
@@ -26,46 +42,168 @@ Cada refactor rompe algo en otro lugar. Necesitamos una suite de tests — la pi
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart TB
+  subgraph Pirámide de tests
+    E["E2E: pocos, caros — flujos críticos completos"]
+    I["Integración: endpoints + BD real (cap. 28)"]
+    U["Unitarios: muchos, baratos — reglas del servicio"]
+  end
+  U --> I --> E
+```
+
+La base ancha: el servicio es donde viven las reglas ("no borrar tarea
+con subtareas", "el punto se da una vez") — ahí cada test es barato y
+preciso. El e2e certifica que las piezas *conectan*, no que cada regla
+existe.
 
 ## Implementación
+
+Tests del servicio — unidad pura en los tres estilos:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+import { describe, it, expect } from "vitest";
+
+describe("createTask", () => {
+  it("rejects empty title", () => {
+    expect(() => createTask(userId, "")).toThrow(ValidationError);
+  });
+
+  it.each([["  "], ["a".repeat(201)]])("rejects bad title: %j", (title) => {
+    expect(() => createTask(userId, title)).toThrow(ValidationError);
+  });
+
+  it("trims and persists a valid title", () => {
+    const t = createTask(userId, "  pay rent  ");
+    expect(t.title).toBe("pay rent");
+    expect(t.done).toBe(false);
+  });
+});
 ```
 
 ### Python
+
 ```python
-# TODO
+import pytest
+
+class TestCreateTask:
+    def test_rejects_empty_title(self):
+        with pytest.raises(ValidationError):
+            create_task(user_id=1, title="")
+
+    @pytest.mark.parametrize("title", ["  ", "a" * 201])
+    def test_rejects_bad_title(self, title):
+        with pytest.raises(ValidationError):
+            create_task(user_id=1, title=title)
+
+    def test_trims_and_persists(self):
+        t = create_task(user_id=1, title="  pay rent  ")
+        assert t.title == "pay rent"
+        assert t.done is False
 ```
 
 ### Go
+
 ```go
-// TODO
+func TestCreateTask(t *testing.T) {
+    cases := []struct {
+        name    string
+        title   string
+        wantErr bool
+    }{
+        {"empty title", "", true},
+        {"blank title", "  ", true},
+        {"too long", strings.Repeat("a", 201), true},
+        {"valid", "pay rent", false},
+    }
+    for _, tc := range cases {
+        t.Run(tc.name, func(t *testing.T) {
+            task, err := createTask(1, tc.title)   // table-driven: one test, all cases
+            if tc.wantErr {
+                if err == nil { t.Fatal("expected error") }
+                return
+            }
+            if err != nil { t.Fatal(err) }
+            if task.Title != "pay rent" || task.Done { t.Fatalf("bad task: %+v", task) }
+        })
+    }
+}
 ```
 
 :::
 
-<!-- proyecto: suite unitaria de servicios de Taskflow -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Escribe la suite de tests unitarios del servicio de tareas en mi stack
+[vitest/pytest/go test]. Reglas a cubrir: título requerido (vacío,
+solo-espacios, >200 chars), trim antes de persistir, prioridad por
+defecto 3, done inicia false, complete_task solo otorga el punto UNA vez
+(segundo complete → conflicto), no se puede borrar tarea con subtareas.
+Usa [it.each/parametrize/table-driven] para los casos límite, fixtures
+para el usuario de prueba, y nombres de test que lean como
+especificación ("rejects_empty_title").
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** los tres estilos son el mismo test —
+*mundo preparado → acción → assert*. La tabla de casos (parametrize /
+table-driven) es la técnica universal para los límites: un test, veinte
+inputs.
+
+::: {.callout-note collapse="true" title="Detalle: fixtures en cada mundo"}
+
+- **TS/vitest**: `beforeEach` prepara el mundo por test — cada test
+  nace en un estado limpio y conocido.
+- **Python/pytest**: `conftest.py` declara fixtures que se *inyectan por
+  nombre* — `def test_x(db, user)` recibe lo que necesita sin llamarlo.
+- **Go**: sin fixtures de framework — helpers `newTestService(t)` que
+  construyen el mundo explícitamente. Más verboso, más visible.
+
+El estilo Go (table-driven) es exportable a cualquier lenguaje: cuando
+tus casos son datos + expectativa, una tabla > diez funciones copiadas.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Tests que testean el framework | `expect(res.status).toBe(200)` sin lógica propia | Testear *tu* regla: "viewer → 403", no "Express devuelve 200" |
+| Acoplar al implementación | El test llama funciones privadas | Test contra el contrato: input → output/efecto |
+| Fixtures compartidos mutables | "El user del test anterior ya existe" | Mundo limpio por test (beforeEach/fixture scope) |
+| Tests que siempre pasan | `expect(true).toBe(true)` tras un refactor | El test debe fallar si borras la línea que protege |
+| Cobertura como meta | "Lleguemos a 90%" | Cobertura donde importa: reglas, fronteras de error, auth |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Nombres que son especificación**: `rejects_empty_title`,
+  `second_complete_returns_conflict` — leer la suite es leer las reglas
+  del negocio.
+- **Un assert de significado por test** (o pocos): el test que verifica
+  14 cosas no dice cuál falló.
+- **El test como documento de diseño** (TDD, Ap. G tickets 41–42):
+  escribir "debería rechazar X" antes de tener X es diseñar la API
+  desde su consumidor.
+- **Rápido o no se corre**: la suite unitaria corre en segundos — si
+  tarda minutos, los devs la saltan y es decoración.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Ordena por dónde testear: "el email único se enforza", "el JSON
+   parsea", "un viewer no puede borrar", "la título se trimea".
+   ¿Cuál va en unit, cuál en integración, cuál no se testea?
+2. Este test existe: `it("works", () => { expect(createTask(1,"x").id).toBeTruthy() })`.
+   ¿Qué le falta para ser un buen test?
+3. Escribe la tabla de casos para `complete_task`: todos los estados
+   desde los que se puede llamar y qué debe pasar.
 
 ## Mini reto
 
@@ -73,12 +211,37 @@ Escribir el test que hubiera detectado tu último bug.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. "Título se trimea" → **unit** (regla pura del servicio). "Email
+   único" → **integración** (la constraint vive en la BD — cap. 28).
+   "Viewer no puede borrar" → **integración** (necesita auth+roles
+   reales). "El JSON parsea" → **no se testea**: es el framework, no
+   tu código.
+2. Todo: no dice *qué* debería pasar ni qué bug mata. Un buen test
+   nombra la regla (`creates_task_with_default_priority`), verifica el
+   *significado* (`priority === 3`, `done === false`), y falla si la
+   regla se rompe — este test pasa aunque el servicio haga cualquier
+   cosa que devuelva algo con id.
+3. | estado inicial | llamada | esperado |
+   |---|---|---|
+   | done=false, subtareas=0 | complete | done=true, punto+1 |
+   | done=true | complete | 409 CONFLICT — ya completada |
+   | done=false, subtareas pendientes | complete | 409 — subtareas abiertas |
+   | tarea de otro usuario | complete | 404 (anti-enumeración) |
+
+**Mini reto.** El patrón es siempre el mismo: reproduce el bug como
+test *que falla* (`it("returns 404 for foreign task")` → hoy devuelve
+200 con datos ajenos) → arregla el código → el test queda como guarda
+permanente. Cada bug real merece su test: la suite es la memoria de
+todos los errores que ya no puedes volver a cometer.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Escribir tests de servicio en tu stack (vitest/pytest/go test)
+- [ ] Usar tables/parametrize para casos límite sin copiar tests
+- [ ] Preparar el mundo con fixtures (beforeEach/conftest/helpers)
+- [ ] Decidir qué se testea en unit vs integración vs e2e
+- [ ] Escribir el test primero cuando la regla está clara (TDD)

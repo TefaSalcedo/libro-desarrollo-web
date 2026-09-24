@@ -3,17 +3,35 @@ title: "20. Necesitamos concurrencia de verdad"
 subtitle: "Tres runtimes, tres modelos distintos — el capítulo estrella"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Tu endpoint necesita datos de dos APIs externas: en secuencia son 2×300ms
+= 600ms; en paralelo son ~300ms. Los tres lenguajes resuelven esto con
+modelos *distintos* — y entender las diferencias es de lo que más pagan
+en una entrevista y en producción.
+:::
 
 ## El problema
 
-Consultar dos APIs externas en secuencia tarda el doble. Necesitamos concurrencia — y cada lenguaje la piensa distinto.
+`GET /dashboard` debe traer: tus tareas + las notificaciones del
+servicio externo + los contadores del reporte. Tres llamadas que *no
+dependen entre sí* — hacerlas una tras otra es pagar el tiempo tres
+veces cuando podrías pagarlo una. La concurrencia no es un lujo: es
+devolver el tiempo que el usuario no tenía por qué prestarte.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio primero **clasifica la espera**: ¿el tiempo se va en
+*I/O* (esperar red, disco, BD) o en *CPU* (calcular)? Concurrencia
+resuelve I/O — mientras una llamada espera, la otra viaja. Para CPU
+necesitas *paralelismo real* (varios núcleos trabajando a la vez), que
+no todos los runtimes ofrecen igual. La regla de bolsillo: **esperas
+juntas, cuentas separadas**.
+
+Luego decide el límite: "en paralelo" no es "infinitas a la vez" — mil
+llamadas concurrentes a la API de alguien son un ataque, no una
+optimización.
 
 ## Conceptos nuevos
 
@@ -25,59 +43,194 @@ Consultar dos APIs externas en secuencia tarda el doble. Necesitamos concurrenci
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+gantt
+  title Secuencial vs concurrente (3 llamadas de ~300ms)
+  dateFormat X
+  axisFormat %L ms
+  section Secuencial
+  llamada A :a1, 0, 300
+  llamada B :a2, after a1, 300
+  llamada C :a3, after a2, 300
+  section Concurrente
+  llamada A :b1, 0, 300
+  llamada B :b2, 0, 300
+  llamada C :b3, 0, 300
+```
+
+900ms vs ~300ms — mismo trabajo, distinto orden. Las tres llamadas
+*inician* juntas; el total es el de la más lenta, no la suma.
 
 ## Implementación
+
+El mismo endpoint — traer tres cosas en paralelo — en los tres modelos:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+app.get("/dashboard", auth, async (req, res) => {
+  // Promise.all: starts all three, resolves when ALL resolve
+  const [tasks, notifications, stats] = await Promise.all([
+    listTasks(req.user.id),              // queries the DB
+    fetchNotifications(req.user.id),     // external API (cap. 19 client)
+    getStats(req.user.id),               // report query
+  ]);
+  res.json({ tasks, notifications, stats });
+  // if one rejects → all rejects → 500 (or Promise.allSettled to degrade)
+});
 ```
 
 ### Python
+
 ```python
-# TODO
+@app.get("/dashboard")
+async def dashboard(user=Depends(get_current_user)):
+    # asyncio.gather: the event loop interleaves the awaits
+    tasks, notifications, stats = await asyncio.gather(
+        list_tasks(user.id),              # must be async to interleave!
+        fetch_notifications(user.id),     # httpx.AsyncClient
+        get_stats(user.id),
+    )
+    return {"tasks": tasks, "notifications": notifications, "stats": stats}
 ```
 
 ### Go
+
 ```go
-// TODO
+func dashboard(w http.ResponseWriter, r *http.Request) {
+    user := userFromCtx(r.Context())
+    g, ctx := errgroup.WithContext(r.Context())
+    var tasks []Task
+    var notes []Notification
+    var stats Stats
+    g.Go(func() error { var err error; tasks, err = listTasks(ctx, user.ID); return err })
+    g.Go(func() error { var err error; notes, err = fetchNotes(ctx, user.ID); return err })
+    g.Go(func() error { var err error; stats, err = getStats(ctx, user.ID); return err })
+    if err := g.Wait(); err != nil {      // real parallelism — one goroutine per call
+        writeError(w, 502, `{"error":{"code":"UPSTREAM"}}`); return
+    }
+    writeJSON(w, 200, map[string]any{"tasks": tasks, "notifications": notes, "stats": stats})
+}
 ```
 
 :::
 
-<!-- proyecto: endpoint que consulta dos APIs en paralelo -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Optimiza mi endpoint GET /dashboard en [Express/FastAPI/net-http]: hoy
+hace 3 llamadas independientes en secuencia (2 queries a Postgres + 1
+API externa con el cliente con timeout del cap. 19). Requisitos:
+ejecutarlas en paralelo con [Promise.all/asyncio.gather/errgroup], que
+un fallo de UNA dependencia no tumbe las otras dos (degradación por
+sección: notifications puede venir como null), timeout total de 5s, y
+tests que midan que el tiempo total ≈ el de la llamada más lenta.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** los tres lanzan las esperas juntas y
+recogen los resultados al final — `Promise.all`/`gather`/`errgroup` son
+la misma idea con distinta maquinaria debajo.
+
+::: {.callout-note collapse="true" title="Detalle: los tres modelos de concurrencia"}
+
+| Runtime | Modelo | ¿Paralelismo real en CPU? |
+|---|---|---|
+| Node | Un hilo + event loop: cuando algo espera I/O, el hilo atiende otra cosa | No — para CPU hay `worker_threads` |
+| Python | `asyncio`: mismo event loop, pero *solo* funciones `async` cooperan | No en threads (el **GIL**: un solo hilo ejecuta Python a la vez) — para CPU hay `multiprocessing` |
+| Go | Goroutines: miles de hilos lógicos baratos repartidos en núcleos reales | **Sí** — es la diferencia de diseño de Go |
+
+Dos matices honestos: (1) en Python, `await` sobre código *no async*
+(`time.sleep`, `requests`) **bloquea el loop entero** — por eso `httpx`
+y drivers async; (2) en Node/Python la concurrencia es *cooperativa*:
+nadie te quita el hilo hasta que sueltas en un `await`; en Go el
+scheduler lo reparte — por eso Go escala a CPU y los otros no.
+
+:::
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: cuándo la concurrencia no es la respuesta"}
+
+| Alternativa | Qué es | Cuándo |
+|---|---|---|
+| `Promise.allSettled` | Espera a todas aunque algunas fallen | Degradación por sección (un widget caído no tumba el dashboard) |
+| Semáforo/`errgroup.SetLimit` | Paralelo con tope (ej. 10 a la vez) | Lotes grandes — 500 items en paralelo = DoS a tu propia dependencia |
+| Worker threads / multiprocessing | Núcleos reales para CPU | Resize de imágenes, hashing masivo — *eso* sí es paralelismo |
+| Cola de trabajos | Ni siquiera concurrente en el request | El trabajo no cabe en la paciencia HTTP (cap. 21) |
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| `await` dentro de un `for` | "Lo hago uno a uno y funciona" | Acumula promesas → `Promise.all`/`gather` |
+| Bloquear el event loop | `requests.get` dentro de `async def` | Librerías async (httpx, asyncpg) o el executor |
+| Concurrencia sin límite | "Lanzo las 5.000 en paralelo" | Semáforo/`SetLimit` — tu dependencia también tiene rate limit |
+| Compartir memoria sin cuidado | Dos goroutines escriben el mismo map | En Go: canales o mutex — `go run -race` lo detecta gratis |
+| Pensar que "concurrencia = CPU más rápido" | Confundir espera con cómputo | I/O → concurrencia; CPU → paralelismo real u otro proceso |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **Independencia primero**: solo se paraleliza lo que no se necesita
+  entre sí — si B usa el resultado de A, no es candidata.
+- **Define el comportamiento ante fallo parcial** antes de elegir:
+  `all` (una falla, falla todo) vs `allSettled`/degradación (sección
+  vacía, página viva).
+- **Contexto propagado**: cancelación y deadline del request viajan a
+  las llamadas (el `ctx` de Go, AbortSignal, el event loop) — si el
+  cliente se fue, para qué seguir trabajando.
+- **Mide el antes/después**: "optimizamos" sin medir es superstición —
+  log de duración por llamada (cap. 23).
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. En el dashboard, ¿qué debería pasar si `fetchNotifications` falla
+   pero las tareas y stats salen bien? Elige `all` vs `allSettled` y
+   defiéndelo.
+2. Tienes que llamar a la API externa 200 veces (una por tarea). ¿Por
+   qué `Promise.all` de las 200 es una mala idea y qué pondrías en su
+   lugar?
+3. En Python, el handler usa `time.sleep(0.3)` dentro de un endpoint
+   `async def`. ¿Qué le pasa a *los demás* requests mientras duerme?
 
 ## Mini reto
 
-Medir la diferencia entre secuencial y concurrente con dos llamadas lentas — en tu lenguaje.
+Medir la diferencia entre secuencial y concurrente con dos llamadas
+lentas — en tu lenguaje.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. `allSettled` (o catch por llamada): el dashboard muestra
+   `notifications: null` y la página vive — un widget caído no debe
+   tumbar los otros dos. `all` sería correcto solo si la página *no
+   tiene sentido* incompleta.
+2. 200 concurrentes = 200 conexiones abiertas a la vez: la API externa
+   te banea por rate limit y tu event loop se ahoga. La forma: un
+   semáforo/`errgroup.SetLimit(10)` o una cola con N workers — en
+   paralelo *con tope*.
+3. **Todos** esperan: `time.sleep` no es `await` — bloquea el único hilo
+   del event loop y ningún otro request avanza esos 300ms. La versión
+   async es `await asyncio.sleep(0.3)` — el loop atiende a los demás
+   mientras duerme. Es *la* trampa de asyncio.
+
+**Mini reto.** Con `asyncio.sleep`/`setTimeout`/`time.Sleep` de ~300ms
+en dos llamadas: secuencial ≈ 600ms, concurrente ≈ 300ms. Si tu
+"concurrente" mide 600ms, el await está dentro de un loop o la llamada
+es bloqueante — los dos errores de arriba.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Paralelizar llamadas independientes en tu stack (`all`/`gather`/`errgroup`)
+- [ ] Explicar la diferencia entre concurrencia (I/O) y paralelismo (CPU)
+- [ ] Decir qué es el GIL y por qué los threads de Python no paralelizan
+- [ ] Ponerle límite a la concurrencia cuando hay N grande
+- [ ] Elegir entre "todo falla junto" y "degradación por sección" con criterio

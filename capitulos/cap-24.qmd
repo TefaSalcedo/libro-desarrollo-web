@@ -3,17 +3,38 @@ title: "24. Necesitamos la misma app en tres lugares distintos"
 subtitle: "Tu máquina, CI y prod tienen BD, secretos y orígenes distintos"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+El mismo código corre en tu laptop (`localhost:5432`), en CI (una BD
+desechable) y en producción (RDS con TLS y un secreto que jamás toca tu
+editor). La diferencia no puede vivir en el código: vive en **variables
+de entorno**, validadas al arrancar para que la app reviente *antes* de
+aceptar tráfico si falta algo — no a las 3am.
+:::
 
 ## El problema
 
-Hardcodear `localhost:5432` no escala. Necesitamos variables de entorno, 12-factor y fail-fast al arranque.
+`DATABASE_URL = "postgres://postgres:postgres@localhost:5432/taskflow"`
+funciona perfecto… en tu máquina. En prod esa línea es: el host que no
+existe, la contraseña que está en el repo para siempre, y el código que
+hay que *editar para desplegar* (cada deploy una rama distinta — el
+caos garantizado). Y el modo silencioso de morir: sin validación, la app
+arranca feliz y explota en el *primer* request que toca la BD.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio aplica dos ideas de 12-factor:
+
+1. **La configuración vive en el entorno, no en el código** — el mismo
+   artefacto (binario/imagen) corre en dev, CI y prod; lo que cambia es
+   el set de variables. Ningún secreto toca el repositorio: `.env`
+   está en `.gitignore`, `.env.example` documenta las llaves sin
+   valores.
+2. **Fail fast al arranque** — al boot, la app *parsea y valida* toda
+   su config: si falta `DATABASE_URL` o `JWT_SECRET`, revienta
+   inmediatamente con un error claro. Un deploy que no arranca es un
+   deploy que no hace daño; uno que arranca roto es una 3am.
 
 ## Conceptos nuevos
 
@@ -24,59 +45,199 @@ Hardcodear `localhost:5432` no escala. Necesitamos variables de entorno, 12-fact
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```text
+                 MISMO artefacto (mismo binario/imagen/commit)
+        ┌──────────────┬──────────────────┬──────────────────┐
+   ENTORNO      dev (tu laptop)      CI (tests)          prod
+   DATABASE_URL localhost:5432     postgres://ci_db      postgres://rds...?sslmode=require
+   JWT_SECRET   dev-secret-123     test-secret           (secret manager)
+   CORS_ORIGIN  http://localhost   http://localhost      https://taskflow.app
+                :5173              :5173
+   LOG_LEVEL    debug              info                  info
+```
+
+El código nunca pregunta "¿dónde estoy?" — pregunta "¿cuál es mi
+`DATABASE_URL`?" y el entorno responde.
 
 ## Implementación
+
+Módulo `config` que valida todo al arranque — si algo falta, la app no
+abre el puerto:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+import { z } from "zod";
+
+const Env = z.object({
+  DATABASE_URL: z.string().url(),
+  JWT_SECRET: z.string().min(32),
+  PORT: z.coerce.number().default(3000),
+  CORS_ORIGIN: z.string().url(),
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+});
+
+export const env = Env.parse(process.env);   // throws at boot if anything's wrong
+// import-time crash → "DATABASE_URL: Required" — before the port opens
 ```
 
 ### Python
+
 ```python
-# TODO
+from pydantic_settings import BaseSettings
+from pydantic import Field
+
+class Settings(BaseSettings):
+    database_url: str
+    jwt_secret: str = Field(min_length=32)
+    port: int = 8000
+    cors_origin: str
+    environment: str = "development"
+
+    class Config:
+        env_file = ".env"                       # dev convenience; prod injects real env
+
+settings = Settings()                           # ValidationError at import → app never starts
 ```
 
 ### Go
+
 ```go
-// TODO
+type Config struct {
+    DatabaseURL string
+    JWTSecret   string
+    Port        int
+    CORSOrigin  string
+}
+
+func LoadConfig() (Config, error) {
+    cfg := Config{
+        DatabaseURL: os.Getenv("DATABASE_URL"),
+        JWTSecret:   os.Getenv("JWT_SECRET"),
+        CORSOrigin:  os.Getenv("CORS_ORIGIN"),
+        Port:        8080,
+    }
+    if cfg.DatabaseURL == "" { return cfg, errors.New("DATABASE_URL is required") }
+    if len(cfg.JWTSecret) < 32 { return cfg, errors.New("JWT_SECRET must be 32+ chars") }
+    if cfg.CORSOrigin == "" { return cfg, errors.New("CORS_ORIGIN is required") }
+    return cfg, nil
+}
+// main(): cfg, err := LoadConfig(); if err != nil { log.Fatal(err) } — never reaches ListenAndServe
 ```
 
 :::
 
-<!-- proyecto: config por entorno (dev/test/prod) con validación -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Centraliza la configuración de mi API [Express/FastAPI/net-http] en un
+módulo config. Requisitos: leer DATABASE_URL, JWT_SECRET, PORT,
+CORS_ORIGIN y ENV de variables de entorno; validarlas al arranque
+(zod/pydantic-settings/manual) con tipos y mínimos (JWT_SECRET ≥ 32
+chars) y que la app falle al boot con mensaje claro si falta alguna;
+defaults solo para cosas seguras (PORT); .env para dev en .gitignore y
+.env.example con las llaves documentadas sin valores; el resto del
+código importa config, nunca lee process.env/os.environ directamente.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** un solo módulo lee el entorno, lo
+valida completo al arranque, y el resto del código importa `config` —
+nunca toca `process.env`/`os.environ` directamente. Los defaults solo
+existen para lo seguro (`PORT`); los secretos *no* tienen default.
+
+::: {.callout-note collapse="true" title="Otras cimentaciones: dónde vive la config"}
+
+| Alternativa | Qué es | Qué te cuesta | Cuándo |
+|---|---|---|---|
+| Variables de entorno | Valores por proceso, estándar 12-factor | Nada tipado por naturaleza — por eso se valida al boot | El default, todos los entornos |
+| `.env` file | Las env vars escritas en un archivo para dev | Tentador de commitear → `.gitignore` siempre | Solo dev/CI local |
+| Secret manager | AWS SM, Vault, Doppler — secretos con rotación y auditoría | Servicio extra | Prod serio (nu-04) |
+| Archivo de config (yaml/toml) | Config versionada en el repo | Los secretos no pueden entrar ahí | Config *no* secreta (features, límites) |
+
+Regla: **secretos → entorno/secret manager; preferencias → lo que
+quieras; nada secreto → jamás al repo.**
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| `.env` commiteado | "Es solo para dev" | `.gitignore` + `.env.example` — y si ya entró, rotar el secreto (el historial lo guarda) |
+| Leer env vars dispersas por el código | `os.environ["X"]` en 14 archivos | Un módulo `config` — la única puerta al entorno |
+| Defaults para secretos | `os.getenv("JWT_SECRET", "changeme")` | Sin default → la app no arranca sin secreto real |
+| Validar al primer uso | "Si falta, el request falla" | Validar al boot — el deploy roto se detecta al deployar, no a las 3am |
+| Config distinta por entorno en el código | `if prod: url = ...` | El código no sabe dónde está — el entorno decide |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **`.env.example` actualizado en cada PR** que agrega una variable —
+  es la documentación viva de qué necesita la app para arrancar.
+- **El objeto config se inyecta**, no se importa globalmente donde se
+  pueda evitar — facilita tests (otra config) y deja explícitas las
+  dependencias.
+- **Nombres estables entre entornos**: `DATABASE_URL` es `DATABASE_URL`
+  en dev y en prod — lo que cambia es el *valor*.
+- **Loguea la config *no* secreta al arranque** (puerto, entorno,
+  orígenes) — "¿en qué entorno está corriendo esto?" nunca debe ser
+  una adivinanza. Los secretos, jamás (cap. 23).
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. ¿Por qué `JWT_SECRET` no puede tener valor por defecto aunque
+   `PORT` sí?
+2. Tu app arrancó en prod y funciona… hasta el primer login, donde
+   explota porque `JWT_SECRET` está vacío. ¿Qué práctica de este
+   capítulo lo hubiera evitado y en qué momento?
+3. Escribe el `.env.example` completo de Taskflow (todas las llaves
+   que el proyecto usa hasta ahora).
 
 ## Mini reto
 
-Quitar todos los valores hardcodeados de Taskflow y arrancar en un entorno limpio.
+Quitar todos los valores hardcodeados de Taskflow y arrancar en un
+entorno limpio.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. `PORT` con default es una conveniencia inofensiva: si falta, 3000
+   sirve. `JWT_SECRET` con default es un *secreto conocido* — cualquiera
+   que lea tu repo firma tokens válidos. Los secretos no tienen
+   fallback: o hay secreto real, o la app no arranca.
+2. **Fail fast al boot**: el `Env.parse`/`Settings()`/`LoadConfig()`
+   habría reventado *en el deploy* con "JWT_SECRET is required" —
+   descubierto al deployar (rollback inmediato), no en el primer login
+   de un usuario real.
+3. ```text
+   DATABASE_URL=postgres://user:pass@host:5432/dbname
+   JWT_SECRET=change-me-32-chars-minimum-xxxx
+   PORT=3000
+   CORS_ORIGIN=http://localhost:5173
+   SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+   WEBHOOK_SECRET=
+   LOG_LEVEL=info
+   NODE_ENV=development
+   ```
+
+**Mini reto.** `grep` por `localhost`, `5432`, `secret`, `http://` en
+el código → todo valor que cambia entre entornos pasa a env var →
+`config` validado → arrancar con `env -i` (entorno vacío) debe fallar
+con mensajes claros nombrando cada variable faltante — esa es la prueba
+real de que nada quedó hardcodeado.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Centralizar la config en un módulo validado al arranque
+- [ ] Explicar qué va a env vars, qué a `.env`, qué jamás al repo
+- [ ] Escribir un `.env.example` que documente cada variable
+- [ ] Hacer que la app falle al boot (no al primer request) sin `DATABASE_URL`
+- [ ] Correr el mismo artefacto en dev, CI y prod cambiando solo el entorno

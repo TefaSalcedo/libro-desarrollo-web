@@ -5,17 +5,34 @@ subtitle: "Sin logs, «algo falla a veces» es todo lo que sabrás jamás"
 
 ![Parte 5 — Robustez](../imagenes/parte-05.png)
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+En producción no hay consola que mirar ni breakpoint que poner: cuando
+un usuario dice "a veces falla", tu única ventana es lo que la app
+*escribió*. Logging real no es `console.log` suelto: son **líneas
+estructuradas con request_id** que te dejan reconstruir un request
+completo a las 3am sin despertar a nadie.
+:::
 
 ## El problema
 
-En producción no hay consola que mirar. Necesitamos logging estructurado y request IDs.
+"El guardado falló ayer a las 15:14 con un usuario de Argentina."
+Sin logs esa frase es el fin de la investigación. Con logs malos —
+`print("aqui")`, `console.log(err)` sin contexto — es peor: miles de
+líneas que no responden *quién, qué endpoint, cuánto tardó, qué falló*.
+El problema no es que falle; es que no puedas *ver* por qué.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio trata los logs como **la fuente de datos de la verdad
+operativa**: cada request genera un `request_id` al entrar, todas las
+líneas de ese request lo llevan, y cada línea es un objeto JSON que una
+máquina puede filtrar (`request_id="r_9x"`, `level="error"`,
+`duration_ms>1000`). Tres preguntas guían qué loguear: ¿quién (user_id,
+request_id), qué (endpoint, acción, resultado), cuánto (duración,
+tamaño). Y una regla que no se negocia: **passwords, tokens y datos
+personales jamás tocan un log.**
 
 ## Conceptos nuevos
 
@@ -27,46 +44,156 @@ En producción no hay consola que mirar. Necesitamos logging estructurado y requ
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+Un request deja una huella rastreable — todas sus líneas comparten el
+mismo `request_id`:
+
+```text
+{"ts":"...","level":"info","request_id":"r_9x2","msg":"request started","method":"POST","path":"/tasks","user_id":42}
+{"ts":"...","level":"info","request_id":"r_9x2","msg":"task created","task_id":"t_77","duration_ms":14}
+{"ts":"...","level":"error","request_id":"r_9x2","msg":"notify failed","service":"slack","duration_ms":3012}
+{"ts":"...","level":"info","request_id":"r_9x2","msg":"request done","status":201,"duration_ms":3050}
+```
+
+Filtrar `request_id=r_9x2` = reconstruir la película completa. Eso es lo
+que convierte "a veces falla" en "Slack tardó 3s y el timeout saltó".
 
 ## Implementación
+
+Middleware que genera el request_id + log estructurado por request:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+import pino from "pino";
+const logger = pino();                            // JSON to stdout by default
+
+app.use((req, res, next) => {
+  req.id = crypto.randomUUID();
+  const start = Date.now();
+  res.on("finish", () =>
+    logger.info({ request_id: req.id, method: req.method, path: req.path,
+                  status: res.statusCode, duration_ms: Date.now() - start },
+                "request done"));
+  next();
+});
+// in the service: logger.error({ request_id: req.id, err }, "task failed")
 ```
 
 ### Python
+
 ```python
-# TODO
+import logging, json, uuid, time
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        return json.dumps({"ts": self.formatTime(record), "level": record.levelname,
+                           "msg": record.getMessage(), **getattr(record, "ctx", {})})
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+    request.state.request_id = str(uuid.uuid4())
+    start = time.time()
+    response = await call_next(request)
+    logger.info("request done", extra={"ctx": {
+        "request_id": request.state.request_id, "method": request.method,
+        "path": request.url.path, "status": response.status_code,
+        "duration_ms": int((time.time() - start) * 1000)}})
+    return response
 ```
 
 ### Go
+
 ```go
-// TODO
+func logging(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        rid := uuid.NewString()
+        ctx := context.WithValue(r.Context(), reqIDKey, rid)
+        start := time.Now()
+        rw := &statusWriter{ResponseWriter: w, status: 200}
+        next.ServeHTTP(rw, r.WithContext(ctx))
+        slog.Info("request done", "request_id", rid, "method", r.Method,
+                  "path", r.URL.Path, "status", rw.status,
+                  "duration_ms", time.Since(start).Milliseconds())
+    })
+}
+// slog.New(slog.NewJSONHandler(os.Stdout, nil)) — structured out of the box
 ```
 
 :::
 
-<!-- proyecto: logging real con request ID -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Agrega logging estructurado a mi API [Express/FastAPI/net-http].
+Requisitos: middleware que genere request_id por request y lo propague
+a todos los logs de ese request, formato JSON a stdout con
+ts/level/method/path/status/duration_ms, niveles usados correctamente
+(info para requests, error para fallos con el error serializado), y una
+lista de campos que NUNCA se loguean (password, tokens, Authorization
+header, body completo de /auth/*). Dame el middleware + ejemplo de uso
+en un servicio.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** el patrón es uno — *id por request,
+contexto en cada línea, JSON que las máquinas filtran*. `pino`,
+`logging` y `slog` son tres caras de la misma necesidad: producción
+*parsea* logs, no los lee.
+
+::: {.callout-note collapse="true" title="Detalle: niveles, qué loguear, qué nunca"}
+
+**Niveles = para quién es la línea:** `debug` (tú, desarrollando),
+`info` (hechos normales que importan: request done, job encolado),
+`warn` (anómalo pero manejado: retry, degradación), `error` (algo se
+rompió y alguien debe mirarlo). Si *todo* es `error`, nada es alarma.
+
+**Nunca en un log:** passwords, tokens/JWT, header `Authorization`,
+números de tarjeta, payloads completos de auth — un log filtrado es un
+incidente de seguridad, no solo feo. Se loguea `user_id`, no `email`;
+`token present`, no el token.
+
+**Más allá de logs** (de crecer): métricas (números en el tiempo →
+alarmas), tracing (el viaje del request entre servicios) — decisión 23
+del Ap. K. Los logs son la base: gratis, inmediatos, y suficientes
+durante mucho tiempo.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| `print`/`console.log` en prod | Es lo que funciona en dev | Logger con niveles + formato — stdout es la interfaz, no el print |
+| Loguear el body completo | "Para debuguear" | Secretos y PII en texto plano → loguea campos elegidos |
+| Líneas sin contexto | `logger.error(err)` suelto | Siempre `request_id` + la acción — una línea debe contar su historia sola |
+| Nivel `error` para todo | "Para que se vea" | Alarmas que lloran lobo: nadie mira errores que son normales |
+| Puntos suspensivos en el medio | `logger.info("creando...")` y nada más | Log de *resultado* (created/failed) con duración — el intento sin cierre es ruido |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **JSON a stdout**: la app escribe líneas JSON; el *colector* (Docker,
+  systemd, el agente de la nube) las recoge — la app no abre archivos.
+- **Request_id en la respuesta** (`X-Request-Id` header): cuando el
+  usuario reporta "me falló", te da el hilo exacto.
+- **Loguea decisiones, no solo errores**: "task created", "payment
+  processed", "rate limit hit" — los hechos normales son lo que
+  reconstruye la película.
+- **Duración siempre**: `duration_ms` en cada línea — los problemas de
+  rendimiento se ven antes de que estallen.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. De esta línea sobra algo: `logger.info({"email": u.email,
+   "password_hash": u.password_hash, "token": jwt}, "user registered")`.
+   ¿Qué va y qué queda?
+2. El usuario reporta "me dio error a las 15:14". Con logs JSON +
+   request_id, ¿cuál es tu primera query de búsqueda?
+3. ¿Por qué `console.log(err)` no basta aunque "imprime el error"?
 
 ## Mini reto
 
@@ -74,12 +201,31 @@ Dado un log "500 a las 3:14", reconstruir qué pasó usando el request ID.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. Van fuera `password_hash` (nunca) y `token` (nunca — es una llave
+   viva). `email` es dato personal: en muchos contextos se loguea
+   `user_id` en su lugar. Queda: `{user_id, request_id, msg}`.
+2. `request_id` si el usuario lo tiene (del header `X-Request-Id` que
+   vio en la respuesta); si no: `level=error AND ts≈15:14 AND
+   user_id=42` — y con el `request_id` de esa línea, filtras *todas*
+   las líneas del request para ver la película completa.
+3. Porque no responde las preguntas que sí importan: ¿qué request era?
+   ¿de qué usuario? ¿en qué endpoint? ¿después de qué? Un error sin
+   contexto es un síntoma; un error con `request_id` es una historia.
+
+**Mini reto.** `level=error AND ts≈3:14` → encuentras la línea del 500
+con su `request_id` → filtras todo ese id → ves: request started →
+query a BD → timeout de la API externa → error → status 500. La
+historia se reconstruye sin tocar el código ni reproducir el bug — eso
+es observabilidad.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Configurar logging JSON con niveles en tu stack
+- [ ] Generar y propagar un `request_id` por middleware
+- [ ] Decir qué campos jamás van a un log
+- [ ] Reconstruir un request completo filtrando por `request_id`
+- [ ] Usar `duration_ms` y niveles para que las líneas cuenten historias

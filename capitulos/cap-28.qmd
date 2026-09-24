@@ -3,17 +3,39 @@ title: "28. Necesitamos testear la API completa sin romper la BD"
 subtitle: "Los endpoints tocan Postgres: ¿tests contra qué base de datos?"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+El test unitario cubre la regla; el test de API cubre el **contrato
+completo**: ruta + middleware + auth + validación + query + respuesta,
+con Postgres de verdad. Las dos preguntas prácticas: ¿contra *qué* base
+de datos (una dedicada de test, con rollback por test), y ¿cómo se
+ejercita la API sin levantar el servidor (supertest/TestClient/httptest)?
+:::
 
 ## El problema
 
-Tests de integración reales: BD de test, transacción con rollback por test, y ejercitar la API sin levantar el servidor.
+Los tests del cap. 27 prueban `create_task` directo — pero el bug del
+cap. 17 (la tarea ajena que devolvía 200) *vivía en la integración*: el
+servicio funcionaba, la query no filtraba por dueño. Un bug de esos
+solo lo caza un test que pase **por el endpoint de verdad**: auth real,
+query real, BD real. Y ahí aparecen las preguntas de siempre: ¿los
+tests corren contra mi BD de dev? ¿qué pasa con los datos que crean?
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio monta la infra de test una vez y la reutiliza siempre:
+
+1. **BD de test dedicada**: `taskflow_test` — otra base en el mismo
+   Postgres de Docker, con las mismas migraciones. Los tests *destruyen
+   datos*: nunca contra dev, jamás contra prod.
+2. **Aislamiento por transacción**: cada test corre dentro de una
+   transacción que hace **rollback** al terminar — el test escribe,
+   verifica, y la BD queda como si nada. Aislamiento gratis, sin
+   scripts de limpieza, y rápido.
+3. **La API sin socket**: supertest/TestClient/httptest llaman al
+   *router* directo en memoria — HTTP real, sin puerto, sin `npm start`
+   paralelo.
 
 ## Conceptos nuevos
 
@@ -25,46 +47,167 @@ Tests de integración reales: BD de test, transacción con rollback por test, y 
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+flowchart LR
+  T[Test] -->|request en memoria| R[Router + middleware real]
+  R --> S[Servicio real]
+  S --> DB[(taskflow_test)]
+  T -->|BEGIN antes / ROLLBACK después| DB
+```
+
+Todo es real menos el socket y la durabilidad de los datos — por eso el
+test corre rápido y deja la BD limpia sola.
 
 ## Implementación
+
+El setup + un test que atraviesa auth → validación → BD → contrato:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+// setup: DATABASE_URL=postgres://localhost:5432/taskflow_test (env de test)
+import request from "supertest";
+
+describe("POST /tasks", () => {
+  it("creates a task for the authenticated user", async () => {
+    const { token, user } = await seedUser();           // fixture: user+token
+    const res = await request(app)
+      .post("/tasks")
+      .set("Cookie", `token=${token}`)
+      .send({ title: "pay rent" });
+    expect(res.status).toBe(201);
+    expect(res.body.title).toBe("pay rent");
+    expect(res.body.public_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(res.body.password_hash).toBeUndefined();     // the leak test
+  });
+
+  it("rejects invalid body with 422 contract", async () => {
+    const res = await request(app).post("/tasks")
+      .set("Cookie", `token=${token}`).send({ title: "" });
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe("VALIDATION");
+  });
+});
 ```
 
 ### Python
+
 ```python
-# TODO
+from fastapi.testclient import TestClient
+
+@pytest.fixture
+def client(db_tx):                    # db_tx: connection inside a transaction
+    app.dependency_overrides[get_db] = lambda: db_tx
+    yield TestClient(app)             # test runs; fixture rolls back after
+
+def test_create_task(client, auth_headers):
+    res = client.post("/tasks", json={"title": "pay rent"}, headers=auth_headers)
+    assert res.status_code == 201
+    assert res.json()["title"] == "pay rent"
+    assert "password_hash" not in res.text            # the leak test
+
+def test_validation_error_contract(client, auth_headers):
+    res = client.post("/tasks", json={"title": ""}, headers=auth_headers)
+    assert res.status_code == 422
+    assert res.json()["error"]["code"] == "VALIDATION"
 ```
 
 ### Go
+
 ```go
-// TODO
+func TestCreateTask(t *testing.T) {
+    tx := beginTx(t)                    // test transaction
+    defer tx.Rollback()                 // cleanup is a rollback — free isolation
+    user, token := seedUser(t, tx)
+    srv := httptest.NewServer(newRouter(testDeps{tx: tx}))
+    defer srv.Close()
+
+    req, _ := http.NewRequest("POST", srv.URL+"/tasks",
+        strings.NewReader(`{"title":"pay rent"}`))
+    req.Header.Set("Cookie", "token="+token)
+    req.Header.Set("Content-Type", "application/json")
+    res, _ := http.DefaultClient.Do(req)
+
+    if res.StatusCode != 201 { t.Fatalf("got %d", res.StatusCode) }
+    var body map[string]any
+    json.NewDecoder(res.Body).Decode(&body)
+    if body["password_hash"] != nil { t.Fatal("leaks internal field") } // the leak test
+}
 ```
 
 :::
 
-<!-- proyecto: tests de integración sobre endpoints críticos -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Monta tests de integración para mi API [Express/FastAPI/net-http]
+contra Postgres. Requisitos: BD dedicada taskflow_test con las mismas
+migraciones, aislamiento por transacción con rollback por test (sin
+scripts de limpieza), ejercitar el router sin levantar socket
+(supertest/TestClient/httptest), fixtures para crear usuario+token
+válido y un segundo usuario, y tests de contrato: create→201 con
+public_id, validación→422 {error:{code}}, sin auth→401, recurso
+ajeno→404, viewer→403, y un test que verifique que password_hash NUNCA
+aparece en ninguna respuesta.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** el patrón es uno — *BD de test +
+rollback por test + router en memoria*. Las herramientas cambian, la
+arquitectura del test no.
+
+::: {.callout-note collapse="true" title="Detalle: las dos decisiones de infra"}
+
+- **Rollback por test vs truncate por test**: el rollback es más rápido
+  y no toca secuencias — pero solo funciona si tu código *acepta la
+  conexión/transacción inyectada* (otra paga de la DI del cap. 16).
+  Truncate entre tests es la alternativa simple cuando inyectar la tx
+  es imposible.
+- **Fixtures de identidad**: `seedUser()` crea usuario + sesión + token
+  *en la misma tx del test* — el token es real (pasa por tu middleware
+  de verdad), no un mock de auth. El segundo fixture (`otherUser`) es
+  el que permite escribir el test más importante: `GET /tasks/{ajena}
+  → 404`.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Tests contra la BD de dev | "Es la que está corriendo" | `taskflow_test` dedicada — los tests borran datos, es su trabajo |
+| Limpieza manual por test | `DELETE FROM tasks` al final | Rollback de la tx — la BD queda sola |
+| Mockear la auth | `req.user = fake` | Token real de fixture — si no, el middleware no se testea |
+| Tests dependientes del orden | "El test 3 usa lo del test 2" | Cada test construye su mundo — orden aleatorio debe pasar |
+| Testear solo el camino feliz | "201 funciona" | El contrato incluye los errores: 401/403/404/422 son API también |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **El test de la fuga**: `"password_hash" not in res.text` en cada
+  endpoint que toca usuarios — la regresión de seguridad más barata
+  que existe (cap. 26).
+- **Tests de permisos con dos fixtures**: `user` y `otherUser` — el
+  404-a-lo-ajeno y el 403-de-viewer son tests, no esperanzas.
+- **El contrato se testea, no la implementación**: status + código de
+  error + campos del body — el test no sabe qué query corriste.
+- **CI corre la suite**: BD de test en el pipeline (un Postgres en
+  Docker de un comando) — los tests que solo corren "en mi máquina"
+  no existen para el equipo.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. ¿Por qué el rollback-por-test necesita que la app reciba la
+   conexión inyectada? ¿Qué pasa si el servicio abre su propia
+   conexión del pool?
+2. Escribe (en pseudocódigo) el test "viewer no puede mutar" para
+   `PATCH /projects/{id}` — ¿qué fixtures necesita?
+3. ¿Por qué testear `res.body.error.code === "VALIDATION"` y no
+   `res.body.error.message === "title is required"`?
 
 ## Mini reto
 
@@ -72,12 +215,34 @@ Demostrar con un test que el doble-submit devuelve 409 tras éxito.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. Si el servicio pide su propia conexión al pool, sus writes viven en
+   *otra* transacción — que sí hace COMMIT y queda persistida: el
+   rollback del test no la alcanza y la BD se ensucia. La DI de la
+   conexión es el precio de entrada del patrón (cap. 16 lo paga).
+2. Fixtures: `project` con `owner` (admin) y `viewer` (miembro con rol
+   viewer) + tokens de ambos. El test: `PATCH` con token de viewer →
+   `403` (miembro sin permiso — no 404: sí pertenece al proyecto); el
+   mismo PATCH con token de owner → `200` (el contraste prueba que la
+   ruta funciona y el rol es lo que cambió).
+3. Porque `code` es el contrato estable y `message` es texto para
+   humanos que cambiará (cap. 25): el test contra el mensaje se rompe
+   cuando alguien mejora la redacción — falso negativo que enseña a
+   ignorar los tests.
+
+**Mini reto.** `POST /tasks` con el mismo payload dos veces (o con
+`Idempotency-Key`, cap. 22): primera → `201`; segunda → `409
+{"error":{"code":"CONFLICT"}}` (o `200` con el mismo recurso si la
+diseñaste idempotente). El test documenta la decisión — cualquiera de
+las dos, pero *decidida y testeada*, no accidental.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Levantar una BD de test dedicada con tus migraciones
+- [ ] Aislar tests con transacción+rollback (o truncate) sin limpieza manual
+- [ ] Ejercitar el router en memoria (supertest/TestClient/httptest)
+- [ ] Fabricar usuarios/tokens/roles en fixtures para tests de permisos
+- [ ] Testear el contrato completo: éxito, validación, auth, ownership, fuga de campos

@@ -3,17 +3,37 @@ title: "21. Necesitamos responder ya y terminar el trabajo después"
 subtitle: "El email tarda 3 segundos; el usuario no debe esperarlos"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+El registro crea el usuario en 80ms… y luego manda el email de bienvenida
+que tarda 3s. La respuesta correcta no es "hacerlo más rápido": es
+**responder ya y terminar el trabajo después** — con el límite honesto
+de que un trabajo en memoria muere si el proceso muere, y por eso existen
+las colas de verdad.
+:::
 
 ## El problema
 
-Responder rápido y seguir trabajando en background — con el límite honesto de que si el proceso muere, el trabajo muere.
+`POST /auth/register` hace tres cosas: guardar el usuario (80ms), enviar
+el email (3s), notificar a Slack (variable). El usuario solo necesita
+*una* respuesta: "tu cuenta existe". Los otros 3 segundos son trabajo
+que nadie está esperando — y sin embargo los está pagando en latencia,
+en timeouts del proxy, y en riesgo de que el email falle y parezca que
+el registro falló.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio separa **lo que el usuario espera** de **lo que el
+sistema debe hacer**: el response lleva solo lo primero; lo segundo va
+a un trabajo en segundo plano. La pregunta de diseño es una sola —
+*"¿el usuario necesita esto para continuar?"* No → background.
+
+Y acepta el trade-off con los ojos abiertos: trabajo en memoria del
+proceso = si el proceso muere, el trabajo muere. Para "email que sería
+feo perder" se llega a colas de verdad (broker + worker + reintentos);
+para "estadística que se recalcula sola", el background in-process
+alcanza y sobra.
 
 ## Conceptos nuevos
 
@@ -24,46 +44,137 @@ Responder rápido y seguir trabajando en background — con el límite honesto d
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+sequenceDiagram
+  participant U as Usuario
+  participant API as API
+  participant W as Trabajo en background
+  U->>API: POST /auth/register
+  API->>API: crea usuario (80ms)
+  API-->>U: 201 — listo, sigue
+  API->>W: send_welcome_email (3s, fuera del request)
+  Note over W: si el proceso muere aquí,<br/>el email se pierde — por eso<br/>los trabajos importantes van a cola
+```
 
 ## Implementación
+
+Responder primero, trabajar después — el mismo patrón en los tres:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+app.post("/auth/register", async (req, res, next) => {
+  try {
+    const user = await registerUser(req.body);      // what the user waits for
+    res.status(201).json(toPublicUser(user));       // respond FIRST
+    setImmediate(() => {                            // work AFTER
+      sendWelcomeEmail(user.email).catch(err =>
+        logger.error({ err }, "welcome email failed")); // errors die here
+    });
+  } catch (err) { next(err); }
+});
 ```
 
 ### Python
+
 ```python
-# TODO
+@app.post("/auth/register", status_code=201)
+def register(body: RegisterIn, bg: BackgroundTasks):
+    user = register_user(body)                       # what the user waits for
+    bg.add_task(send_welcome_email, user.email)      # runs AFTER the response
+    return UserPublic.model_validate(user)
+    # FastAPI guarantees the task runs post-response — still in-process
 ```
 
 ### Go
+
 ```go
-// TODO
+func register(w http.ResponseWriter, r *http.Request) {
+    user, err := registerUser(r.Context(), parseBody(r))
+    if err != nil { writeError(w, 422, errJSON); return }
+    writeJSON(w, 201, toPublic(user))                // respond first
+    go func(email string) {                          // work after
+        ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancel()
+        if err := sendWelcomeEmail(ctx, email); err != nil {
+            slog.Error("welcome email failed", "err", err)
+        }
+    }(user.Email)                                    // careful: detached ctx, not r.Context()
+}
 ```
 
 :::
 
-<!-- proyecto: creación que responde 202 y notifica en background -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+En mi endpoint POST /auth/register [Express/FastAPI/net-http] el envío
+del email de bienvenida hace que el response tarde 3s. Refactoriza para:
+responder 201 apenas persista el usuario, ejecutar el email en
+background post-respuesta con su propio contexto/timeout y manejo de
+error que lo loguee sin tumbar nada, y documentar el límite (se pierde
+si el proceso muere) más cómo se migraría a una cola BullMQ/RQ cuando el
+volumen lo exija.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** los tres separan *responder* de
+*terminar* — y los tres comparten el mismo límite: el trabajo vive en la
+memoria del proceso. Más allá de cierto volumen/criticidad, la respuesta
+correcta es una cola de verdad, no más `go func()`.
+
+::: {.callout-note collapse="true" title="Detalle: de in-process a cola de verdad"}
+
+| Nivel | Qué es | Cuándo basta | Qué pierdes |
+|---|---|---|---|
+| In-process | `setImmediate` / `BackgroundTasks` / `go func()` | Volumen bajo, trabajo rehacible (emails, métricas) | Muere con el proceso; sin reintentos; sin visibilidad |
+| Cola (BullMQ/RQ/asynq) | Job persistido en Redis/BD + worker separado | Trabajo que no debe perderse, reintentos, picos | Operar el broker y el worker |
+| Managed (SQS, Cloud Tasks, Pub/Sub) | La nube opera la cola | Ya estás en la nube y quieres cero ops | Lock-in del proveedor |
+
+Y el patrón para trabajos que duran *minutos* (exportar, reportes):
+`POST /exports` → `202 {"job_id": "j_9x"}` → el cliente consulta
+`GET /jobs/j_9x` → `{"status": "running"}` → `{"status": "done",
+"url": "..."}`. Ningún request HTTP dura minutos — el *trabajo* sí, y
+tiene su propio recurso.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Background que usa el contexto del request | "Funcionaba en dev" | El request muere al responder — ctx propio con su timeout |
+| Error del job sin capturar | `go func` con panic → tumba el proceso | El job captura su propio error y lo loguea |
+| Creer que in-process = durable | "Se encoló, llegará" | Si importa, cola real — el proceso puede morir mañana |
+| Encolar dentro de la transacción | El job corre antes del COMMIT y no ve la fila | Enqueue *después* del commit |
+| Reintentar el email infinitamente | Sin contador de intentos | Max N intentos + dead-letter: los venenosos se apartan |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **La pregunta antes que el código**: "¿el usuario espera esto?" — si
+  no, es job. Esa sola pregunta diseña el endpoint.
+- **202 Accepted** cuando el trabajo *es* la respuesta (exports,
+  procesamiento): "aceptado, avísame" + `job_id` para consultar.
+- **Idempotencia en el worker** (cap. 22): los jobs se reintentan —
+  "enviar email" debe poder correr dos veces sin mandar dos correos.
+- **Observa la cola**: profundidad, duración, fallos — una cola que
+  crece es un sistema muriendo en silencio (cap. 23).
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Ordena estos trabajos del registro: ¿cuáles en el request y cuáles
+   en background? — crear el usuario, enviar email de bienvenida,
+   registrar "user_registered" en analytics, validar que el email no
+   exista.
+2. ¿Por qué el `go func` de arriba usa `context.Background()` y no
+   `r.Context()`?
+3. Diseña `POST /exports` para "descargar todas mis tareas en CSV"
+   (toma 2 minutos): rutas, códigos, y qué guarda la tabla `jobs`.
 
 ## Mini reto
 
@@ -71,12 +182,30 @@ Diseñar el endpoint de "exportar mis datos" (toma minutos) sin timeout.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. Request: validar email único + crear usuario (lo que el usuario
+   espera). Background: email de bienvenida + evento de analytics —
+   ninguno bloquea la respuesta.
+2. `r.Context()` se cancela cuando el response se envía — el job
+   moriría al instante de nacer. `context.Background()` (más su propio
+   timeout) le da vida propia.
+3. `POST /exports` → crea fila `jobs(id, user_id, type, status)` +
+   encola → `202 {"job_id": "j_9x"}`. `GET /jobs/j_9x` →
+   `{"status":"running"}` luego `{"status":"done","download_url":"..."}`.
+   El CSV va a object storage (cap. 22), no al response.
+
+**Mini reto.** El patrón `job_id` + polling de arriba: ningún HTTP dura
+minutos, pero un *job* sí — y tiene su propio recurso que el cliente
+consulta. Bonus: con WebSockets (cap. 38) el servidor puede *empujar*
+"tu export está listo" en vez de que el cliente pregunte.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Separar lo que el usuario espera de lo que el sistema debe hacer
+- [ ] Implementar trabajo post-respuesta en tu stack con su manejo de error
+- [ ] Explicar el límite de los jobs in-process y cuándo pasar a cola real
+- [ ] Diseñar un proceso largo con `job_id` + polling (o push)
+- [ ] Encolar después del commit, no dentro de la transacción
