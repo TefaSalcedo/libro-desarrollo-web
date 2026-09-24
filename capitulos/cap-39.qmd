@@ -3,17 +3,35 @@ title: "39. Endurecimiento: de funciona a publicable"
 subtitle: "La checklist final que separa portafolio de producción"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Nexus funciona en tu máquina: login, documentos, realtime, historial.
+"Funciona" no es "publicable" — entre ambos hay una **auditoría**:
+seguridad por endpoint, configuración sin secretos quemados, errores
+que no filtran, logs que reconstruyen, índices que aguantan datos
+reales, tests que cubren lo que importa y docs que permiten a otro
+levantarlo. Este capítulo es esa pasada — aplicada, no teórica.
+:::
 
 ## El problema
 
-Auditoría completa de Nexus: seguridad, configuración, errores, logs, performance con datos reales.
+Todo está "listo"… hasta que se lo enseñas a alguien. El README no
+levanta en una máquina limpia; hay un endpoint que olvidó `requireRole`;
+`GET /documents` devuelve el `content` entero de 2MB por documento;
+un EXPLAIN muestra que la lista escanea la tabla completa; y el log
+de errores está vacío porque "nunca falla". La distancia entre
+*funciona* y *publicable* se mide en findings — y se cierra con una
+auditoría sistemática, no con suerte.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio audita por **categorías con evidencia**, no por vibes:
+cada hallazgo es fila de una tabla — *área, endpoint/archivo, riesgo,
+fix, test de regresión*. Las categorías son exactamente los capítulos
+de robustez del libro: seguridad (26), configuración (24), errores (25),
+observabilidad (23), performance (12), tests (27–29), y docs/operación.
+Nada nuevo que aprender — todo por aplicar.
 
 ## Conceptos nuevos
 
@@ -22,31 +40,135 @@ Auditoría completa de Nexus: seguridad, configuración, errores, logs, performa
 - <span class="tag tag-u">U</span> La suite de tests como contrato: cobertura donde importa, no donde impresiona
 - <span class="tag tag-ops">Ops</span> Documentación usable: README de setup, `openapi.json` publicado, runbook básico
 
-## La explicación visual
+## La auditoría de Nexus — la tabla viva
 
-<!-- TODO: diagrama Mermaid o tabla -->
+| Área | Hallazgo típico en Nexus | Control que debe existir | Cap. |
+|---|---|---|---|
+| Auth | `GET /documents/{id}` sin verificar membresía | `isMember` en la query → 404 a lo ajeno | 17 |
+| Auth | `/auth/login` sin rate limit | 5/min por IP+email → 429 | 18 |
+| Datos | `GET /me` filtra campos internos | Contrato whitelist por salida | 5, 16 |
+| Roles | `viewer` puede `POST /revisions` | `requireRole('editor')` por ruta | 17 |
+| Webhooks/WS | Socket sin auth ni isMember | Misma auth que REST en el upgrade | 38 |
+| Config | `JWT_SECRET` con default | Fail-fast al boot, sin defaults | 24 |
+| Errores | Un endpoint devuelve stack trace | Handler global único → `{error:{code}}` | 25 |
+| Logs | Requests sin request_id | Middleware + JSON + nunca secretos | 23 |
+| Perf | `GET /documents` hace N+1 por revisiones | Una query con agregación | 12 |
+| Perf | `WHERE project_id` sin índice | Índice por patrón de acceso | 12 |
+| Tests | Solo camino feliz | 401/403/404/422 + fuga de campos | 28 |
+| Docs | README dice "instala y corre" | Setup reproducible + openapi + runbook | — |
 
 ## Implementación
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+Capítulo agnóstico — los dos hallazgos que aparecen *siempre* en la
+pasada de performance con datos reales:
 
-<!-- proyecto: release candidate de Nexus desplegado -->
+```sql
+-- Finding 1: the documents list scans + N+1 per document
+-- Before: one query per document to count its revisions
+SELECT d.public_id, d.title, d.current_revision, d.updated_at,
+       COUNT(r.rev) AS revision_count
+FROM documents d
+LEFT JOIN revisions r ON r.document_id = d.id
+WHERE d.project_id = $1
+GROUP BY d.id
+ORDER BY d.updated_at DESC
+LIMIT 21;  -- one query, no N+1
 
-## ¿Por qué cada stack lo hace así?
+-- Finding 2: the access pattern without an index
+CREATE INDEX CONCURRENTLY idx_documents_project_updated
+  ON documents (project_id, updated_at DESC);
+CREATE INDEX CONCURRENTLY idx_revisions_doc_rev
+  ON revisions (document_id, rev DESC);
+-- EXPLAIN ANALYZE before and after — the audit is measured, not felt
+```
 
-<!-- TODO: la lección transferible tras el tabset -->
+Y el seed para que "con datos reales" no sea una metáfora:
+
+```sql
+-- 100k rows in 10 seconds — the audit needs volume or it lies
+INSERT INTO revisions (document_id, rev, snapshot, author_id)
+SELECT 1, g, jsonb_build_object('elements', '[]'::jsonb), 1
+FROM generate_series(1, 100000) g;
+```
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Audita mi API Nexus [stack] antes de publicarla. Recorre cada endpoint
+y para cada uno verifica: auth (¿middleware?), autorización (¿rol/
+ownership en la query?), exposición (¿solo campos del contrato?),
+errores (¿formato {error:{code}} sin stack?), rate limit si aplica,
+queries parametrizadas, índices para su patrón de acceso (EXPLAIN con
+100k filas seedeadas), y si su comportamiento tiene test de regresión
+(401/403/404/422 + fuga de campos). Salida: tabla de hallazgos
+endpoint × riesgo × control × estado, ordenada por severidad, con el
+fix y el test de cada uno.
+```
+
+:::
+
+## ¿Por qué una auditoría y no "otra feature más"?
+
+**Lo único que necesitas llevarte:** endurecer no agrega funciones —
+agrega *confianza verificable*: cada riesgo convertido en control
+testeado es una 3am que no pasa. La auditoría es la diferencia entre
+"creo que está bien" y "puedo demostrar que está bien".
+
+::: {.callout-note collapse="true" title="Detalle: docs que se usan de verdad"}
+
+**README de setup honesto** (la prueba: alguien lo levanta sin ti):
+
+```markdown
+# Nexus API
+## Setup
+1. `docker compose up` — postgres + api + migraciones automáticas
+2. `npm test` — suite completa contra taskflow_test
+3. API en :3000 — OpenAPI en /docs
+## Entorno
+Ver `.env.example` — todas las llaves requeridas documentadas.
+```
+
+**Runbook básico** (la 3am tiene guion): "si la API no responde →
+/health; si responde pero falla → /health/deep (¿BD?); errores →
+filtra logs por request_id; lento → EXPLAIN de la query del endpoint".
+Cuatro líneas que convierten pánico en procedimiento.
+
+**openapi.json publicado**: el contrato del cap. 36 generado y servido
+— el frontend y los testers consultan la fuente de verdad, no el
+código.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Auditar "de memoria" | El control existe en 7 de 9 rutas | Tabla por endpoint — lo que no se lista no se audita |
+| Perf con la BD vacía de dev | "Va rápido en mi máquina" | Seed de 100k filas — el EXPLAIN sin datos miente |
+| Coverage como selfie | "92%!" | Cobertura donde importa: auth, permisos, errores — Ap. K lo repite |
+| Docs escritos para quien ya sabe | "Obvio, npm install" | README probado por alguien ajeno — si no levanta, el README falla |
+| Findings sin fix asignado | Auditoría como lista de lamentos | Cada hallazgo = fila con fix + test de regresión + dueño |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **La tabla de auditoría vive en el repo** (`docs/AUDIT.md`) — cada
+  PR que toca un endpoint actualiza su fila; seguridad mergeable.
+- **Seed generoso y repetible** — `generate_series`/script: el volumen
+  que revela N+1 y seq scans se crea en un comando.
+- **Hallazgo → test**: cada fix sin test de regresión es un fix que
+  vuelve — la auditoría deja tests, no solo notas.
+- **Runbook de 5 líneas mínimo**: qué mirar, en qué orden — la
+  observabilidad (cap. 23) convertida en procedimiento.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. De la tabla: ¿por qué "viewer puede POST /revisions" es BOLA-adjacente
+   y no simplemente "un endpoint sin auth"?
+2. El EXPLAIN de `GET /documents` muestra `Seq Scan` sobre 100k filas.
+   ¿Qué índice agregas según el patrón de acceso de la query?
+3. Ordena por severidad estos hallazgos y defiende el orden: endpoint
+   sin auth / stack trace en 500 / README que no levanta / lista sin
+   paginar.
 
 ## Mini reto
 
@@ -54,9 +176,28 @@ Pasar la checklist del apéndice F a Nexus y documentar cada hallazgo.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. No es "sin auth" — el viewer *está autenticado y es miembro*; el
+   problema es que su **rol** no permite mutar. Es function-level
+   authorization (OWASP #5): la pregunta correcta no es "¿quién eres?"
+   sino "¿qué puedes hacer *aquí*?" — `requireRole('editor')` en la
+   ruta, y el test `viewer → 403` permanente.
+2. La query filtra `project_id` y ordena por `updated_at DESC` →
+   índice compuesto `(project_id, updated_at DESC)` — igualdad
+   primero, orden después (cap. 12). El EXPLAIN posterior debe mostrar
+   `Index Scan`/`Bitmap` — y si no lo muestra, el índice no cuenta.
+3. Orden defendible: (a) **endpoint sin auth** — exposición de datos
+   a cualquiera, el peor; (b) **stack trace en 500** — mapa del
+   código al atacante; (c) **lista sin paginar** — se degrada con
+   datos, DoS accidental; (d) **README roto** — duele pero no expone.
+   El criterio del orden: ¿qué daño hace *al mundo exterior* primero?
+
+**Mini reto.** El resultado real: la tabla de hallazgos llena — cada
+fila `endpoint | riesgo | control | estado | test`. Nexus maduro tiene
+verde en casi todo porque los caps. 14–28 ya construyeron los
+controles; el ejercicio demuestra *que están activos en cada ruta* —
+que es lo que "auditoría" significa de verdad.
 
 :::
 
@@ -64,4 +205,8 @@ Pasar la checklist del apéndice F a Nexus y documentar cada hallazgo.
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Auditar una API por categorías con tabla de hallazgos y evidencia
+- [ ] Sembrar volumen real y leer EXPLAIN para encontrar N+1 y seq scans
+- [ ] Exigir test de regresión por cada control de seguridad
+- [ ] Escribir README de setup + openapi publicado + runbook mínimo
+- [ ] Convertir "creo que está bien" en "puedo demostrarlo"

@@ -3,58 +3,159 @@ title: "D. Glosario de backend de la vida real"
 subtitle: "Definiciones como las daría un equipo, no un examen"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
 
-## El problema
+Cada término del libro definido como lo explicaría un compañero en la
+daily — qué es, para qué existe, y la trampa que esconde. Ordenado por
+tema, pensado para consulta rápida y repaso en voz alta.
+:::
 
-ORM, migración, transacción, N+1, idempotencia, JWT, nonce, CORS, reverse proxy, 12-factor, y todos los términos del libro.
+## HTTP y APIs
 
-## Cómo lo resuelve un equipo
+**Endpoint** — La pareja `verbo + ruta` (`GET /tasks/5`). La API es la
+colección de endpoints; el contrato es lo que cada uno promete.
 
-<!-- TODO: contexto profesional -->
+**Contrato / schema** — La forma acordada del request y del response.
+Existe para que front y back puedan trabajar sin llamarse. Trampa:
+documentarlo "después" — después nunca llega.
 
-## Conceptos nuevos
+**REST** — Convención: recursos en la URL, verbos como acciones, JSON
+como formato, status codes como resultado. No es una ley, es el default
+que todos entienden.
 
-- <span class="tag tag-u">U</span> Referencia
+**Idempotencia** — Repetir la operación N veces deja el sistema igual
+que con 1. `PUT` es idempotente por diseño; `POST` necesita
+`Idempotency-Key`. Trampa: asumir que el cliente no reintenta — siempre
+reintenta.
 
-## La explicación visual
+**Rate limiting** — Presupuesto de requests por identidad/ventana.
+Existe porque el abuso y los bugs de loop se parecen mucho. Devuelve
+`429` + `Retry-After`, no un 500 misterioso.
 
-<!-- TODO: diagrama Mermaid o tabla -->
+**CORS** — Política del *navegador*: "¿desde qué orígenes puede JS leer
+esta respuesta?" No es seguridad contra servidores — `curl` ni lo ve.
+Trampa: `*` con credenciales, que los navegadores rechazan (bien).
 
-## Implementación
+**OpenAPI** — El contrato escrito en YAML/JSON que humanos y máquinas
+leen: documentación viva, clientes generados, tests de contrato. Es la
+fuente de verdad cuando existe antes que el código.
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+## Datos
 
-## ¿Por qué cada stack lo hace así?
+**ORM** — El traductor objetos↔tablas. Ahorra el SQL repetitivo y cobra
+con N+1 y queries opacas. Regla: ORM para el CRUD, SQL crudo para lo
+difícil — y siempre poder leer lo que genera.
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Migración** — Cambio de esquema versionado (`up`/`down`) aplicado en
+orden. Existe porque "la BD de cada quien" no escala a dos personas.
+Trampa: editar una migración ya aplicada — se crea una nueva, jamás se
+retoca el historial.
 
-## Errores comunes
+**Transacción** — Grupo de operaciones que se confirman o se revierten
+juntas (ACID). Existe porque el mundo falla a la mitad. `FOR UPDATE` =
+"esta fila es mía hasta el COMMIT".
 
-<!-- TODO -->
+**N+1** — La enfermedad de los loops: 1 query para la lista + N para
+los hijos. Se cura con JOIN/agregación — una query, no N.
 
-## Buenas prácticas
+**Pool** — Las conexiones a la BD reutilizadas entre requests, porque
+abrir una por request es caro. Tamaño real: 10–20, no 1000.
 
-<!-- TODO -->
+**Índice** — Estructura aparte (B-tree) que convierte búsquedas en
+saltos. Sigue el patrón de acceso: igualdad primero, orden después.
+Trampa: indexar todo — cada índice se paga en cada escritura.
 
-## Ejercicio
+**JSONB** — Columna JSON indexable dentro del relacional. Decisión
+cuando el *contenido* varía por registro; pereza cuando es por no
+diseñar las tablas.
 
-<!-- TODO: guiado, sobre el proyecto -->
+## Identidad y seguridad
+
+**JWT** — JSON firmado (no cifrado): el servidor lo emite y verifica
+sin consultar la BD. Contenido legible para cualquiera — nunca secretos
+adentro. La firma garantiza *integridad*, no *privacidad*.
+
+**Refresh token + rotación** — El token largo guardado (hasheado) en BD
+que renueva el access corto. Rotación: cada uso entrega uno nuevo y
+quema el anterior — reuso detectado = familia entera revocada.
+
+**httpOnly cookie** — Cookie que JavaScript no puede leer: el XSS que
+roba tokens no la alcanza. vs `localStorage`: cómodo pero legible por
+cualquier script que se cuele.
+
+**BOLA / IDOR** — "¿Puedo pedir `/tasks/99` que es de otra persona?"
+El #1 de OWASP API. Fix: ownership *en la query* y 404 (no 403) para
+lo ajeno — no confirmes que existe.
+
+**HMAC / firma de webhook** — Hash del body crudo con un secreto
+compartido: prueba de que el evento viene del proveedor y nadie lo
+tocó. Se verifica *antes* de parsear — el JSON re-serializado no firma
+igual.
+
+**Nonce** — Número de un solo uso: en webhooks rechaza replays, en auth
+evita reuso. Pariente del idempotency key.
+
+**OWASP API Top 10** — La lista de las 10 formas reales en que mueren
+las APIs. No es teoría: es la tabla de auditoría por endpoint del cap. 26.
+
+## Operación
+
+**Reverse proxy** — El portero (nginx/ALB) que recibe el 443, hace TLS
+y reparte a tu app en :3000. La app nunca ve internet directamente.
+
+**12-factor** — Las reglas de deploy: config por env vars, procesos sin
+estado, logs a stdout, mismo artefacto en todos los entornos. La razón
+por la que tu Dockerfile funciona igual en dev y prod.
+
+**Request ID** — El ID único por request que viaja en logs, headers y
+respuestas de error. Es la diferencia entre "algo falló" y "esta línea
+de tiempo concreta falló".
+
+**Healthcheck** — `/health` (¿vivo?) y `/health/deep` (¿BD accesible?).
+El orquestador decide restart/tráfico según el primero; los humanos
+diagnostican con el segundo.
+
+**Graceful shutdown** — Al apagar: dejar de aceptar, terminar lo que
+corre, cerrar el pool, salir. Lo que convierte un deploy en invisible
+en vez de una ráfaga de 502.
+
+**Migrate-gate** — Migrar en CI *antes* del deploy: el deploy de
+migración fallida nunca despierta — la imagen verde no sale si la
+migración no entró.
+
+**Runbook** — El guion de la 3am: qué mirar, en qué orden, qué comando.
+La observabilidad convertida en procedimiento — cinco líneas que valen
+más que veinte gráficas.
+
+## Testing
+
+**Pirámide** — Muchos unitarios (rápidos), algunos de API (la base
+real), pocos e2e (frágiles). Invertida = suite lenta que todos ignoran.
+
+**Rollback-per-test** — Cada test corre en una tx que se revierte al
+final: tests aislados contra BD real sin sembrar/limpiar. El truco que
+hace barata la base de la pirámide.
+
+**Mock en la frontera** — Fingir el *adaptador* externo (la función que
+llama a Stripe/SMTP), nunca `fetch` ni la BD. Mockear la BD es fingir
+que el SQL funciona — justo lo que el test debía probar.
 
 ## Mini reto
 
-Explicar 5 términos en voz alta sin mirar.
+Explicar 5 términos en voz alta sin mirar — con la trampa incluida.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
-
-**Mini reto.** <!-- TODO -->
+La prueba honesta: si al explicar *idempotencia* mencionaste
+`Idempotency-Key` y los reintentos del cliente, lo tienes. Si solo
+salió "se puede repetir", vuelve al cap. 22 — la definición sin el
+*para qué* es trivia, no conocimiento.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Definir cada término con su "para qué existe" y su trampa
+- [ ] Reconocer cuándo un término elegante esconde una decisión (JSONB, ORM)
+- [ ] Usar el vocabulario correcto en una entrevista sin sonar a examen

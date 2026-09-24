@@ -3,45 +3,117 @@ title: "E. Estructura de proyecto ×3"
 subtitle: "El árbol de carpetas de Nexus comentado, por lenguaje"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
 
-## El problema
+La plantilla reusable: dónde vive cada capa (rutas, schemas, servicios,
+queries, middleware) en Node/TS, Python y Go. Mismos huesos, distinta
+sintaxis de carpetas — copia el árbol de tu stack y empieza.
+:::
 
-La plantilla reusable: dónde vive cada capa en Node/TS, Python y Go.
+## TypeScript (Express)
 
-## Cómo lo resuelve un equipo
+```text
+nexus-api/
+├── src/
+│   ├── routes/          # HTTP edge: parse → call service → format response
+│   │   ├── tasks.ts
+│   │   └── auth.ts
+│   ├── schemas/         # zod: the contract of each endpoint (input + output)
+│   │   └── task.ts
+│   ├── services/        # business rules — no req/res here, ever
+│   │   └── taskService.ts
+│   ├── db/
+│   │   ├── pool.ts      # THE pool — created once, imported everywhere
+│   │   └── queries.ts   # parametrized SQL lives here, not in services
+│   ├── middleware/
+│   │   ├── auth.ts      # requireUser — cookie → user → res.locals
+│   │   └── errors.ts    # THE global handler — DomainError → {error:{code}}
+│   ├── errors.ts        # DomainError hierarchy
+│   └── app.ts           # wiring: middleware → routes → error handler LAST
+├── migrations/          # dbmate: numbered, versioned, never edited
+├── tests/               # vitest + supertest, DB real, rollback-per-test
+├── .env.example         # every required key documented — the real .env is gitignored
+├── Dockerfile           # multi-stage: deps → build → runtime
+└── compose.yaml         # app + postgres for dev
+```
 
-<!-- TODO: contexto profesional -->
+## Python (FastAPI)
 
-## Conceptos nuevos
+```text
+nexus-api/
+├── app/
+│   ├── routers/         # APIRouter per resource: the HTTP edge
+│   │   ├── tasks.py
+│   │   └── auth.py
+│   ├── schemas/         # pydantic: contract IS the framework's language
+│   │   └── task.py
+│   ├── services/        # business rules — never sees Request/Response
+│   │   └── task_service.py
+│   ├── db/
+│   │   ├── pool.py      # connection pool — built at startup
+│   │   └── queries.py   # parametrized SQL
+│   ├── deps.py          # Depends: current_user, get_db — injection lives here
+│   ├── errors.py        # exception hierarchy + handlers
+│   └── main.py          # wiring: include_router + exception handlers
+├── migrations/          # alembic: versions/, env.py
+├── tests/               # pytest + TestClient + rollback fixture
+├── .env.example
+├── Dockerfile
+└── compose.yaml
+```
 
-- <span class="tag tag-ts">TS</span> <span class="tag tag-py">Py</span> <span class="tag tag-go">Go</span> Layouts comparados lado a lado
+## Go
 
-## La explicación visual
+```text
+nexus-api/
+├── cmd/
+│   └── api/
+│       └── main.go      # THE entrypoint: config → pool → mux → server
+├── internal/            # unimportable from outside — enforced by the compiler
+│   ├── http/
+│   │   ├── routes.go    # ServeMux patterns: "GET /tasks/{id}"
+│   │   └── middleware.go # requireUser wrapping http.Handler
+│   ├── tasks/
+│   │   ├── service.go   # business rules
+│   │   └── queries.go   # parametrized SQL
+│   ├── auth/
+│   └── errors/          # sentinel errors + the one mapper
+├── migrations/          # goose: .sql files, up/down
+├── tests/ or *_test.go  # go test + httptest, tx rollback
+├── .env.example
+├── Dockerfile           # multi-stage: builder → scratch/distroless binary
+└── compose.yaml
+```
 
-<!-- TODO: diagrama Mermaid o tabla -->
+## Cómo leer los árboles
 
-## Implementación
+**Las capas son las mismas, los nombres cambian.** `routes`/`routers`/
+`http` = el borde HTTP. `schemas`/`schemas`/structs en `http` = el
+contrato. `services` = las reglas. `db`/`queries` = el SQL. La
+arquitectura del cap. 7 no es "de Express" — es de backend.
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+**El SQL tiene casa propia.** En los tres, las queries viven en un
+archivo/capa aparte (`queries.ts`, `queries.py`, `queries.go`) — no
+esparcidas por los servicios. Cuando el DBA pregunta "¿qué le pide tu
+app a la BD?", la respuesta es un archivo, no un grep.
 
-## ¿Por qué cada stack lo hace así?
+**`internal/` en Go es el único muro real.** El compilador prohíbe
+importarlo desde fuera — la privacidad que en los otros stacks es
+convención, en Go es ley.
 
-<!-- TODO: la lección transferible tras el tabset -->
+**El entrypoint es delgado en los tres.** `app.ts`/`main.py`/`main.go`
+solo *conectan* piezas — si tiene lógica de negocio, el árbol falló.
 
 ## Errores comunes
 
-<!-- TODO -->
-
-## Buenas prácticas
-
-<!-- TODO -->
-
-## Ejercicio
-
-<!-- TODO: guiado, sobre el proyecto -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Lógica en las rutas | "Es un endpoint pequeño" | La ruta parsea y delega — el servicio decide |
+| SQL esparcido | Queries dentro de servicios | `queries.*` por dominio — un archivo por fuente de verdad |
+| El pool recreado por request | `createPool()` dentro del handler | El pool nace una vez en el entrypoint y se inyecta |
+| Carpetas por tipo técnico | `controllers/`, `models/` genéricos | Por dominio (tasks/, auth/) — el proyecto crece por recursos |
+| Tests en otra galaxia | `tests/` sin espejo del src | El árbol de tests refleja el de src — encontrar el test = saber dónde |
 
 ## Mini reto
 
@@ -49,12 +121,17 @@ Arrancar un proyecto nuevo desde cero usando solo el árbol como guía.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
-
-**Mini reto.** <!-- TODO -->
+El orden correcto: entrypoint delgado → pool inyectado → una ruta de
+ejemplo que recorre las 4 capas (ruta → schema → servicio → query) →
+error handler → un test de integración. Si en 30 minutos tienes
+`GET /health` + un endpoint CRUD completo con las capas separadas, el
+árbol funciona — y ese esqueleto es literalmente lo que un lead espera
+el día 1.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Dibujar el árbol de tu stack de memoria y decir qué vive en cada carpeta
+- [ ] Explicar por qué el SQL tiene casa propia en los tres
+- [ ] Reconocer cuándo una estructura "por tipo técnico" está fallando

@@ -3,21 +3,44 @@ title: "38. Colaboración: equipos, invitaciones y tiempo real"
 subtitle: "«Que todos vean qué está pasando» exige realtime + roles"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Nexus deja de ser un CRUD bonito: ahora *varias personas* editan el
+mismo documento y **se ven hacerlo**. Eso exige tres piezas que el
+libro ya preparó: membresías con rol *en la relación*, invitaciones
+como tokens de un solo uso, y un canal WebSocket autenticado donde el
+servidor — por primera vez — *empuja* datos sin que le pregunten.
+:::
 
 ## El problema
 
-Membresías, invitaciones con tokens de un solo uso, y WebSockets autenticados para presencia en vivo.
+El brief: "Ana invita a Beto al equipo; ambos abren el mismo documento;
+cuando Ana mueve un elemento, Beto lo ve moverse". Tres problemas en
+uno: (1) ¿cómo entra Beto — un link mágico que expira, no una contraseña
+que Ana le dicta?; (2) ¿cómo viaja el cambio de Ana a Beto — HTTP es
+preguntar, esto es *empujar*?; (3) ¿qué pasa cuando ambos editan lo
+mismo a la vez?
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio separa las tres preguntas:
+
+1. **Membresía**: `team_members(team_id, user_id, role)` — el rol vive
+   en la relación (cap. 17), no en el usuario.
+2. **Invitación**: `invitations(token, team_id, email, role,
+   expires_at, used_at)` — un opaco de un solo uso que expira; aceptar
+   crea la membresía. Otro flujo con estado — el mismo patrón del
+   refresh token (cap. 18).
+3. **Tiempo real**: WebSocket autenticado con la misma cookie; el
+   servidor mantiene `documento → conexiones` y hace broadcast. El
+   protocolo de mensajes es un contrato como cualquier ruta REST.
+4. **Conflictos**: last-writer-wins — documentado en el ADR-03 (cap.
+   36); CRDT queda fuera a propósito.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-d">D</span> Modelo de membresías: `teams`, `members`, `project_shares` — roles en la relación
+- <span class="tag tag-d">D</span> Modelo de membresías: `teams`, `members` — roles en la relación
 - <span class="tag tag-u">U</span> Invitaciones: tokens de un solo uso, expiración, aceptación — otro flujo con estado
 - <span class="tag tag-u">U</span> WebSockets: endpoint autenticado, presencia, broadcast — qué mantiene el servidor ahora
 - <span class="tag tag-ts">TS</span> `ws` · <span class="tag tag-py">Py</span> FastAPI WebSocket · <span class="tag tag-go">Go</span> `coder/websocket` — conexiones vivas por runtime
@@ -25,46 +48,180 @@ Membresías, invitaciones con tokens de un solo uso, y WebSockets autenticados p
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+sequenceDiagram
+  participant A as Ana
+  participant S as Servidor
+  participant B as Beto
+  A->>S: WS connect (cookie auth) + join doc 7
+  B->>S: WS connect + join doc 7
+  S->>A: presence: [ana, beto]
+  A->>S: edit {element, patch}
+  S->>S: apply + broadcast
+  S-->>B: edit {element, patch} — Beto lo ve <300ms
+  B->>S: edit (otro elemento)
+  S-->>A: edit — LWW si colisionan
+```
+
+El servidor ahora tiene *estado de conexiones*: un mapa
+`documento → [sockets]` en memoria. Lo que el REST no tenía que
+recordar, el WS sí — por eso escalar WS a múltiples instancias es otra
+conversación (pub/sub entre ellas; para Nexus, una instancia basta).
 
 ## Implementación
+
+El endpoint WS autenticado + broadcast por documento:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+import { WebSocketServer } from "ws";
+
+const rooms = new Map<string, Set<WebSocket>>();   // docId → live sockets
+
+wss.on("connection", async (socket, req) => {
+  const user = await userFromCookie(req.headers.cookie);   // SAME auth as REST
+  const docId = getDocId(req.url);
+  if (!user || !(await isMember(user.id, docId))) return socket.close();
+
+  joinRoom(rooms, docId, socket);
+  broadcast(docId, { type: "presence", users: roomUsers(rooms, docId) });
+
+  socket.on("message", (data) => {
+    const msg = JSON.parse(data.toString());
+    if (msg.type === "edit") {
+      broadcast(docId, { type: "edit", by: user.id, patch: msg.patch },
+                socket);                                    // to the OTHERS
+    }
+  });
+  socket.on("close", () => leaveRoom(rooms, docId, socket));
+});
 ```
 
 ### Python
+
 ```python
-# TODO
+rooms: dict[str, set[WebSocket]] = {}            # docId → live sockets
+
+@app.websocket("/documents/{doc_id}/live")
+async def live(websocket: WebSocket, doc_id: str):
+    user = await user_from_cookie(websocket.cookies)   # SAME auth as REST
+    if not user or not await is_member(user.id, doc_id):
+        return await websocket.close()
+    await websocket.accept()
+    rooms.setdefault(doc_id, set()).add(websocket)
+    await broadcast(doc_id, {"type": "presence", "users": room_users(doc_id)})
+    try:
+        async for raw in websocket.iter_text():
+            msg = json.loads(raw)
+            if msg["type"] == "edit":
+                await broadcast(doc_id,
+                    {"type": "edit", "by": user.id, "patch": msg["patch"]},
+                    exclude=websocket)                  # to the OTHERS
+    finally:
+        rooms[doc_id].discard(websocket)
 ```
 
 ### Go
+
 ```go
-// TODO
+var rooms = NewRoomMap()   // docID → set of *websocket.Conn (mutex-guarded)
+
+func live(w http.ResponseWriter, r *http.Request) {
+    user := userFromCtx(r.Context())             // SAME auth middleware as REST
+    docID := r.PathValue("id")
+    if user == nil || !isMember(r.Context(), user.ID, docID) {
+        w.WriteHeader(403); return
+    }
+    conn, err := websocket.Accept(w, r, nil)
+    if err != nil { return }
+    rooms.Join(docID, conn)
+    defer rooms.Leave(docID, conn)
+    broadcast(docID, Message{Type: "presence", Users: rooms.Users(docID)})
+    for {
+        var msg Message
+        if err := wsjson.Read(r.Context(), conn, &msg); err != nil { return }
+        if msg.Type == "edit" {
+            broadcastExcept(docID, Message{Type: "edit", By: user.ID, Patch: msg.Patch}, conn)
+        }
+    }
+}
 ```
 
 :::
 
-<!-- proyecto: presencia y edición concurrente verificable con dos clientes -->
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Implementa el canal realtime de Nexus en [ws/FastAPI/coder-websocket]:
+WS /documents/{id}/live autenticado con la misma cookie httpOnly del
+REST (rechazar sin sesión o sin membresía), mapa documento→conexiones
+thread-safe, mensajes con contrato {type: presence|edit, ...}, broadcast
+de edits a las OTRAS conexiones del documento, limpieza al desconectar,
+y last-writer-wins documentado. Tests/manual: dos clientes, uno edita
+→ el otro recibe en <300ms; desconectar limpia la presencia.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** el WS es una ruta más — *autenticada
+igual, autorizada igual* — solo que la conexión queda viva y el servidor
+guarda el mapa de quién escucha qué documento. Los tres hacen lo mismo:
+aceptar → join → loop de mensajes → broadcast → limpiar al cerrar.
+
+::: {.callout-note collapse="true" title="Detalle: las decisiones de realtime"}
+
+| Decisión | Nexus elige | La alternativa y su precio |
+|---|---|---|
+| Auth del WS | Cookie httpOnly en el upgrade — *misma* auth | Token en query param: queda en logs/URLs |
+| Conflictos | LWW (ADR-03) | CRDT/OT: merge por carácter — semanas de trabajo |
+| Presencia | Mapa en memoria del proceso | Redis pub/sub: necesario solo con N instancias |
+| El servidor empuja | WebSocket | SSE (solo servidor→cliente) o polling (latencia y carga) |
+
+**LWW honesto**: si Ana y Beto tocan el *mismo* elemento en el mismo
+instante, gana el último en llegar — el documento queda consistente
+(mismo estado en todos) aunque un cambio se pierda. Aceptable porque:
+las ediciones suelen ser en elementos *distintos*, el historial del
+cap. 37 lo recupera todo, y la alternativa es un proyecto de meses.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| WS sin autenticación/autorización | "Es un socket, no una ruta" | Mismo middleware: cookie → user → isMember, antes del accept |
+| Broadcast a *todos* incluido el emisor | `rooms.forEach(send)` | El emisor ya aplicó su cambio — eco = doble render |
+| Mapa de rooms sin mutex (Go) / sin limpieza | Sockets muertos en el mapa | `on close → leave`; en Go el mapa va con sync.Mutex |
+| Confiar el mensaje del cliente | `msg.user_id` declarado por el cliente | El `by` lo pone el servidor — el cliente solo manda el patch |
+| Asumir que WS escala como HTTP | "Levanto 3 réplicas" | Las conexiones viven en UNA instancia — pub/sub entre ellas o sticky sessions |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **El protocolo WS es contrato**: `{type, ...}` con tipos cerrados
+  (presence, edit, cursor, error) — validado como cualquier body REST.
+- **Presencia derivada del mapa**, no de mensajes "estoy aquí" del
+  cliente — el servidor sabe quién está porque sabe quién está
+  *conectado*.
+- **El estado efímero en memoria, el durable en BD**: presencia =
+  memoria (muere con el proceso, se reconstruye al reconectar);
+  ediciones finales = revisions del cap. 37.
+- **Heartbeat/ping**: conexiones zombie (wifi que murió sin close) se
+  purgan con ping periódico + timeout — el mapa no miente para siempre.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. ¿Por qué el `by` del mensaje edit lo pone el servidor y no viene en
+   el mensaje del cliente?
+2. Beto abre dos pestañas del mismo documento. ¿Cuántas entradas tiene
+   en `rooms[doc]`? ¿Cómo aparece en presencia?
+3. El equipo quiere "que Ana vea el cursor de Beto moviéndose". ¿Qué
+   cambia respecto al broadcast de edits — y qué NO debe guardar el
+   servidor de ese tráfico?
 
 ## Mini reto
 
@@ -72,9 +229,26 @@ Dos navegadores deben verse cambios en <300ms: diseñar cómo verificarlo.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. Porque el cliente miente gratis: `{"by": 42}` declarado por Beto es
+   un claim, no un hecho. El servidor sabe *quién* es por la cookie del
+   upgrade — el `by` se deriva de la autenticación, no del payload.
+   Misma regla que el `user_id` del body (cap. 16).
+2. Dos entradas (dos sockets) — la presencia por *usuario* deduplica:
+   Beto aparece una vez aunque tenga N conexiones. El mapa guarda
+   conexiones; la presencia muestra usuarios — dos vistas del mismo
+   estado.
+3. Los cursores son tráfico *efímero y de alta frecuencia*: broadcast
+   sin persistir, sin rate-limit de mensaje pero con throttle en el
+   cliente (~30/seg), y tipo `cursor` distinto de `edit` — el servidor
+   solo reenvía, jamás guarda posiciones de cursor en BD (ruido puro).
+
+**Mini reto.** La verificación honesta: dos clientes WS reales (o un
+test con dos conexiones), timestamp en el mensaje `edit` — el receptor
+mide `Date.now() - msg.ts`. Local será ~5ms; el número honesto se mide
+en staging con latencia real. Y el criterio: <300ms es "se siente en
+vivo" — el humano no distingue 50ms de 200ms en un movimiento.
 
 :::
 
@@ -82,4 +256,8 @@ Dos navegadores deben verse cambios en <300ms: diseñar cómo verificarlo.
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Modelar membresías con rol en la relación, no en el usuario
+- [ ] Diseñar invitaciones como tokens opacos de un solo uso con expiración
+- [ ] Autenticar un WebSocket con la misma auth del REST
+- [ ] Mantener un mapa documento→conexiones con broadcast y limpieza
+- [ ] Defender last-writer-wins sabiendo qué se pierde y qué no

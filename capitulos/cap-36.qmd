@@ -5,17 +5,37 @@ subtitle: "Te contratan para el backend de un Figma-lite. ¿Por dónde empiezas?
 
 ![Parte 9 — Proyecto final: Nexus](../imagenes/parte-09.png)
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Nexus: un workspace colaborativo donde equipos editan documentos en
+tiempo real, con historial completo — un Figma-lite. Antes de la primera
+línea de código: **el dominio dibujado, el contrato escrito, y las
+decisiones documentadas**. Este capítulo es diseño en papel — el código
+llega en el 37.
+:::
 
 ## El problema
 
-Proyecto final: workspace colaborativo por equipos. Del requerimiento al modelo, al contrato y a las decisiones documentadas.
+Te llega el brief: "workspace por equipos; proyectos con documentos que
+varias personas editan a la vez; historial para volver atrás; miembros
+con roles". Es exactamente el tipo de requerimiento difuso que recibe
+un backend real — nadie te da el esquema, te dan *una intención*. El
+error de junior: empezar por `POST /login`. El error caro: descubrir en
+la semana 3 que "editar a la vez" necesitaba un modelo distinto desde
+el día 1.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio responde al brief con tres artefactos antes de codificar:
+
+1. **El modelo** (diagrama ER): qué *cosas* existen y cómo se relacionan
+   — esto responde "¿qué es Nexus?".
+2. **El contrato** (rutas + schemas + códigos de error): cómo se habla
+   con él — esto responde "¿cómo se usa?".
+3. **Los ADRs** (media página por decisión): por qué se eligió así —
+   esto responde "¿por qué así y no de otra forma?" para el humano del
+   futuro que pregunte.
 
 ## Conceptos nuevos
 
@@ -24,41 +44,188 @@ Proyecto final: workspace colaborativo por equipos. Del requerimiento al modelo,
 - <span class="tag tag-u">U</span> Diseñar el contrato primero: rutas, schemas, códigos de error — OpenAPI como fuente de verdad
 - <span class="tag tag-d">D</span> `public_id` vs UUID interno y otras decisiones que parecen menores y no lo son
 
-## La explicación visual
+## El modelo de Nexus
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```{mermaid}
+erDiagram
+  USERS ||--o{ TEAM_MEMBERS : "belongs"
+  TEAMS ||--o{ TEAM_MEMBERS : "has"
+  TEAMS ||--o{ PROJECTS : "owns"
+  PROJECTS ||--o{ DOCUMENTS : "contains"
+  DOCUMENTS ||--o{ REVISIONS : "history"
+  USERS ||--o{ INVITATIONS : "invited"
+  TEAM_MEMBERS {
+    bigint team_id FK
+    bigint user_id FK
+    text role "admin|editor|viewer"
+  }
+  DOCUMENTS {
+    bigint id PK
+    uuid public_id
+    bigint project_id FK
+    int current_revision "the pointer"
+    jsonb content "latest snapshot cache"
+  }
+  REVISIONS {
+    bigint document_id FK
+    int rev
+    jsonb snapshot "full state at rev"
+    bigint author_id FK
+    timestamptz created_at
+  }
+```
 
-## Implementación
+Lee las decisiones del dibujo:
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+- **Los roles viven en la membresía**, no en el usuario — eres `admin`
+  *del equipo A* y `viewer` *del B* (cap. 17).
+- **`documents.current_revision` es un puntero** — como `HEAD` en git:
+  el documento sabe "estoy en la rev 12" y la historia vive aparte en
+  `revisions`.
+- **Cada revisión es un snapshot completo** — restore = leer una fila,
+  no re-ejecutar la historia (cap. 37).
 
-<!-- proyecto: diseño completo de Nexus en papel -->
+## El contrato primero
 
-## ¿Por qué cada stack lo hace así?
+```text
+POST   /auth/register | /auth/login | /auth/refresh | /auth/logout
+GET    /teams                     → mis teams
+POST   /teams/{id}/invitations    → admin only
+POST   /invitations/{token}/accept
+GET    /projects/{id}/documents
+POST   /documents                 → editor+
+GET    /documents/{id}            → member: content + current_revision
+POST   /documents/{id}/revisions  → save new revision (the write hot path)
+GET    /documents/{id}/revisions  → history list
+POST   /documents/{id}/restore/{rev} → move the pointer back
+WS     /documents/{id}/live       → presence + edits broadcast
+```
 
-<!-- TODO: la lección transferible tras el tabset -->
+Más los errores estables (cap. 25): `UNAUTHORIZED`, `FORBIDDEN`,
+`DOC_NOT_FOUND`, `NOT_A_MEMBER`, `ROLE_TOO_LOW`, `INVITATION_EXPIRED`,
+`VALIDATION`, `CONFLICT`, `INTERNAL`. El frontend puede programarse
+completo contra esta tabla *antes* de que exista el backend.
+
+## Los ADRs — tres decisiones, media página cada una
+
+```markdown
+# ADR-01: Monolito modular por capas
+Contexto: equipo chico, dominio cohesionado, realtime+HTTP en un proceso.
+Decisión: monolito con capas (rutas/servicios/storage) del cap. 7.
+Alternativas: microservicios (overhead de red sin el problema de escala
+de equipos). Consecuencias: si una pieza crece 10× distinta, se extrae —
+las fronteras ya existen.
+
+# ADR-02: Snapshot + puntero para versionado (no solo diffs)
+Contexto: restore debe ser O(1); el historial es append-only.
+Decisión: snapshot completo por revisión + current_revision como puntero.
+Alternativas: solo diffs (restore = replay N eventos), CRDT (proyecto
+aparte). Consecuencias: +espacio en disco; -complejidad de restore.
+
+# ADR-03: Last-Writer-Wins en edición concurrente
+Contexto: dos cursores en el mismo documento.
+Decisión: LWW con rev + broadcast — el merge fino por carácter es CRDT,
+otro nivel de complejidad. Alternativas: OT/CRDT. Consecuencias: ediciones
+en el mismo párrafo se pisan — aceptado y documentado.
+```
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Actúa como tech lead: diseña la arquitectura de Nexus, un workspace
+colaborativo (teams → projects → documents con versionado y edición
+concurrente). Entregables: diagrama ER con justificación de cada
+relación y ON DELETE, contrato REST+WS completo (rutas, schemas,
+códigos de error estables), modelo de membresías con roles por equipo,
+y 3 ADRs de media página (estructura del proyecto, modelo de
+versionado, resolución de conflictos) con alternativas descartadas y
+consecuencias aceptadas. No escribas código — el diseño primero.
+```
+
+:::
+
+## ¿Por qué diseñar en papel primero?
+
+**Lo único que necesitas llevarte:** cada línea del ER y cada ADR es un
+problema resuelto *cuando costaba una oración* — en código cuesta un
+refactor, en prod una migración. El diseño no es burocracia: es el
+lugar barato de equivocarse.
+
+::: {.callout-note collapse="true" title="Detalle: las decisiones que parecen menores"}
+
+- **`public_id` por recurso**: `documents/7f3a…` en URLs — el id
+  secuencial expone volumen y permite enumerar (cap. 8).
+- **`rev` entero por documento** (no UUID global): la historia es
+  ordenada *por documento* — `rev=14` se compara, un UUID no.
+- **`team_members.role` con CHECK** (`admin|editor|viewer`): el rol
+  inválido lo rechaza la BD, no solo la validación.
+- **Invitaciones con `token` + `expires_at` + `used_at`**: otro flujo
+  con estado — el token opaco viaja por email, el servidor verifica
+  uno-uso-expira (mismo patrón que refresh tokens del cap. 18).
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Empezar por el código | "El diseño sale solo" | ER + contrato antes — el dibujo se cambia en segundos |
+| Roles en el usuario | "Es admin de la app" | El rol es *de la membresía* — contexto por equipo |
+| Diseñar para el futuro imaginario | "Y si necesitamos microservicios" | Diseña para el brief de hoy + ADRs que documenten los bordes |
+| Contrato después del código | "Ya veremos qué devuelve" | El contrato es la fuente de verdad — frontend y backend se construyen en paralelo contra él |
+| Decisiones sin documentar | "Queda en la PR" | ADR de media página — el por qué que el código no dice |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **El brief se reescribe como modelo**: cada sustantivo del
+  requerimiento es un candidato a entidad; cada verbo, una relación o
+  una ruta.
+- **Decidir lo reversible rápido y lo irreversible lento** (Ap. K,
+  decisión framework): el modelo de versionado es puerta de una vía —
+  merece la página de análisis; el nombre de la ruta no.
+- **El contrato incluye los errores**: una ruta sin sus 4xx definidos
+  está a medio diseñar.
+- **El diseño se presenta**: un RFC de una página que el equipo puede
+  comentar — las objeciones en papel son gratis.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. El brief dice "los documentos pueden estar en carpetas". Agrega la
+   entidad al ER: ¿carpeta como tabla, como columna, o como tag?
+   Defiende.
+2. Escribe la ruta y el contrato de "quitar a un miembro del equipo":
+   método, path, quién puede, qué devuelve si el miembro no existe,
+   si el caller no es admin, si es el último admin.
+3. ¿Por qué `REVISIONS` no tiene `public_id` en la tabla de arriba?
 
 ## Mini reto
 
-Presentar el diseño como si fuera un RFC de equipo — y defender cada decisión.
+Presentar el diseño como si fuera un RFC de equipo — y defender cada
+decisión.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. Tabla `folders` solo si las carpetas tienen comportamiento propio
+   (permisos, anidamiento). Si son solo agrupación visual: columna
+   `folder`/`path` en `documents` o tabla `folders(id, project_id,
+   name)` liviana. La respuesta seria pregunta primero: "¿la carpeta
+   *hace* algo o solo *agrupa*?" — el modelo sigue al comportamiento.
+2. `DELETE /teams/{id}/members/{user_id}` → admin only. Miembro
+   inexistente → 404 (`MEMBER_NOT_FOUND`). Caller no-admin → 403.
+   Último admin → 409 `LAST_ADMIN` — regla de negocio que se descubre
+   al diseñar el contrato, no al crashearla.
+3. Las revisiones no son recursos de primera clase expuestos por URL
+   propia — se acceden *a través* del documento (`/documents/{id}/
+   revisions/14`). El `public_id` existe para lo que viaja solo por
+   URL; la revisión viaja dentro del documento.
+
+**Mini reto.** El RFC: contexto (el brief) → modelo (ER) → contrato →
+3 ADRs → "lo que NO construimos" (CRDT, microservicios, comentarios en
+documento) → preguntas abiertas. Defender cada decisión = decir qué
+alternativa se descartó y qué precio se aceptó — eso es lo que un RFC
+real necesita, y lo que el Ap. K entrena.
 
 :::
 
@@ -66,4 +233,8 @@ Presentar el diseño como si fuera un RFC de equipo — y defender cada decisió
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Convertir un brief difuso en un diagrama ER con ownership claro
+- [ ] Escribir el contrato completo (rutas + errores) antes del código
+- [ ] Documentar decisiones en ADRs de media página con alternativas
+- [ ] Detectar reglas de negocio al diseñar (LAST_ADMIN, uno-uso, expiración)
+- [ ] Separar decisiones reversibles de puertas de una vía

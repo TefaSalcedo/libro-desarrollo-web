@@ -3,45 +3,124 @@ title: "B. SQL de bolsillo"
 subtitle: "Las 20 queries que un backend usa"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
 
-## El problema
+Cheatsheet agnóstico: CRUD, JOINs, agregaciones, índices, `EXPLAIN` —
+las 20 queries que cubren el 95% de lo que un backend le pide a una
+BD relacional, agrupadas por lo que resuelven.
+:::
 
-Cheatsheet agnóstico: CRUD, JOINs, agregaciones, índices, `EXPLAIN`.
+## CRUD — las 4 de siempre
 
-## Cómo lo resuelve un equipo
+```sql
+-- 1. Leer uno (siempre parametrizado: $1 / %s / ?)
+SELECT id, email, name FROM users WHERE id = $1;
 
-<!-- TODO: contexto profesional -->
+-- 2. Leer lista filtrada + ordenada + paginada
+SELECT id, title, done FROM tasks
+WHERE user_id = $1 AND done = false
+ORDER BY created_at DESC
+LIMIT 21;                        -- pide 21, muestra 20: el 21 dice "hay más"
 
-## Conceptos nuevos
+-- 3. Insertar y recuperar lo generado
+INSERT INTO tasks (user_id, title) VALUES ($1, $2)
+RETURNING id, created_at;
 
-- <span class="tag tag-d">D</span> Referencia rápida — sin capítulo nuevo
+-- 4. Actualizar / borrar SIEMPRE con WHERE
+UPDATE tasks SET done = true WHERE id = $1 AND user_id = $2;   -- ownership en la query
+DELETE FROM tasks WHERE id = $1 AND user_id = $2;
+```
 
-## La explicación visual
+## Relaciones — las que devuelven lo que la UI muestra
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```sql
+-- 5. JOIN: la tarea con su dueño
+SELECT t.id, t.title, u.name AS owner
+FROM tasks t JOIN users u ON u.id = t.user_id;
 
-## Implementación
+-- 6. LEFT JOIN: incluir aunque no haya hijo
+SELECT p.id, p.name, COUNT(t.id) AS task_count
+FROM projects p LEFT JOIN tasks t ON t.project_id = p.id
+GROUP BY p.id;
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+-- 7. EXISTS: "¿hay alguno que cumpla?" — más barato que COUNT
+SELECT EXISTS (SELECT 1 FROM team_members
+               WHERE team_id = $1 AND user_id = $2 AND role = 'admin');
 
-## ¿Por qué cada stack lo hace así?
+-- 8. IN: cualquiera de la lista
+SELECT * FROM tasks WHERE project_id IN ($1, $2, $3);
 
-<!-- TODO: la lección transferible tras el tabset -->
+-- 9. Subquery: filtrar por el resultado de otra pregunta
+SELECT * FROM users WHERE id IN
+  (SELECT user_id FROM tasks GROUP BY user_id HAVING COUNT(*) > 10);
+```
 
-## Errores comunes
+## Agregaciones — responder preguntas, no listar filas
 
-<!-- TODO -->
+```sql
+-- 10. Contar y agrupar
+SELECT status, COUNT(*) FROM tasks GROUP BY status;
 
-## Buenas prácticas
+-- 11. Agregado con condición (el "cuántos sin hacer" por usuario)
+SELECT user_id, COUNT(*) FILTER (WHERE done = false) AS pending
+FROM tasks GROUP BY user_id;
 
-<!-- TODO -->
+-- 12. HAVING: WHERE sobre grupos
+SELECT team_id FROM team_members GROUP BY team_id HAVING COUNT(*) > 50;
 
-## Ejercicio
+-- 13. MAX/más reciente por grupo
+SELECT DISTINCT ON (document_id) document_id, rev, created_at
+FROM revisions ORDER BY document_id, rev DESC;
+```
 
-<!-- TODO: guiado, sobre el proyecto -->
+## Transacciones — todo o nada
+
+```sql
+-- 14. La transacción de negocio
+BEGIN;
+UPDATE accounts SET balance = balance - 100 WHERE id = $1;
+UPDATE accounts SET balance = balance + 100 WHERE id = $2;
+COMMIT;          -- o ROLLBACK si cualquier pieza falla
+
+-- 15. Lock de fila: "nadie más toque esto hasta que yo termine"
+SELECT balance FROM accounts WHERE id = $1 FOR UPDATE;
+
+-- 16. Upsert: insertar o actualizar según choque
+INSERT INTO sessions (id, user_id, expires_at) VALUES ($1,$2,$3)
+ON CONFLICT (id) DO UPDATE SET expires_at = EXCLUDED.expires_at;
+```
+
+## Performance — ver qué hace la BD
+
+```sql
+-- 17. El índice que sigue el patrón de acceso
+CREATE INDEX CONCURRENTLY idx_tasks_user_created
+  ON tasks (user_id, created_at DESC);     -- igualdad primero, orden después
+
+-- 18. Ver el plan: ¿usa el índice o escanea todo?
+EXPLAIN ANALYZE SELECT * FROM tasks WHERE user_id = $1 ORDER BY created_at DESC;
+-- Seq Scan en tabla grande = alarma; Index Scan/Bitmap = bien
+
+-- 19. Estadísticas frescas (sin esto, el planner decide con datos viejos)
+ANALYZE tasks;
+
+-- 20. JSONB: la columna flexible cuando el esquema varía
+SELECT snapshot->>'title' FROM revisions WHERE snapshot @> '{"done":true}';
+```
+
+## Las reglas detrás de las queries
+
+- **Parametrizado siempre** — `$1`/`%s`/`?` nunca se concatena; la
+  inyección SQL se muere en esta línea (cap. 9).
+- **`WHERE` con ownership** — `AND user_id = $2` convierte "borra la
+  tarea 5" en "borra la tarea 5 *si es tuya*" (cap. 17).
+- **`LIMIT` con `ORDER BY`** — límite sin orden es un límite a la
+  suerte: el orden sin índice es sort en memoria (cap. 12).
+- **`EXPLAIN` antes de indexar** — el índice responde a un patrón de
+  acceso medido, no a una corazonada.
+- **`FOR UPDATE` dentro de la tx** — fuera de transacción no bloquea
+  nada: el lock vive y muere con el BEGIN/COMMIT (cap. 13).
 
 ## Mini reto
 
@@ -49,12 +128,17 @@ Reescribir de memoria las 5 queries más usadas de Taskflow.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
-
-**Mini reto.** <!-- TODO -->
+Las 5 que un CRUD real repite todo el día: (1) leer uno por id con
+ownership, (2) listar filtrado + orden + LIMIT 21, (3) insert con
+RETURNING, (4) update con doble WHERE (id + user_id), (5) EXISTS de
+membresía. Si salen de memoria con los `$1` en su sitio y el
+ownership en el WHERE — eso *es* el nivel que una entrevista pide.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Escribir las 20 sin mirar la documentación
+- [ ] Leer un EXPLAIN y nombrar Seq Scan vs Index Scan
+- [ ] Saber qué query va dentro de tx y por qué `FOR UPDATE`
+- [ ] Usar `FILTER`, `DISTINCT ON`, `ON CONFLICT` — las tres joyas de Postgres

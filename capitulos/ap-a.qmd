@@ -3,61 +3,95 @@ title: "A. Tres sintaxis, un programador"
 subtitle: "La tabla de traducción TS ↔ Python ↔ Go"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
 
-## El problema
+Solo lo que el libro usó, en tres columnas: tipos, módulos, errores,
+clases/structs, concurrencia — y los errores típicos del que viene de
+JS. Cuando leas un backend en el stack que no practicas, esta tabla es
+el diccionario.
+:::
 
-Solo lo que el libro usó: tipos, módulos, errores, clases/structs, concurrencia — y los errores típicos del que viene de JS.
+## Sintaxis esencial
 
-## Cómo lo resuelve un equipo
+| Concepto | TypeScript | Python | Go |
+|---|---|---|---|
+| Función | `function f(x: number): number {}` | `def f(x: int) -> int:` | `func f(x int) int {}` |
+| Bloques | `{ }` | indentación | `{ }` |
+| Nulo | `null` / `undefined` | `None` | `nil` |
+| Lista | `T[]` / `Array<T>` | `list[T]` | `[]T` (slice) |
+| Mapa | `Record<K,V>` / `Map` | `dict[K,V]` | `map[K]V` |
+| Módulo | `import { x } from "./m"` | `from m import x` | `import "m"` |
+| Error | `throw` / `catch` | `raise` / `except` | `return err` (valor) |
+| Async | `async`/`await` + `Promise.all` | `async`/`await` + `gather` | `go f()` + channels/errgroup |
+| "Clase" | `class` | `class` | `struct` + métodos (sin herencia) |
 
-<!-- TODO: contexto profesional -->
+## Tipos y estructuras
 
-## Conceptos nuevos
+```text
+TS:      interface Task { id: number; title: string; done: boolean }
+Python:  class Task(BaseModel): id: int; title: str; done: bool
+Go:      type Task struct { ID int64; Title string; Done bool }
+```
 
-- <span class="tag tag-ts">TS</span> <span class="tag tag-py">Py</span> <span class="tag tag-go">Go</span> Sintaxis: `function`/`def`/`func`, `{}`/indentación/llaves
-- Tipos: `interface`/`dict`/`struct`, arrays/listas/slices, `null`/`None`/`nil`
-- Lo que no se traduce directo: `yield`, `defer`, context managers, goroutines
-- Errores típicos: mutabilidad de defaults, `==` vs `is`, valor vs puntero
+```text
+TS:      tasks.filter(t => !t.done).map(t => t.title)
+Python:  [t.title for t in tasks if not t.done]
+Go:      var titles []string; for _, t := range tasks { if !t.Done { titles = append(...) } }
+```
 
-## La explicación visual
+## Errores: el modelo mental de cada uno
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```text
+TS:      excepciones que suben — throw new DomainError(...) → catch/handler
+Python:  excepciones que suben — raise NotFoundError → except/handler
+Go:      errores como VALOR — if err != nil { return err } → sin saltos
+```
 
-## Implementación
+El que viene de JS a Go siempre pregunta "¿dónde está el catch?" — no
+hay: el error viaja por `return`, visible en cada firma. Verbosidad que
+compra visibilidad.
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+## Lo que NO se traduce directo
 
-## ¿Por qué cada stack lo hace así?
+| Pieza | Solo existe en | Por qué |
+|---|---|---|
+| `yield`/generadores | Python (y TS iterators) | Streams perezosos — Go usa canales/loops |
+| `defer` | Go | "Ejecuta esto al salir de la función" — el `finally` que no olvidas |
+| Context managers (`with`) | Python | Recurso que se cierra solo — TS usa `try/finally`, Go `defer` |
+| Goroutines | Go | Concurrencia nativa barata — en los otros es modelo, no palabra clave |
+| Punteros explícitos | Go (`*T` vs `T`) | Valor vs referencia visible en la firma |
 
-<!-- TODO: la lección transferible tras el tabset -->
+## Errores típicos del que viene de JS
 
-## Errores comunes
-
-<!-- TODO -->
-
-## Buenas prácticas
-
-<!-- TODO -->
-
-## Ejercicio
-
-<!-- TODO: guiado, sobre el proyecto -->
+| Trampa | En qué lenguaje muerde | El por qué |
+|---|---|---|
+| Default mutable `def f(items=[])` | Python | El default se crea UNA vez — compartido entre llamadas → `None` + crear dentro |
+| `==` vs `is` | Python | `==` compara valor, `is` compara identidad — `x == []` no es `x is []` |
+| `if (err)` vs `err == nil` | Go | `nil` es su propio tipo de valor — y el error se *retorna*, no se lanza |
+| Comparar `struct` con `==` | Go | Funciona pero compara campos — con slices/maps adentro no compila |
+| `interface{}`/`any` como escape | TS/Go | "Luego lo tipo" = nunca — el tipo débil contamina todo lo que lo toca |
+| Slices que comparten array | Go | `append` puede mutar el backing array — copia si dudas |
 
 ## Mini reto
 
-Traducir una función del proyecto a los otros dos lenguajes sin mirar la solución.
+Traducir una función del proyecto a los otros dos lenguajes sin mirar
+la solución.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
-
-**Mini reto.** <!-- TODO -->
+Toma `createTask(userId, title)` — validar, trim, insertar, devolver.
+La traducción correcta no es literal: en Go el error viaja por return
+(`(Task, error)`), en Python el tipo va en la firma con `-> Task`, en
+TS el schema de entrada se valida con zod antes. Si tu traducción usa
+`try/catch` en Go o `return err` en Python, estás escribiendo JS con
+acento — la forma correcta es la del idioma, no la tuya.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Leer una función en cualquiera de los tres stacks y seguirla
+- [ ] Explicar por qué Go no tiene `catch` y qué lo reemplaza
+- [ ] Nombrar dos trampas de cada lenguaje para quien viene de JS
+- [ ] Traducir una función respetando el *idioma*, no la letra

@@ -3,61 +3,156 @@ title: "40. Cierre: cómo piensa un backend developer"
 subtitle: "Qué stack elegirías para cada problema — la respuesta honesta"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
 
-## El problema
+Empezaste con `let tasks = []` y terminaste con un workspace
+colaborativo versionado, en tiempo real, auditado y desplegable. Este
+capítulo no agrega nada: **ordena lo que ya sabes** — el mapa completo
+del libro, la tabla final de qué pertenece al lenguaje vs al framework
+vs a la industria, y la respuesta honesta a "¿Node, Python o Go?".
+:::
 
-Repaso del mapa completo, la tabla Python/FastAPI/universal final, y cuándo elegir Node, Python o Go.
+## El mapa completo
 
-## Cómo lo resuelve un equipo
+Todo el libro fue una sola pregunta reformulada: *"¿qué necesita el
+siguiente problema?"*
 
-<!-- TODO: contexto profesional -->
+```text
+Fundamentos (0-0.5)     → terminal, HTTP, JSON — las piezas que todo usa
+Frontend (fe-01..07)    → el cliente que consumes y que ahora también entiendes
+API (1-7)               → rutas, contratos, validación, errores, capas
+Datos (8-13)            → diseño, SQL, drivers, migraciones, índices, tx
+Identidad (14-18)       → hashing, JWT, middleware, roles, sesiones vivas
+Integraciones (19-22)   → salir, concurrencia, jobs, recibir webhooks
+Robustez (23-26)        → logs, config, errores a escala, auditoría
+Testing (27-29)         → pirámide, BD real, mocks en la frontera
+Docker→Prod (30-35)     → imagen, compose, CI/CD, deploy sin downtime
+Nube (nu-01..05)        → servidores, frontera de responsabilidad, providers
+Proyecto (36-39)        → Nexus: todo junto, diseñado y endurecido
+Repaso (ap-g..k)        → 50 tickets, entrevistas, preguntas decisivas
+```
 
-## Conceptos nuevos
+Cada eslabón existe porque el anterior dejó un problema sin resolver —
+esa cadena de necesidades *es* la arquitectura, no una lista de temas.
 
-- <span class="tag tag-u">U</span> Cada decisión del libro y por qué se tomó — arquitectura como respuesta a problemas
-- <span class="tag tag-u">U</span> La tabla final: qué es del lenguaje, qué del framework, qué de la industria
-- <span class="tag tag-u">U</span> Cuándo Node, cuándo Python, cuándo Go: equipo, dominio, performance, hiring
-- <span class="tag tag-u">U</span> Lo que quedó fuera deliberadamente: colas serias, caché, eventos, microservicios, observabilidad profunda
-- <span class="tag tag-u">U</span> Cómo seguir: leer backends reales
+## La tabla final: ¿de quién es cada cosa?
 
-## La explicación visual
+Lo que confunde al junior es atribuir al lenguaje lo que es del
+framework, o al framework lo que es de la industria:
 
-<!-- TODO: diagrama Mermaid o tabla -->
+| Decisión | Del lenguaje | Del framework | De la industria (igual en todos) |
+|---|---|---|---|
+| Concurrencia | event loop / asyncio / goroutines | — | I/O-bound se paraleliza |
+| Validación | — | zod / pydantic / manual | schema en la frontera |
+| Auth | — | Depends / middleware / wrapper | JWT corto + refresh persistido |
+| Errores | clases / excepciones / sentinel | exception handler / middleware | dominio → mapper → contrato |
+| BD | — | drivers | pool, parametrizar, tx, índices |
+| Deploy | binario vs runtime | — | imagen única, env vars, healthchecks |
+| Testing | — | vitest / pytest / go test | pirámide + rollback-per-test |
 
-## Implementación
+**La columna derecha es el libro entero**: lo que aprendiste no fue
+"Express" o "FastAPI" — fue la industria: contratos, pools, migraciones,
+transacciones, rate limits, auditorías. Los lenguajes y frameworks son
+la *sintaxis* de esas ideas; por eso puedes leer un backend en el stack
+que no practicas y reconocerle la forma.
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+## ¿Node, Python o Go? — la respuesta honesta
 
-<!-- proyecto: la autoevaluación final y tu siguiente roadmap -->
+- **Node/TypeScript**: un solo lenguaje en front y back — el camino
+  natural del fullstack pequeño; el ecosistema npm más grande; contrata
+  más gente por oferta. Su precio: la concurrencia es cooperativa (un
+  hilo) y el ecosistema se mueve rápido (dependencias que mueren).
+- **Python/FastAPI**: el framework más didáctico y el ecosistema de
+  datos/AI — si el producto toca ML, pandas o LLMs, estás en casa. Su
+  precio: el GIL (workers por núcleo) y el ecosistema de empaquetado.
+- **Go**: rendimiento por núcleo, concurrencia real, un binario de
+  deploy hermoso — para infra, workers, alto throughput. Su precio:
+  más verboso, menos mágico (no hay framework que decida por ti).
 
-## ¿Por qué cada stack lo hace así?
+El criterio, en orden: **qué sabe el equipo → qué pide el dominio →
+mercado de empleos local → gustos.** Y la verdad incómoda del capítulo:
+para un CRUD bien hecho, los tres son equivalentes — el cuello de
+botella será la BD, no el lenguaje.
 
-<!-- TODO: la lección transferible tras el tabset -->
+## Lo que el libro dejó fuera — a propósito
 
-## Errores comunes
+```text
+Microservicios → el monolito modular primero (cap. 7, Ap. K #7)
+CRDT/OT        → LWW documentado; el merge fino es un proyecto aparte
+Colas serias   → in-process hasta que el volumen lo exija (cap. 21)
+Caché/Redis    → cuando un problema MEDIDO lo pida (Ap. K #14)
+Kubernetes     → la orquestación que necesitas cuando la necesitas
+Event sourcing → diffs como transporte; snapshot como verdad (cap. 37)
+```
 
-<!-- TODO -->
+No son vacíos: son **decisiones** — el senior sabe qué *no* construir
+todavía y por qué. Cada uno tiene su capítulo de decisión en el Ap. K.
 
-## Buenas prácticas
+## Errores comunes (de carrera, esta vez)
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Aprender el siguiente framework | "Falta NestJS en mi CV" | Falta *fundamento*: el framework nuevo es un sub-tab, no un mundo |
+| Portafolio de tutoriales | Proyectos copiados que no se pueden defender | UN proyecto con ADRs que puedes *discutir* en la entrevista — Nexus |
+| Memorizar preguntas | Listas de "las 50 preguntas" | Los Ap. H/I/J + K: repaso activo + criterio — responder es razonar |
+| Esperar a "saber suficiente" | El libro nunca termina | Ya sabes el mapa — ahora se aprende construyendo y leyendo código real |
+
+## Buenas prácticas para seguir
+
+- **Lee backends reales**: cal.com (Next/tRPC), immich (NestJS),
+  miniflux (Go), paperless-ngx (Django) — mapea cada uno contra las
+  capas del cap. 7: encontrarás los mismos huesos.
+- **Reconstruye una pieza desde cero**: tu propio middleware de auth,
+  tu propio versionado — la segunda implementación es la que enseña.
+- **Usa la AI como lead, no como autor**: los "Prompt listo" del libro
+  son tu formato — contexto + requisitos + criterios de aceptación; y
+  el diff se revisa como PR de un junior (cap-terminal).
+- **El ADR es un hábito, no un documento**: cada "¿por qué así?"
+  merece un párrafo — tu yo del futuro es el equipo.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Toma la tabla "¿de quién es cada cosa?" y agrega tres filas que el
+   libro no lista explícitas (ej. logging, config, webhooks).
+2. Tu equipo elige Go para un CRUD interno de 4 endpoints "porque es
+   más rápido". ¿Qué le respondes con el criterio del capítulo?
+3. De "lo que quedó fuera": elige uno y escribe la condición concreta
+   bajo la cual *sí* lo introducirías en Nexus.
 
 ## Mini reto
 
-Elegir un backend open-source real y mapear sus capas contra la arquitectura del libro.
+Elegir un backend open-source real y mapear sus capas contra la
+arquitectura del libro.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. Ejemplos correctos: logging → industria (JSON + request_id en los
+   tres); config → industria (12-factor + fail-fast); webhooks →
+   industria (firma + dedupe + cola); rate limiting → industria;
+   background jobs → industria (patrón) con mecanismo del framework
+   (BackgroundTasks) o lenguaje (goroutine). La tabla crece — el
+   criterio no cambia.
+2. "Rápido para qué — ¿el cuello de botella es el lenguaje o la BD de
+   3 tablas? Si el equipo conoce TS y esto es un CRUD de 4 endpoints,
+   Go compra performance que no necesitamos y paga verbosidad que sí
+   pagamos. Si mañana pide 10k req/s de streaming, hablamos." — el
+   criterio manda, no el hype.
+3. Ejemplos defendibles: **cola seria** — cuando el volumen de emails/
+   jobs haga que perder uno sea inaceptable o los workers in-process
+   mueran con deploys frecuentes; **Redis** — cuando una query medida
+   supere X ms tras índices, o rate limiting multi-instancia lo exija;
+   **CRDT** — cuando el merge por carácter sea requisito del producto
+   (colaboración tipo Google Docs), no antes.
+
+**Mini reto.** El ejercicio de cierre del libro: abrir `src/` de un
+backend real y etiquetar — "esto es el router (cap. 3), esto el schema
+(cap. 4), esto el pool (cap. 10), esto el middleware de auth (cap.
+16), esto la migración (cap. 11)". Cuando un repo de 200 archivos se
+lee como "capas que ya conoces", el libro cumplió: **la arquitectura
+es la constante; la sintaxis es el acento.**
 
 :::
 
@@ -65,4 +160,14 @@ Elegir un backend open-source real y mapear sus capas contra la arquitectura del
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Recorrer el mapa completo y decir qué problema resuelve cada pieza
+- [ ] Separar qué es del lenguaje, del framework y de la industria
+- [ ] Responder "¿Node, Python o Go?" con el criterio, no con el hype
+- [ ] Nombrar qué dejó fuera el libro y la condición que lo activaría
+- [ ] Leer un backend real mapeándolo a las capas conocidas
+
+---
+
+*Fin del camino planeado — inicio del tuyo. El libro te enseñó el mapa;
+el territorio se camina construyendo. Nexus es tu prueba de que puedes;
+los apéndices son tu kit de repaso. A construir.*

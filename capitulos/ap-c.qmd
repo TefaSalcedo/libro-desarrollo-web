@@ -3,58 +3,76 @@ title: "C. El mapa universal"
 subtitle: "Qué vive en el lenguaje, qué en el framework, qué en la industria"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
 
-## El problema
+La tabla de tres columnas con **todos** los conceptos del libro
+clasificados — ahora con evidencia en los tres stacks. Cuando cambies
+de stack, la columna derecha es tu equipaje completo; las otras dos
+son solo sintaxis nueva.
+:::
 
-La tabla de tres columnas con todos los conceptos del libro clasificados — ahora con evidencia en tres stacks.
+## El mapa completo
 
-## Cómo lo resuelve un equipo
+| Concepto | Del lenguaje | Del framework | De la industria (te lo llevas) | Cap. |
+|---|---|---|---|---|
+| Async/concurrencia | event loop / asyncio / goroutines | — | I/O-bound se paraleliza, CPU-bound no | 20 |
+| Tipos en la frontera | anotaciones | zod / pydantic / decoder | validar antes de tocar | 4 |
+| Routing | — | Express / FastAPI / ServeMux | recursos, verbos, contrato | 3 |
+| Inyección de deps | — | Depends / closures / params | construir en el borde, pedir adentro | 16 |
+| Errores | throw / raise / return err | handler global | dominio → mapper → `{error:{code}}` | 6, 25 |
+| Auth | — | middleware/Depends/wrapper | bcrypt, JWT corto + refresh rotado | 14–18 |
+| Autorización | — | Depends/factory | rol en la relación, ownership en la query | 17 |
+| BD | — | pg / psycopg / pgx | pool, parametrizar, tx, FOR UPDATE | 10, 13 |
+| Migraciones | — | dbmate / alembic / goose | versionadas, up+down, sin editar viejas | 11 |
+| Índices/N+1 | — | — | EXPLAIN, igualdad→orden, LIMIT 21 | 12 |
+| Integraciones | fetch / httpx / http.Client | — | timeout, retry, degradación, adapter | 19 |
+| Jobs | — | setInterval / BackgroundTasks / ticker | "¿espera el usuario?" → si no, job | 21 |
+| Webhooks | — | — | firma sobre body crudo, dedupe, 200 rápido | 22 |
+| Logs | — | pino / logging / slog | JSON + request_id, nunca secretos | 23 |
+| Config | — | dotenv / pydantic-settings / env | 12-factor, fail-fast, sin defaults secretos | 24 |
+| Seguridad | — | — | OWASP auditada por endpoint, 404 vs 403 | 26 |
+| Testing | — | vitest / pytest / go test | pirámide, rollback-per-test, mock en frontera | 27–29 |
+| Deploy | binario vs runtime | — | imagen única, env vars, healthcheck, migrate-gate | 30–35 |
+| Versionado | — | — | snapshot + puntero, append-only | 37 |
+| Realtime | — | ws / WebSocket / coder | auth igual que REST, rooms, LWW | 38 |
 
-<!-- TODO: contexto profesional -->
+## Cómo leer la tabla
 
-## Conceptos nuevos
+**La columna derecha es el 80% del trabajo.** Un senior en Node que lee
+Go no está "aprendiendo backend de nuevo" — está aprendiendo dónde Go
+pone el `err` y cómo se llaman sus paquetes. Las *decisiones* ya las
+tiene: parametrizar, transaccionar, auditar, testear, desplegar con
+compuertas.
 
-- <span class="tag tag-u">U</span> Qué te llevas a cualquier stack vs qué es específico
+**El framework decide menos de lo que crees.** FastAPI no te obliga a
+usar Depends ni Express a usar middleware — pero la industria sí te
+obliga a validar, a autenticar una vez y a no dejar stack traces. El
+framework propone el *mecanismo*; tú mantienes el *control*.
 
-## La explicación visual
-
-<!-- TODO: diagrama Mermaid o tabla -->
-
-## Implementación
-
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
-
-## ¿Por qué cada stack lo hace así?
-
-<!-- TODO: la lección transferible tras el tabset -->
-
-## Errores comunes
-
-<!-- TODO -->
-
-## Buenas prácticas
-
-<!-- TODO -->
-
-## Ejercicio
-
-<!-- TODO: guiado, sobre el proyecto -->
+**El lenguaje solo cambia la forma.** `Promise.all`/`gather`/`errgroup`
+son la misma idea con tres acentos — como `throw`/`raise`/`return err`.
+Por eso el libro muestra los tres: para que veas que la idea sobrevive
+a la sintaxis.
 
 ## Mini reto
 
-Agregar a la tabla un concepto que el libro no cubrió (ej. caché) y clasificarlo.
+Agregar a la tabla un concepto que el libro no cubrió (ej. caché) y
+clasificarlo en las tres columnas.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
-
-**Mini reto.** <!-- TODO -->
+Ejemplo resuelto — **caché**: del lenguaje, casi nada (quizá estructuras
+en memoria); del framework, un decorador/middleware opcional; **de la
+industria**: invalidar es lo difícil, medir antes de cachear, TTL +
+claves versionadas, Redis como pieza compartida entre instancias. Si tu
+fila pone "Redis" en la columna del lenguaje, vuelve al cap. 40: el
+producto no es del lenguaje — la *decisión de cachear* tampoco.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Clasificar cualquier concepto nuevo en lenguaje / framework / industria
+- [ ] Explicar por qué la columna derecha es el equipaje que viaja
+- [ ] Leer un backend en otro stack reconociendo los mismos huesos

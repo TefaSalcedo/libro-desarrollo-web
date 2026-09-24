@@ -3,21 +3,47 @@ title: "37. El corazón: documentos versionados"
 subtitle: "Un «git interno»: snapshot + diff + puntero"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
+
+Guardar cada tecleo como un "cambio" y reconstruir sumándolos es frágil
+(la red cae a la mitad y el documento queda corrupto) y el undo en el
+navegador muere al cerrar la pestaña. Nexus guarda la historia como
+**git por dentro: cada guardado es un snapshot completo, el documento
+tiene un puntero (`current_revision`), y undo/redo/restore son mover
+ese puntero — atómicamente.**
+:::
 
 ## El problema
 
-Guardar N cambios uno por uno corrompe el documento si la red cae; el undo no puede vivir solo en el navegador.
+El modelo "obvio": `documents.content` se sobrescribe + una tabla
+`edits` con los cambios. Falla dos veces: (1) el save parcial — la red
+cae entre el INSERT del edit y el UPDATE del content → el documento
+queda a mitad, inconsistente; (2) el restore — "volver a hace 40
+cambios" = re-aplicar 40 diffs esperando que ninguno esté corrupto.
+Necesitamos que guardar sea **una operación atómica** y restaurar sea
+**una lectura**, no una replay.
 
 ## Cómo lo resuelve un equipo
 
-<!-- TODO: contexto profesional -->
+Un equipo serio copia el modelo que ya ganó — **git interno**:
+
+- `revisions(document_id, rev, snapshot, author_id, created_at)` — la
+  historia es *append-only* (cada guardado una fila nueva, jamás un
+  UPDATE).
+- `documents.current_revision` — el puntero `HEAD`: qué versión es la
+  actual.
+- Guardar = una transacción: `INSERT revision(rev = current+1)` +
+  `UPDATE documents SET current_revision = rev` — todo o nada
+  (cap. 13), con `SELECT ... FOR UPDATE` para que dos pestañas del
+  mismo usuario no escriban el mismo `rev`.
+- Undo/redo/restore = `UPDATE documents SET current_revision = $rev` —
+  mover el puntero, O(1), sin tocar la historia. Editar tras undo =
+  truncar el "futuro" — exactamente `git commit` tras un reset.
 
 ## Conceptos nuevos
 
-- <span class="tag tag-d">D</span> Snapshot + diff + puntero: `documents`, `element_revisions`, `current_revision`
+- <span class="tag tag-d">D</span> Snapshot + diff + puntero: `documents`, `revisions`, `current_revision`
 - <span class="tag tag-d">D</span> Guardado atómico: transacciones + `SELECT FOR UPDATE` contra doble-submit y pestañas
 - <span class="tag tag-u">U</span> Undo/redo/restore como operaciones del servidor: mover el puntero, truncar el futuro
 - <span class="tag tag-d">D</span> `JSONB` para datos que evolucionan: cuándo es decisión y cuándo pereza
@@ -25,56 +51,233 @@ Guardar N cambios uno por uno corrompe el documento si la red cae; el undo no pu
 
 ## La explicación visual
 
-<!-- TODO: diagrama Mermaid o tabla -->
+```text
+revisions (append-only)          documents
+┌──────────────────────────┐    ┌─────────────────────────┐
+│ doc 7 · rev 1 · {A}      │    │ id 7                    │
+│ doc 7 · rev 2 · {A,B}    │    │ current_revision: 2 ────┼──→ rev 2
+│ doc 7 · rev 3 · {A,B,C}  │    │ content: {A,B,C} (cache)│
+└──────────────────────────┘    └─────────────────────────┘
+   undo → puntero a 1 · editar tras undo → DELETE rev > 1 (truncate future)
+   — igual que `git reset` + commit nuevo —
+```
+
+El snapshot es el *estado completo* en ese rev: restaurar es leer una
+fila. Los diffs existen como *optimización de transporte* (qué mandar
+por WebSocket), nunca como fuente de verdad.
 
 ## Implementación
+
+El guardado atómico — el corazón de Nexus en los tres stacks:
 
 ::: {.panel-tabset}
 
 ### TypeScript
+
 ```ts
-// TODO
+async function saveRevision(userId: number, docPublicId: string, content: unknown) {
+  return await pool.tx(async (t) => {
+    const { rows } = await t.query(
+      `SELECT d.id, d.current_revision FROM documents d
+       JOIN projects p ON p.id = d.project_id
+       JOIN team_members m ON m.team_id = p.team_id
+       WHERE d.public_id = $1 AND m.user_id = $2 AND m.role IN ('admin','editor')
+       FOR UPDATE OF d`,                          // lock: two tabs can't race the same rev
+      [docPublicId, userId]);
+    if (!rows[0]) throw new NotFoundError("document");
+    const rev = rows[0].current_revision + 1;
+    await t.query(
+      `DELETE FROM revisions WHERE document_id = $1 AND rev > $2`,   // truncate future
+      [rows[0].id, rows[0].current_revision]);
+    await t.query(
+      `INSERT INTO revisions (document_id, rev, snapshot, author_id) VALUES ($1,$2,$3,$4)`,
+      [rows[0].id, rev, JSON.stringify(content), userId]);
+    await t.query(
+      `UPDATE documents SET current_revision = $1, content = $2 WHERE id = $3`,
+      [rev, JSON.stringify(content), rows[0].id]);
+    return { rev };                                // commit: all or nothing
+  });
+}
 ```
 
 ### Python
+
 ```python
-# TODO
+def save_revision(user_id: int, doc_public_id: str, content: dict) -> int:
+    with pool.connection() as conn:
+        with conn.transaction():                      # BEGIN
+            row = conn.execute("""
+                SELECT d.id, d.current_revision FROM documents d
+                JOIN projects p ON p.id = d.project_id
+                JOIN team_members m ON m.team_id = p.team_id
+                WHERE d.public_id = %s AND m.user_id = %s
+                  AND m.role IN ('admin','editor')
+                FOR UPDATE OF d""",                    # lock against racing tabs
+                (doc_public_id, user_id)).fetchone()
+            if not row: raise NotFoundError("document")
+            rev = row["current_revision"] + 1
+            conn.execute(
+                "DELETE FROM revisions WHERE document_id=%s AND rev>%s",
+                (row["id"], row["current_revision"]))  # truncate future
+            conn.execute(
+                "INSERT INTO revisions (document_id,rev,snapshot,author_id)"
+                " VALUES (%s,%s,%s,%s)",
+                (row["id"], rev, Jsonb(content), user_id))
+            conn.execute(
+                "UPDATE documents SET current_revision=%s, content=%s WHERE id=%s",
+                (rev, Jsonb(content), row["id"]))
+            return rev                                 # commit on exit
 ```
 
 ### Go
+
 ```go
-// TODO
+func saveRevision(ctx context.Context, userID int64, docPublicID string, content []byte) (int, error) {
+    tx, err := pool.Begin(ctx)
+    if err != nil { return 0, err }
+    defer tx.Rollback(ctx)                             // no-op after Commit
+
+    var docID int64
+    var cur int
+    err = tx.QueryRow(ctx, `
+        SELECT d.id, d.current_revision FROM documents d
+        JOIN projects p ON p.id = d.project_id
+        JOIN team_members m ON m.team_id = p.team_id
+        WHERE d.public_id = $1 AND m.user_id = $2
+          AND m.role IN ('admin','editor')
+        FOR UPDATE OF d`, docPublicID, userID).Scan(&docID, &cur)
+    if errors.Is(err, pgx.ErrNoRows) { return 0, ErrNotFound }
+    if err != nil { return 0, err }
+
+    if _, err = tx.Exec(ctx,
+        "DELETE FROM revisions WHERE document_id=$1 AND rev>$2", docID, cur); err != nil {
+        return 0, err                                  // truncate future
+    }
+    rev := cur + 1
+    if _, err = tx.Exec(ctx,
+        "INSERT INTO revisions (document_id,rev,snapshot,author_id) VALUES ($1,$2,$3,$4)",
+        docID, rev, content, userID); err != nil { return 0, err }
+    if _, err = tx.Exec(ctx,
+        "UPDATE documents SET current_revision=$1, content=$2 WHERE id=$3",
+        rev, content, docID); err != nil { return 0, err }
+    return rev, tx.Commit(ctx)                         // all or nothing
+}
 ```
 
 :::
 
-<!-- proyecto: servicio de versionado completo con historial -->
+Y restaurar — la operación más elegante del sistema:
+
+```sql
+-- restore: move the pointer. O(1). No replay, no corruption possible.
+UPDATE documents d SET current_revision = $2
+WHERE d.public_id = $1
+  AND EXISTS (SELECT 1 FROM revisions r
+              WHERE r.document_id = d.id AND r.rev = $2);
+-- then content = SELECT snapshot FROM revisions WHERE rev = $2
+```
+
+::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
+
+```text
+Implementa el servicio de versionado de documentos de Nexus en
+[Express+pg/FastAPI+psycopg/Go+pgx]. Modelo: revisions(document_id,
+rev, snapshot JSONB, author_id) append-only + documents.current_revision
+como puntero. Requisitos: saveRevision en una transacción con SELECT
+FOR UPDATE del documento (dos pestañas no pueden escribir el mismo
+rev), DELETE de revisiones futuras al editar tras undo, UPDATE del
+puntero + cache de contenido en la misma tx, restore como UPDATE del
+puntero (O(1), sin replay), permiso editor+ verificado EN la query, y
+tests: save concurrente → revs secuenciales sin duplicados, editar tras
+undo trunca el futuro, restore mueve el puntero sin tocar la historia.
+```
+
+:::
 
 ## ¿Por qué cada stack lo hace así?
 
-<!-- TODO: la lección transferible tras el tabset -->
+**Lo único que necesitas llevarte:** la transacción hace el trabajo —
+*lock + truncate + insert + move pointer* es UN acto atómico en los
+tres stacks. Cambia el mecanismo (`pool.tx`/`conn.transaction`/`tx`),
+jamás el diseño.
+
+::: {.callout-note collapse="true" title="Detalle: por qué snapshot y no solo diffs"}
+
+| Modelo | Restore | Espacio | Corrupción posible |
+|---|---|---|---|
+| Solo diffs (event sourcing) | Replay N eventos — O(N) y cada diff debe estar sano | Mínimo | Sí — un diff roto rompe todo lo posterior |
+| Solo snapshot actual | No hay historia | Mínimo | El undo no existe |
+| **Snapshot por rev + puntero** | Leer una fila — **O(1)** | Más disco (barato) | No — cada rev es autónoma |
+
+`JSONB` para el snapshot es *decisión*, no pereza: el contenido del
+documento tiene forma variable y evoluciona (hoy capas, mañana
+comentarios) — pero **los metadatos del versionado son relacionales
+puros** (rev, author, puntero). JSONB para el contenido; relacional
+para el control — la misma respuesta de cap-08 y Ap. K decisión 11.
+
+:::
 
 ## Errores comunes
 
-<!-- TODO -->
+| Error | Por qué pasa | Fix |
+|---|---|---|
+| Save como dos operaciones sueltas | INSERT luego UPDATE fuera de tx | Una transacción — la caída a mitad no existe |
+| `rev` calculado en el cliente | "El frontend manda rev 15" | `rev = current_revision + 1` calculado *en el servidor* bajo lock |
+| Editar tras undo sin truncar | El "futuro" viejo convive con el nuevo | `DELETE rev > current` antes del insert — una sola línea temporal |
+| Diffs como fuente de verdad | "Para ahorrar espacio" | Snapshot completo — los diffs son transporte, no historia |
+| Save sin verificar rol en la query | `if user.role == 'editor'` en memoria | El permiso va EN el SQL — la query devuelve 0 filas → 404 |
 
 ## Buenas prácticas
 
-<!-- TODO -->
+- **La historia es append-only**: nunca UPDATE a una revisión — la
+  historia que se puede editar no es historia, es rumor.
+- **`SELECT FOR UPDATE` solo del documento** (`FOR UPDATE OF d`) —
+  bloquear toda la tabla es la forma lenta de hacer lo mismo.
+- **El puntero y el cache viven juntos**: `current_revision` +
+  `content` en el mismo UPDATE — el doc siempre muestra el estado del
+  rev apuntado.
+- **`revisions` particionable**: cuando crezca, se pagina por rev y se
+  archiva — el diseño append-only ya lo permite sin cambios.
 
 ## Ejercicio
 
-<!-- TODO: guiado, sobre el proyecto -->
+1. Dos pestañas del mismo usuario guardan a la vez: sin `FOR UPDATE`,
+   ¿qué `rev` escriben ambas y qué queda en la tabla? ¿Por qué el
+   lock lo evita?
+2. ¿Por qué `DELETE FROM revisions WHERE rev > current` y no un flag
+   `is_future`? ¿Qué rompe soft-delete aquí?
+3. El cliente pide "dame el diff entre rev 12 y 14". Tienes snapshots
+   completos. ¿Cómo respondes sin un sistema de diffs?
 
 ## Mini reto
 
-Explicar por qué snapshot completo y no solo diffs (O(1) restore vs replay).
+Explicar por qué snapshot completo y no solo diffs (O(1) restore vs
+replay).
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
+**Ejercicio.**
 
-**Mini reto.** <!-- TODO -->
+1. Ambas leen `current_revision = 14` y ambas escriben `rev 15` —
+   dos filas con el mismo rev (o la segunda choca con un UNIQUE y el
+   usuario ve un error fantasma). Con `FOR UPDATE`: la segunda espera
+   a que la primera haga commit, lee `15`, escribe `16` — secuencia
+   real, sin carrera.
+2. El flag deja el "futuro" en la tabla: queries que deben recordar
+   filtrarlo, historia hinchada con ramas muertas. Git tampoco soft-
+   deletea el futuro: lo elimina. `DELETE` es honesto — la línea
+   temporal divergente deja de existir.
+3. Computas el diff *al servir*: `jsonb` permite comparar campos, o
+   devuelves ambos snapshots al cliente para que los compare (el diff
+   es *presentación*, no almacenamiento). Guardar el estado, derivar
+   el delta — nunca al revés.
+
+**Mini reto.** Restore con solo-diffs = leer rev objetivo hacia atrás
+aplicando inversas, o desde un checkpoint + replay — O(distancia),
+frágil si cualquier diff se corrompió, y más código. Restore con
+snapshot = `SELECT snapshot WHERE rev = $1` — **O(1), indestructible,
+una línea de SQL**. El espacio extra es el precio; el disco es lo más
+barato del sistema.
 
 :::
 
@@ -82,4 +285,8 @@ Explicar por qué snapshot completo y no solo diffs (O(1) restore vs replay).
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Modelar versionado como snapshot + puntero (el "git interno")
+- [ ] Guardar en una transacción con `SELECT FOR UPDATE` anti-carreras
+- [ ] Implementar undo/redo/restore como movimiento del puntero
+- [ ] Truncar el futuro al editar tras undo — y explicar por qué
+- [ ] Elegir JSONB para el contenido y relacional para el control, con criterio

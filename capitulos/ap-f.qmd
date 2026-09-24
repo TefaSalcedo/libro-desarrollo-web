@@ -3,58 +3,120 @@ title: "F. Checklists del profesional"
 subtitle: "Antes de exponer un endpoint / una migración / un deploy / decir que está listo"
 ---
 
-> **Estado: esqueleto.** Este capítulo es parte del roadmap navegable.
-> Contenido planeado abajo; se redacta siguiendo `_plantilla.qmd` y
-> `docs/guia-de-estilo.md`.
+::: {.callout-note}
+## En una frase
 
-## El problema
+Las listas de verificación completas que el libro fue construyendo
+capítulo a capítulo — reunidas para uso diario: antes de mergear,
+antes de migrar, antes de desplegar, antes de decir "está listo".
+:::
 
-Las listas de verificación completas que el libro fue construyendo capítulo a capítulo.
+## Antes de exponer un endpoint nuevo
 
-## Cómo lo resuelve un equipo
+```text
+CONTRATO
+[ ] Schema de entrada validado (tipos, required, límites) — cap. 4
+[ ] Schema de salida: solo campos del contrato, nada interno — cap. 5
+[ ] Status code correcto: 200/201/204, nunca 200-con-error — cap. 6
 
-<!-- TODO: contexto profesional -->
+AUTH
+[ ] ¿Requiere sesión? → middleware/Depends aplicado — cap. 16
+[ ] ¿Requiere rol? → requireRole o verificación en la query — cap. 17
+[ ] ¿Toca un recurso ajeno? → ownership EN el WHERE + 404 — cap. 17
 
-## Conceptos nuevos
+ERRORES
+[ ] Errores de dominio mapeados al contrato {error:{code}} — cap. 25
+[ ] Nada de stack traces, nada de mensajes internos — cap. 25
+[ ] 422 para input inválido con detalle por campo — cap. 4
 
-- <span class="tag tag-u">U</span> <span class="tag tag-d">D</span> <span class="tag tag-ops">Ops</span> Referencia de uso diario
+DATOS
+[ ] Query parametrizada — cero concatenación — cap. 9
+[ ] ¿Más de una escritura? → transacción — cap. 13
+[ ] ¿Lista? → ORDER BY + LIMIT 21 (paginación) — cap. 12
+[ ] Índice que cubre el patrón de acceso — EXPLAIN — cap. 12
 
-## La explicación visual
+TEST
+[ ] Camino feliz — cap. 28
+[ ] 401 sin sesión, 403 rol débil, 404 recurso ajeno — cap. 28
+[ ] 422 input inválido — cap. 28
+[ ] Fuga de campos internos (password_hash, team_id…) — cap. 28
+```
 
-<!-- TODO: diagrama Mermaid o tabla -->
+## Antes de correr una migración
 
-## Implementación
+```text
+[ ] Tiene up Y down probados — cap. 11
+[ ] No edita una migración ya aplicada en ningún entorno — cap. 11
+[ ] Compatible con la versión VIEJA del código (deploy escalonado) — cap. 35
+[ ] CREATE INDEX CONCURRENTLY en tablas grandes — cap. 12/35
+[ ] NOT NULL solo con DEFAULT o en dos pasos — cap. 35
+[ ] Corre en CI antes del deploy (migrate-gate) — cap. 34
+[ ] Tiempo estimado medido en staging con datos reales — cap. 39
+```
 
-<!-- TODO: capítulo mayormente agnóstico de lenguaje; snippets cortos si aplica -->
+## Antes de un deploy
 
-## ¿Por qué cada stack lo hace así?
+```text
+[ ] Tests verdes en CI — cap. 34
+[ ] Imagen construida una vez, la MISMA para staging y prod — cap. 32
+[ ] Secretos en env vars / secret manager, nunca en la imagen — cap. 24/32
+[ ] La app corre como non-root, multi-stage, imagen mínima — cap. 32
+[ ] /health responde y /health/deep toca la BD — cap. 33
+[ ] Graceful shutdown: deja de aceptar, drena, cierra pool — cap. 33
+[ ] La migración ya corrió (o es expand-phase) — cap. 34/35
+[ ] Logs JSON + request_id funcionando — cap. 23
+[ ] Plan de rollback conocido ANTES de apretar el botón — cap. 35
+```
 
-<!-- TODO: la lección transferible tras el tabset -->
+## Antes de decir "está listo"
 
-## Errores comunes
+```text
+SEGURIDAD (cap. 26 auditada por endpoint)
+[ ] Cada endpoint: auth ✓ rol ✓ ownership ✓ exposición ✓
+[ ] Login/register con rate limit — cap. 18
+[ ] Cookies httpOnly+Secure+SameSite / CORS con orígenes exactos — cap. 15/18
+[ ] Webhooks verifican firma sobre body crudo + dedupe — cap. 22
+[ ] WebSocket autenticado y autorizado igual que REST — cap. 38
 
-<!-- TODO -->
+ROBUSTEZ
+[ ] Errores → handler global único, formato estable — cap. 25
+[ ] Config validada al boot (fail-fast, sin defaults secretos) — cap. 24
+[ ] Llamadas externas: timeout + retry + degradación — cap. 19
+[ ] Lo que no espera el usuario va a un job — cap. 21
+[ ] Logs reconstruyen una request sin reproducirla — cap. 23
 
-## Buenas prácticas
+DATOS
+[ ] Migraciones versionadas y aplicadas — cap. 11
+[ ] Índices verificados con EXPLAIN + volumen real — cap. 12/39
+[ ] Operaciones multi-paso dentro de tx — cap. 13
+[ ] Lo versionado es append-only con puntero — cap. 37
 
-<!-- TODO -->
-
-## Ejercicio
-
-<!-- TODO: guiado, sobre el proyecto -->
+PRUEBAS Y DOCS
+[ ] Pirámide: servicios > API > e2e — cap. 27
+[ ] Suite verde de corrido en máquina limpia — cap. 28
+[ ] README levanta el proyecto sin ti — cap. 39
+[ ] openapi.json publicado + runbook de 5 líneas — cap. 39
+[ ] ADR escrito para cada decisión que costó — cap. 36
+```
 
 ## Mini reto
 
-Pasar la checklist completa a un proyecto tuyo anterior y contar los hallazgos.
+Pasar la checklist completa a un proyecto tuyo anterior y contar los
+hallazgos.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
-**Ejercicio.** <!-- TODO -->
-
-**Mini reto.** <!-- TODO -->
+La experiencia universal: el primer pase marca 10–20 casillas en rojo —
+endpoints sin ownership en la query, secretos con default, listas sin
+paginar, errores que filtran formato interno. No es que tu proyecto
+fuera malo: es que "funciona" y "está listo" son estándares distintos
+y esta lista es la distancia entre ambos. La segunda vez que escribes
+un endpoint, la lista ya corre en tu cabeza — para eso era.
 
 :::
 
 ## Lo que deberías saber hacer ahora
 
-- [ ] <!-- TODO: checklist -->
+- [ ] Auditar un endpoint nuevo contra la lista completa en minutos
+- [ ] Saber qué verifica un deploy seguro y en qué orden
+- [ ] Tener "está listo" definido por controles, no por intuición
