@@ -50,6 +50,8 @@ en *Otras cimentaciones*.
 - <span class="tag tag-d">D</span> Clave primaria: `SERIAL` vs `UUID` — y por qué exponer el id interno en la URL es una decisión, no un default
 - <span class="tag tag-d">D</span> Clave foránea + `ON DELETE CASCADE` vs `SET NULL` — qué le pasa a los hijos cuando muere el padre
 - <span class="tag tag-d">D</span> Diagrama ER: dibujar el modelo antes de crearlo
+- <span class="tag tag-d">D</span> Relacional vs las 4 familias NoSQL — y la regla "empieza relacional"
+- <span class="tag tag-d">D</span> Local vs producción: mismo motor, distinta operación
 - <span class="tag tag-u">U</span> Capítulo agnóstico: SQL es el mismo en los tres stacks
 
 ## La explicación visual
@@ -160,29 +162,75 @@ en texto, y explícame cada decisión de diseño.
 
 :::
 
-## ¿Por qué relacional y no "JSON en una base"?
+## ¿Relacional o no relacional? — y local ≠ producción
 
-**Lo único que necesitas llevarte:** tus datos de Taskflow *son*
-relaciones — tareas *de* usuarios, etiquetas *de* tareas. Una base
-relacional no solo los guarda: **hace cumplir** esas relaciones
-(`REFERENCES` impide una tarea huérfana de usuario inexistente). El
-modelo documento guarda; el relacional *protege*.
+**Lo único que necesitas llevarte:** existen otras familias de bases de
+datos — documento, clave-valor, columna ancha, grafo — y cada una existe
+porque alguna *forma de dato* le queda mejor que las tablas. Pero el 90%
+de los productos (Taskflow y Nexus incluidos) son relaciones disfrazadas:
+**empieza relacional, agrega la especializada cuando una necesidad real
+lo pida.** Y la BD de tu laptop y la de producción son el mismo motor en
+ligas distintas: mismo SQL, distinta operación.
 
-::: {.callout-note collapse="true" title="Otras cimentaciones: dónde viven tus datos"}
+::: {.callout-note collapse="true" title="Otras cimentaciones: las familias NoSQL y cuándo cada una"}
 
-| Alternativa | Qué es | Qué te cuesta | Cuándo elegirla |
-|---|---|---|---|
-| PostgreSQL | Relacional + JSONB | Aprender SQL y diseño | El default para casi todo producto |
-| SQLite | Relacional en un archivo | Concurrencia de escritura limitada | Apps locales, embebidas, prototipos, tests |
-| MySQL | Relacional igual de capaz | Comunidad/features distintas | Equipo que ya lo usa; hosting legacy |
-| Documento (MongoDB) | JSON flexible | Las relaciones las haces tú en código; esquema sin enforcer | Datos realmente sin forma, catálogos variables |
-| KV (Redis) | Clave→valor en memoria | No es BD principal: volátil, sin relaciones | Caché, sesiones, colas — *complemento* |
+| Familia | Ejemplo | El dato se guarda como | Brilla cuando | Qué te cuesta |
+|---|---|---|---|---|
+| **Documento** | MongoDB, Firestore | Un JSON por registro; cada uno puede tener campos distintos | Registros con forma variable de verdad: catálogos, contenido, perfiles raros | Las relaciones las enforzas *tú* en código; no hay `REFERENCES` que proteja |
+| **Clave-valor** | Redis, DynamoDB | Una llave → un valor, sin queries ricas | Leer/escribir por llave a velocidad extrema: caché, sesiones, rate limits | No puedes preguntar "los pendientes del usuario 42" — solo `GET` por llave |
+| **Columna ancha** | Cassandra, Bigtable | Filas con columnas que pueden variar por fila | Escritura masiva continua: métricas, logs, IoT, series de tiempo | Diseñas por *query*, no por entidad — curva alta, nicho real |
+| **Grafo** | Neo4j | Nodos + aristas: la relación *es* el dato | "Amigos de amigos", rutas, fraude, recomendación | Si tu dato no es una red, es overkill puro |
 
-La regla honesta: **empieza relacional**. El 90% de los datos de negocio
-son relacionales aunque no lo parezca, y PostgreSQL tiene `JSONB` para el
-10% rebelde.
+**Las señales de decisión** — la pregunta que responde "¿cuál uso?":
+
+- ¿Los datos se *relacionan* y esas relaciones deben cumplirse **siempre**?
+  → **relacional**. `REFERENCES` lo garantiza; en Mongo lo garantizas tú
+  (o no, y ahí nacen los datos huérfanos).
+- ¿Cada registro puede tener campos distintos e impredecibles? →
+  **documento**… o `JSONB` dentro de Postgres, que es la respuesta que
+  termina ganando el 80% de las veces.
+- ¿Solo lees/escribes por una llave, a escala brutal? → **clave-valor**,
+  casi siempre como *complemento* (Redis delante de Postgres, no en vez).
+- ¿Millones de escrituras continuas tipo log/métricas? → **columna ancha**.
+- ¿La pregunta del negocio es sobre la *red* (quién conoce a quién)? →
+  **grafo**.
+
+La trampa clásica: "MongoDB porque mi dato ya es JSON". Eso confunde el
+*formato* (JSON es el sobre) con la *estructura* (tus datos son
+relaciones: tareas **de** usuarios). Taskflow responde JSON en cada
+endpoint y aun así su base es relacional pura.
+
+| Alternativa relacional | Qué es | Cuándo elegirla |
+|---|---|---|
+| PostgreSQL | El estándar open source + JSONB | El default para casi todo producto |
+| SQLite | Relacional en un archivo, sin servidor | Apps locales, embebidas, prototipos, tests |
+| MySQL | Relacional igual de capaz | Equipo que ya lo usa; hosting legacy |
 
 :::
+
+### Tu laptop vs producción: mismo motor, dos ligas
+
+El Postgres que levantas con `docker compose up` y el RDS de AWS (o
+Cloud SQL de GCP, o Azure SQL) hablan **exactamente el mismo SQL** — tus
+queries, migraciones y drivers no cambian ni una línea. Lo que cambia es
+*todo lo que rodea al motor*:
+
+| | Local (Docker) | Producción (administrada) |
+|---|---|---|
+| Datos | Descartables — borrar y re-sembrar es lo normal | Irremplazables — backups automáticos, point-in-time recovery |
+| Si muere | Reinicias el contenedor | Réplica en otra zona, failover automático |
+| Credenciales | `postgres:postgres` en el compose | Secret manager, usuarios con permisos mínimos, TLS obligatorio |
+| Red | `localhost:5432`, todo abierto | Puerto visible solo desde tu app (VPC / security group) |
+| Conexiones | 10 bastan | Límite real → pooler (PgBouncer) cuando escala |
+| El admin | Tú | El proveedor parchea y hace backup; tú configuras |
+
+**La regla de oro: mismo motor en ambos entornos.** Usar SQLite en local
+"y ya Postgres en prod" es cómo se fabrican los bugs que solo existen en
+producción — tipos distintos, SQL distinto, `NULL` y constraints que se
+comportan distinto. Por eso el compose del cap. 31 levanta Postgres real
+aunque pese más: dev debe parecerse a prod *en lo que importa* (mismo
+motor, mismas migraciones); puede diferir en lo demás (sin réplicas, sin
+backups — esos son problemas de operación, no de desarrollo).
 
 ## Errores comunes
 
@@ -215,6 +263,11 @@ son relacionales aunque no lo parezca, y PostgreSQL tiene `JSONB` para el
 2. Escribe el `CREATE TABLE comments` correspondiente con sus FKs y
    decide el `ON DELETE`.
 3. ¿Por qué `task_tags` no necesita una columna `id` propia?
+4. Un compañero propone: "pasemos a MongoDB, total la API ya responde
+   JSON". ¿Qué le respondes?
+5. Tu app corre contra Postgres en Docker en tu laptop y contra RDS en
+   producción. Nombra dos cosas que son **idénticas** entre ambos y dos
+   que **cambian por completo**.
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
@@ -237,6 +290,17 @@ son relacionales aunque no lo parezca, y PostgreSQL tiene `JSONB` para el
 3. Porque su PK compuesta `(task_id, tag_id)` ya es única y es toda la
    identidad que necesita: la fila *es* el vínculo. Un `id` extra sería
    una columna sin trabajo.
+4. "JSON es el *formato* de la respuesta, no la *estructura* de los
+   datos. Nuestras tareas son `de` usuarios y `con` etiquetas — esas
+   relaciones las enforza `REFERENCES` gratis en Postgres; en Mongo las
+   enforzaríamos nosotros en código (o no, y ahí nacen los huérfanos).
+   Si algún día necesitamos forma variable, `JSONB` ya está incluido."
+   — confundir formato con estructura es la trampa clásica.
+5. Idénticas: el motor (mismo SQL, mismos tipos, mismas migraciones) y
+   tu código (driver, pool, queries — ni una línea cambia). Cambian:
+   la operación (tú admin vs backups/réplicas/failover del proveedor)
+   y el entorno (credenciales `postgres:postgres` vs secret manager +
+   TLS + puerto cerrado salvo a tu app).
 
 :::
 
@@ -262,3 +326,6 @@ la defensiva: dato personal huérfano es peor que dato borrado.
 - [ ] Justificar `id` interno vs `public_id` expuesto
 - [ ] Elegir `ON DELETE CASCADE/SET NULL` como decisión, no default
 - [ ] Modelar una relación muchos-a-muchos con tabla puente
+- [ ] Nombres las 4 familias NoSQL y una necesidad real de cada una
+- [ ] Defender "empieza relacional" con un criterio, no con un dogma
+- [ ] Explicar qué es igual y qué cambia entre tu Docker local y la BD de prod
