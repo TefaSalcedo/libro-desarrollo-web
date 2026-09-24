@@ -78,6 +78,104 @@ Dos navegadores deben verse cambios en <300ms: diseñar cómo verificarlo.
 
 :::
 
+## Preguntas de entrevista
+
+Repaso activo: responde en voz alta antes de desplegar. Este bloque cubre
+**frontend y tiempo real** — la mitad "full" del fullstack.
+
+::: {.callout-tip collapse="true" title="P: What happens when you type a URL and press Enter?"}
+**R:** "El clásico — respóndelo en capas: el navegador resuelve el dominio
+vía DNS → abre conexión TCP → negocia TLS (certificados, el candado) →
+manda el HTTP request → el servidor (reverse proxy → app → BD) responde
+HTML → el navegador parsea el DOM, pide CSS/JS, ejecuta el JS que quizá
+pide más datos vía fetch a la API. Si me piden profundidad, bajo a
+cualquier capa — el libro entero vive en esa cadena."
+:::
+
+::: {.callout-tip collapse="true" title="P: WebSockets vs HTTP — when do you need each?"}
+**R:** "HTTP es request/response: el cliente pregunta, el servidor
+responde, se cierra. WebSocket abre un canal *persistente y
+bidireccional*: el servidor puede empujar datos sin que el cliente
+pregunte. Necesario cuando el servidor sabe algo que el cliente quiere
+ya — presencia, colaboración en vivo, notificaciones. Para 'cada tanto'
+alcanza polling/SSE; WS se justifica cuando la latencia y el push son el
+producto — en Nexus, dos cursores viéndose en <300ms."
+:::
+
+::: {.callout-tip collapse="true" title="P: How do you implement real-time collaboration?"}
+**R:** "Conexión WebSocket autenticada (el upgrade lleva la misma cookie
+httpOnly — la auth del cap. 15 aplica). El servidor mantiene un mapa
+documento→conexiones; cada edición hace broadcast a los demás del
+documento. Presencia: heartbeats para saber quién está. Conflictos:
+last-writer-wins es el pragmático — CRDT/OT solo cuando el merge fino
+por carácter es requisito, que es otro proyecto de complejidad."
+:::
+
+::: {.callout-tip collapse="true" title="P: What is the DOM?"}
+**R:** "La representación del documento HTML como árbol de objetos que
+JavaScript puede leer y mutar — `document.querySelector`, crear nodos,
+escuchar eventos. El browser renderiza el DOM, no el HTML: por eso
+modificar el árbol cambia la pantalla sin recargar. React existe porque
+mutar el DOM a mano se desordena con estado complejo."
+:::
+
+::: {.callout-tip collapse="true" title="P: What are React hooks — useState and useEffect?"}
+**R:** "`useState` guarda estado por componente y re-renderiza al
+cambiarlo: la UI es función del estado, no comandos de DOM.
+`useEffect` corre *efectos* tras el render — fetch, suscripciones —
+con un array de dependencias que dice cuándo re-ejecutarse y una
+función de limpieza para cancelar (AbortController, unsubscribe).
+El error clásico: fetch en useEffect sin cleanup → race conditions
+cuando el usuario navega rápido."
+:::
+
+::: {.callout-tip collapse="true" title="P: How do you manage state across frontend and backend?"}
+**R:** "Separando dos tipos: **server state** (las tareas viven en la BD
+— el frontend solo cachea y muestra: TanStack Query/SWR manejan caché,
+refetch, loading) y **client state** (qué modal está abierto, el tema —
+useState/context). El error de novato es tratar el server state como si
+fuera tuyo: copiarlo a un store global y mantenerlo a mano. La fuente de
+verdad es el servidor; tu UI es una vista cacheada."
+:::
+
+::: {.callout-tip collapse="true" title="P: Explain event bubbling."}
+**R:** "Un evento sube por el árbol: click en un botón dispara handlers
+del botón, luego del div padre, hasta `document`. Por eso
+`stopPropagation()` existe — y por eso funciona la delegación: UN
+listener en la lista padre maneja clicks de mil hijos leyendo
+`event.target`. La captura es el viaje inverso (de afuera hacia adentro,
+antes del bubbling)."
+:::
+
+::: {.callout-tip collapse="true" title="P: CSR vs SSR — what's the difference and when does it matter?"}
+**R:** "CSR: el servidor manda un HTML casi vacío + JS que construye todo
+en el navegador — primera pintura lenta, interacción rica después.
+SSR: el servidor devuelve HTML completo ya renderizado — first paint
+rápido, SEO real, y luego el JS 'hidrata' para la interactividad.
+Importa para SEO y tiempo-de-primera-vista; apps detrás de login
+(dashboards) suelen bastar con CSR, páginas públicas piden SSR."
+:::
+
+::: {.callout-tip collapse="true" title="P: Walk me through authentication end to end, frontend to backend."}
+**R:** "El form manda `POST /auth/login` → el servidor verifica bcrypt
+→ firma un JWT y lo devuelve en cookie httpOnly+Secure+SameSite → el
+navegador la adjunta sola en cada request → el middleware del servidor
+verifica firma, carga el usuario, y decide 401 o sigue → el frontend
+pregunta `GET /me` para saber si hay sesión (nunca lee el token —
+httpOnly lo impide a propósito). Logout = cookie borrada + sesión
+revocada en la tabla."
+:::
+
+::: {.callout-tip collapse="true" title="P: What is CORS and how do you handle it?"}
+**R:** "Política del navegador: una página del origen A no puede leer
+respuestas del origen B sin permiso explícito del servidor. Para requests
+'no simples' el navegador manda primero un `OPTIONS` (preflight)
+preguntando; el servidor responde `Access-Control-Allow-Origin:
+<origen exacto>` (+ `-Methods`, `-Headers`, `-Credentials` si hay
+cookies — que prohiben el `*`). Es el *navegador* el que enforcea: curl
+no pide permiso — CORS protege al usuario, no a tu API."
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->

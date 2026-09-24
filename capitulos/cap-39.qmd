@@ -60,6 +60,104 @@ Pasar la checklist del apéndice F a Nexus y documentar cada hallazgo.
 
 :::
 
+## Preguntas de entrevista
+
+Repaso activo: responde en voz alta antes de desplegar. Este bloque cubre
+**seguridad, performance y operación** — lo que separa "funciona" de
+"publicable".
+
+::: {.callout-tip collapse="true" title="P: How do you secure an API?"}
+**R:** "Por capas, como el libro entero: entrada — validación por schema
+y queries parametrizadas (cero concatenación → cero inyección SQL).
+Identidad — bcrypt para claves, JWT en cookie httpOnly, sesiones
+revocables con rotación. Permisos — ownership en la query, 404 a lo
+ajeno. Superficie — rate limit en /auth, CORS con orígenes explícitos,
+HTTPS siempre. Secretos — env vars/secret manager, nunca en el repo.
+Errores — el 500 genérico afuera, el stack trace solo en logs."
+:::
+
+::: {.callout-tip collapse="true" title="P: JWT vs session cookies — which do you choose?"}
+**R:** "No es o/es — el diseño serio es híbrido. Access JWT stateless
+(15 min): el servidor solo verifica firma, escala sin consultar BD —
+pero no se revoca. Refresh opaco persistido (30 días, tabla sessions):
+una consulta cada 15 min a cambio de revocación real — 'cerrar sesión
+en todos los dispositivos' existe. Rotación del refresh: cada uso emite
+uno nuevo; un viejo reutilizado = robo detectado → sesión entera fuera."
+:::
+
+::: {.callout-tip collapse="true" title="P: How do you store passwords?"}
+**R:** "No se guardan — se guardan verificadores. bcrypt (o argon2) con
+salt aleatorio por usuario y costo ~10-12: lento a propósito, ~100ms por
+intento — imperceptible en login, una eternidad en fuerza bruta. Nunca
+cifrado (la clave que descifra también se filtra) y nunca MD5/SHA-256
+(rápidos = regalo para GPUs). El login hashea lo que escribió el usuario
+y compara; el error es el mismo para 'no existe' y 'clave mala'."
+:::
+
+::: {.callout-tip collapse="true" title="P: What is SQL injection and how do you prevent it?"}
+**R:** "Concatenar datos del usuario en la query: `WHERE email = '" +
+email + "'` — si escribe `' OR '1'='1` la condición se vuelve verdadera
+para toda la tabla. Se previene con consultas parametrizadas: `$1`/`%s`
+envían el dato por un canal separado — la BD lo trata como texto, jamás
+como código. Regla sin excepciones, incluidos 'valores que yo controlo'."
+:::
+
+::: {.callout-tip collapse="true" title="P: XSS vs CSRF — what are they and how do you defend?"}
+**R:** "XSS: JS malicioso corriendo en tu página (un comentario que
+renderiza `<script>`) — roba lo que JS puede tocar. Defensa: sanitizar
+entrada, no `innerHTML` con datos de usuario, y cookies httpOnly (el XSS
+no puede leerlas). CSRF: un sitio maligno hace que el navegador *logueado*
+del usuario mande requests a tu API — porque la cookie viaja sola.
+Defensa: `SameSite=lax/strict` + origen verificado. Son ataques gemelos:
+uno abusa del script en tu página, el otro de la cookie automática."
+:::
+
+::: {.callout-tip collapse="true" title="P: What is rate limiting and where do you apply it?"}
+**R:** "Un techo de requests por ventana — responde 429 + `Retry-After`
+cuando se pasa. Lo pones donde cada intento te cuesta o te revela:
+`/auth/login` (fuerza bruta de claves), `/auth/refresh`, `register`,
+`forgot-password` (enumeración de emails), códigos OTP, y endpoints
+caros (exports, reportes). Por IP *y* por cuenta — el botnet tiene mil
+IPs pero la cuenta objetivo es una."
+:::
+
+::: {.callout-tip collapse="true" title="P: Your API went from 200ms to 2s. How do you troubleshoot?"}
+**R:** "La pregunta real de entrevista. Orden: (1) ¿qué cambió? — deploy
+reciente, migración, crecimiento de datos. (2) Medir, no adivinar:
+logs/APM dicen qué endpoint; `EXPLAIN ANALYZE` dice qué hace la query —
+busco Seq Scan nuevo (¿se perdió un índice?), N+1 (¿un loop nuevo?), rows
+escaneadas explotando. (3) CPU alto + queries iguales → carga o lock
+contention. (4) Fix y verificación con la misma medición. Lo que nunca
+hago: tirarle más máquina a un problema que no medí."
+:::
+
+::: {.callout-tip collapse="true" title="P: What are environment variables and why use them?"}
+**R:** "Configuración que vive fuera del código: `DATABASE_URL`,
+`JWT_SECRET`, `PORT`. Por dos razones: el mismo artefacto corre en dev,
+staging y prod (la diferencia es el entorno, no el binario), y los
+secretos no tocan el repo — el código se publica, las env vars no.
+En producción viven en un secret manager con rotación y auditoría, no
+en un `.env` del servidor."
+:::
+
+::: {.callout-tip collapse="true" title="P: Docker — image vs container, and why use it?"}
+**R:** "La imagen es la receta inmutable (capas: SO base + runtime +
+deps + tu código); el contenedor es la ejecución viva de una imagen —
+como clase vs instancia. Sirve porque resuelve 'en mi máquina sí
+funcionaba': el mismo artefacto corre idéntico en dev, CI y prod. El
+Dockerfile declara la receta; docker-compose orquesta app+BD locales
+para que el onboarding sea un comando."
+:::
+
+::: {.callout-tip collapse="true" title="P: What does your testing strategy look like?"}
+**R:** "Pirámide honesta: muchos tests de unidad en la capa de servicio
+(la regla de negocio pura — 'no borrar tarea con subtareas'), tests de
+integración contra BD real en los repositorios, y pocos end-to-end por
+los flujos críticos (login→crear→listar). Cobertura donde importa: la
+frontera de errores y la autorización, no getters. El test como
+contrato: si rompe la API pública, el test falla antes que el cliente."
+:::
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] <!-- TODO: checklist -->
