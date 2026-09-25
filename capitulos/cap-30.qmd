@@ -24,6 +24,9 @@ CI tiene otra cosa. Cada entorno es una lotería de versiones. La
 pregunta que Docker responde: **¿cómo hago que "mi máquina" viaje con
 el código?**
 
+{{< include _explicaciones/docker.md >}}
+
+
 {{< include _explicaciones/entorno.md >}}
 
 
@@ -35,6 +38,11 @@ el código, corre `node dist/index.js`" — que cualquier máquina con
 Docker ejecuta idéntico. El onboarding pasa de dos días de wiki a
 `docker compose up`. Y el mismo artefacto que el dev corre es el que
 prod corre — la paridad dev/prod del cap. 24 llevada al extremo.
+
+{{< include _explicaciones/compose.md >}}
+
+{{< include _explicaciones/produccion.md >}}
+
 
 {{< include _explicaciones/dependencia.md >}}
 
@@ -60,6 +68,11 @@ flowchart LR
 inmutable (runtime + deps + código); cada `docker run` crea un
 contenedor vivo de esa imagen. Cambiar código = construir *nueva
 imagen* — los contenedores son descartables por diseño.
+
+{{< include _explicaciones/contenedor.md >}}
+
+{{< include _explicaciones/imagen.md >}}
+
 
 {{< include _explicaciones/runtime.md >}}
 
@@ -195,6 +208,9 @@ cabe en ~15MB.
   `dist` — lo que no entra no puede filtrarse ni pesar.
 - **Un proceso por contenedor**: el contenedor *es* tu app — si muere,
   muere el contenedor y el orquestador lo nota.
+
+{{< include _explicaciones/kubernetes.md >}}
+
 - **Tags con sentido**: `taskflow-api:1.4.2` / `:commit-sha` — `latest`
   es el tag que "nadie sabe qué versión es".
 
@@ -239,6 +255,14 @@ lo necesita el *runtime* o solo el *build*?" — lo del build no viaja.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/servidor.md >}}
+
+{{< include _explicaciones/cache.md >}}
 
 {{< include _explicaciones/build.md >}}
 

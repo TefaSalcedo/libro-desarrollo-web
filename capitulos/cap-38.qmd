@@ -181,6 +181,9 @@ igual, autorizada igual* — solo que la conexión queda viva y el servidor
 guarda el mapa de quién escucha qué documento. Los tres hacen lo mismo:
 aceptar → join → loop de mensajes → broadcast → limpiar al cerrar.
 
+{{< include _explicaciones/bucle.md >}}
+
+
 ::: {.callout-note collapse="true" title="Detalle: las decisiones de realtime"}
 
 | Decisión | Nexus elige | La alternativa y su precio |
@@ -267,6 +270,24 @@ vivo" — el humano no distingue 50ms de 200ms en un movimiento.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/diccionario.md >}}
+
+{{< include _explicaciones/log.md >}}
 
 {{< include _explicaciones/runtime.md >}}
 

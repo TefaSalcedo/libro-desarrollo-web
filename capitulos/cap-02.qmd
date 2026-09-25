@@ -40,6 +40,9 @@ Un equipo real exige tres cosas antes de escribir la primera línea de lógica:
 3. **Un solo comando para arrancar**: si el README dice "paso 1, paso 2…
    paso 9", ya perdiste.
 
+{{< include _explicaciones/produccion.md >}}
+
+
 {{< include _explicaciones/dependencia.md >}}
 
 
@@ -63,6 +66,11 @@ todo el libro. Empezamos por su esqueleto de entorno, no por sus endpoints.
 - <span class="tag tag-u">U</span> **Runtime**: el programa que ejecuta tu
   código (Node, el intérprete Python, el binario compilado de Go). En frontend
   era el navegador; aquí es un proceso del sistema operativo.
+
+{{< include _explicaciones/compilado.md >}}
+
+{{< include _explicaciones/proceso.md >}}
+
 
 {{< include _explicaciones/compilador.md >}}
 
@@ -298,6 +306,20 @@ mañana la 4.19.3 con el bug y "en mi máquina funcionaba" — con lockfile,
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/hash.md >}}
+
+{{< include _explicaciones/deploy.md >}}
+
+{{< include _explicaciones/cache.md >}}
+
+{{< include _explicaciones/imagen.md >}}
 
 {{< include _explicaciones/build.md >}}
 

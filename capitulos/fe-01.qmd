@@ -139,6 +139,11 @@ diferencia frontend/backend a nivel runtime.
 - **Script antes del DOM**: si tu script corre antes de que exista el
   elemento, `getElementById` devuelve `null`. Por eso los scripts van al
   final del `<body>` o con `defer`.
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/return.md >}}
+
 - **Debuggear a ciegas**: editar HTML sin mirar Network/Console es
   apagar fuegos con los ojos cerrados.
 
@@ -161,6 +166,9 @@ diferencia frontend/backend a nivel runtime.
    = "otro"`). ¿Qué pasó — el archivo cambió o el DOM?
 2. En Network, recarga y encuentra el request de `index.html`: mira su
    status, su tamaño y su tiempo.
+
+{{< include _explicaciones/request.md >}}
+
 
 {{< include _explicaciones/terminal.md >}}
 
@@ -189,6 +197,14 @@ Console = JS que falló en el paso 3.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/tipado.md >}}
+
+{{< include _explicaciones/cliente.md >}}
 
 {{< include _explicaciones/proceso.md >}}
 

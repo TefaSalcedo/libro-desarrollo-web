@@ -118,6 +118,26 @@ un endpoint, la lista ya corre en tu cabeza — para eso era.
 
 ## Vocabulario técnico del capítulo
 
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/secreto.md >}}
+
+{{< include _explicaciones/deploy.md >}}
+
+{{< include _explicaciones/dominio.md >}}
+
+{{< include _explicaciones/imagen.md >}}
+
+{{< include _explicaciones/websocket.md >}}
+
+{{< include _explicaciones/job.md >}}
+
+{{< include _explicaciones/escalado.md >}}
+
+{{< include _explicaciones/staging.md >}}
+
 {{< include _explicaciones/entorno.md >}}
 
 {{< include _explicaciones/base-de-datos.md >}}

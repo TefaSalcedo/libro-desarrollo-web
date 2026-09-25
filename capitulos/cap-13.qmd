@@ -332,6 +332,26 @@ sin bloqueos.
 
 ## Vocabulario técnico del capítulo
 
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/diccionario.md >}}
+
+{{< include _explicaciones/constraint.md >}}
+
+{{< include _explicaciones/tracing.md >}}
+
 {{< include _explicaciones/concurrencia.md >}}
 
 {{< include _explicaciones/rollback.md >}}

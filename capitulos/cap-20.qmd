@@ -140,6 +140,9 @@ tests que midan que el tiempo total ≈ el de la llamada más lenta.
 recogen los resultados al final — `Promise.all`/`gather`/`errgroup` son
 la misma idea con distinta maquinaria debajo.
 
+{{< include _explicaciones/asincrono.md >}}
+
+
 ::: {.callout-note collapse="true" title="Detalle: los tres modelos de concurrencia"}
 
 | Runtime | Modelo | ¿Paralelismo real en CPU? |
@@ -187,6 +190,9 @@ scheduler lo reparte — por eso Go escala a CPU y los otros no.
 - **Contexto propagado**: cancelación y deadline del request viajan a
   las llamadas (el `ctx` de Go, AbortSignal, el event loop) — si el
   cliente se fue, para qué seguir trabajando.
+
+{{< include _explicaciones/bucle.md >}}
+
 - **Mide el antes/después**: "optimizamos" sin medir es superstición —
   log de duración por llamada (cap. 23).
 
@@ -203,6 +209,9 @@ scheduler lo reparte — por eso Go escala a CPU y los otros no.
    lugar?
 3. En Python, el handler usa `time.sleep(0.3)` dentro de un endpoint
    `async def`. ¿Qué le pasa a *los demás* requests mientras duerme?
+
+{{< include _explicaciones/funcion.md >}}
+
 
 ## Mini reto
 
@@ -235,6 +244,20 @@ es bloqueante — los dos errores de arriba.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/goroutine.md >}}
+
+{{< include _explicaciones/diccionario.md >}}
 
 {{< include _explicaciones/runtime.md >}}
 

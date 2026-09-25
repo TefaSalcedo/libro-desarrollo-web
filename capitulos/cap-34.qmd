@@ -21,6 +21,9 @@ viernes y nadie sabe desde qué commit. Y el deploy: `ssh` + `git pull`
 desde la laptop de una persona — si esa laptop se pierde, nadie despliega.
 Todo lo que depende de *acordarse* acaba fallando.
 
+{{< include _explicaciones/deploy.md >}}
+
+
 {{< include _explicaciones/commit.md >}}
 
 
@@ -32,6 +35,9 @@ Postgres efímero, corre la suite completa, buildea — y GitHub marca el
 PR en verde o rojo. El gate de merge ("CI verde obligatorio") convierte
 la regla de equipo en regla de máquina. Y CD continúa: merge → build de
 imagen → registry → deploy — ningún `ssh` desde laptops.
+
+{{< include _explicaciones/migracion.md >}}
+
 
 {{< include _explicaciones/build.md >}}
 
@@ -164,6 +170,9 @@ proceso.
   dos dialectos.
 - **Las migraciones corren en CI** sobre la BD efímera — el test
   "¿el esquema se construye de cero?" se responde en cada PR, gratis.
+
+{{< include _explicaciones/esquema.md >}}
+
 - **CD separado del CI**: verificar ≠ desplegar — el build de imagen
   solo tras merge a main, taggeado con el sha (rollback = tag anterior,
   cap. 35).
@@ -215,6 +224,20 @@ por qué ningún "era un cambio chiquito" pasa sin tests.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/log.md >}}
+
+{{< include _explicaciones/variable-de-entorno.md >}}
+
+{{< include _explicaciones/secreto.md >}}
+
+{{< include _explicaciones/cache.md >}}
+
+{{< include _explicaciones/docker.md >}}
 
 {{< include _explicaciones/dependencia.md >}}
 

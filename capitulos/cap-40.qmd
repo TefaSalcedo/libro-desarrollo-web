@@ -36,6 +36,9 @@ Repaso (ap-g..k)        → 50 tickets, entrevistas, preguntas decisivas
 Cada eslabón existe porque el anterior dejó un problema sin resolver —
 esa cadena de necesidades *es* la arquitectura, no una lista de temas.
 
+{{< include _explicaciones/array.md >}}
+
+
 ## La tabla final: ¿de quién es cada cosa?
 
 Lo que confunde al junior es atribuir al lenguaje lo que es del
@@ -59,6 +62,13 @@ framework, o al framework lo que es de la industria:
 transacciones, rate limits, auditorías. Los lenguajes y frameworks son
 la *sintaxis* de esas ideas; por eso puedes leer un backend en el stack
 que no practicas y reconocerle la forma.
+
+{{< include _explicaciones/migracion.md >}}
+
+{{< include _explicaciones/transaccion.md >}}
+
+{{< include _explicaciones/pool.md >}}
+
 
 ## ¿Node, Python o Go? — la respuesta honesta
 
@@ -175,6 +185,18 @@ es la constante; la sintaxis es el acento.**
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/goroutine.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/sesion.md >}}
 
 {{< include _explicaciones/runtime.md >}}
 

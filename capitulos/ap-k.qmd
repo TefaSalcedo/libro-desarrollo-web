@@ -18,6 +18,9 @@ te dice qué criterio mandaba — y cuál era la trampa.
 Antes de las tarjetas, el patrón detrás de todas ellas. Cuando alguien te
 pregunte "¿usamos X o Y?", corre esta lista en tu cabeza:
 
+{{< include _explicaciones/array.md >}}
+
+
 1. **¿Cuál es la *forma* del problema?** Forma del dato (relacional o
    documento), del tráfico (constante o picos), de la UI (dashboard o
    página pública). La mayoría de dilemas se resuelven aquí.
@@ -33,6 +36,9 @@ pregunte "¿usamos X o Y?", corre esta lista en tu cabeza:
    no les des semanas.
 5. **¿Qué viene incluido?** Ecosistema, librerías, empleos, tutoriales.
    React no gana por su sintaxis: gana porque el mercado ya está ahí.
+
+{{< include _explicaciones/base-de-datos.md >}}
+
 
 **Los defaults del libro** — la respuesta correcta hasta que tengas una
 razón para irte:
@@ -483,6 +489,22 @@ siguiente "¿X o Y?" dejará de sentirse como adivinanza.*
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/cpu.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/esquema.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
+{{< include _explicaciones/transaccion.md >}}
 
 {{< include _explicaciones/runtime.md >}}
 

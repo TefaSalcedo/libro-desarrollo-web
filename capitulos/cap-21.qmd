@@ -18,12 +18,18 @@ las colas de verdad.
 `POST /auth/register` hace tres cosas: guardar el usuario (80ms), enviar
 el email (3s), notificar a Slack (variable). El usuario solo necesita
 
+{{< include _explicaciones/variable.md >}}
+
+
 {{< include _explicaciones/autenticacion.md >}}
 
 *una* respuesta: "tu cuenta existe". Los otros 3 segundos son trabajo
 que nadie está esperando — y sin embargo los está pagando en latencia,
 en timeouts del proxy, y en riesgo de que el email falle y parezca que
 el registro falló.
+
+{{< include _explicaciones/registry.md >}}
+
 
 {{< include _explicaciones/proxy.md >}}
 
@@ -139,6 +145,9 @@ volumen lo exija.
 memoria del proceso. Más allá de cierto volumen/criticidad, la respuesta
 correcta es una cola de verdad, no más `go func()`.
 
+{{< include _explicaciones/funcion.md >}}
+
+
 ::: {.callout-note collapse="true" title="Detalle: de in-process a cola de verdad"}
 
 | Nivel | Qué es | Cuándo basta | Qué pierdes |
@@ -215,6 +224,20 @@ consulta. Bonus: con WebSockets (cap. 38) el servidor puede *empujar*
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
 
 {{< include _explicaciones/commit.md >}}
 

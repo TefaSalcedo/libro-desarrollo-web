@@ -23,6 +23,9 @@ núcleo** de los 8 del servidor — estás pagando 8 y usando 1. Encima:
 sabe el balanceador que el contenedor nuevo ya acepta tráfico? Servir
 a usuarios reales es una topología, no un comando.
 
+{{< include _explicaciones/tls.md >}}
+
+
 {{< include _explicaciones/proceso.md >}}
 
 {{< include _explicaciones/cpu.md >}}
@@ -244,6 +247,24 @@ y cada uno es un capítulo del libro — por eso la cadena es repasable.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/goroutine.md >}}
+
+{{< include _explicaciones/log.md >}}
+
+{{< include _explicaciones/deploy.md >}}
+
+{{< include _explicaciones/servidor.md >}}
+
+{{< include _explicaciones/dns.md >}}
+
+{{< include _explicaciones/ip.md >}}
 
 {{< include _explicaciones/runtime.md >}}
 

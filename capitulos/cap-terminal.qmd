@@ -19,6 +19,9 @@ llega el día: "hay que desplegarlo". Y de repente todo es terminal: el
 servidor no tiene pantalla, Docker no tiene botones, los logs son un stream
 infinito, y la única forma de entrar a producción es `ssh`.
 
+{{< include _explicaciones/log.md >}}
+
+
 {{< include _explicaciones/terminal.md >}}
 
 
@@ -129,6 +132,11 @@ echo "more" >> file.txt             # añadir (append)
 `|` conecta la salida de un programa con la entrada del siguiente — es
 `.map().filter()` pero entre procesos completos.
 
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/diccionario.md >}}
+
+
 {{< include _explicaciones/proceso.md >}}
 
 
@@ -152,6 +160,11 @@ env | grep PORT        # ver qué existe
 
 Las variables de entorno son cómo la config llega a tu app sin hardcodearla
 — el Cap. 24 vive de esto. Y tu repo ya lo usa: el `.env` con tu API key.
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/variable-de-entorno.md >}}
+
 
 {{< include _explicaciones/entorno.md >}}
 
@@ -299,6 +312,16 @@ Antes de tocar nada: enumera las **tres** reglas de oro que viola.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/parametro.md >}}
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
+
+{{< include _explicaciones/token.md >}}
 
 {{< include _explicaciones/git.md >}}
 

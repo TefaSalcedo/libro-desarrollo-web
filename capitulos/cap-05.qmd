@@ -35,6 +35,11 @@ contra ese campo, y cuando quieras quitarlo rompes clientes. Peor: si el
 objeto interno contiene `password_hash` (Cap. 14), acabas de publicar tu
 base de datos.
 
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+
 {{< include _explicaciones/base-de-datos.md >}}
 
 
@@ -76,6 +81,9 @@ distintas del mismo concepto**:
 
 Un junior mezcla las tres en una sola clase "Task" — y paga el precio cada
 vez que el contrato debe cambiar sin tocar la base de datos (o viceversa).
+
+{{< include _explicaciones/clase.md >}}
+
 
 ## Conceptos nuevos
 
@@ -385,6 +393,9 @@ es carga del edificio, no decoración. Lo intercambiable es *dónde* vive:
    (`TaskSummary`: solo `id`, `title`, `done`) y `GET /tasks/{id}` la
    completa. Dos contratos de salida, un mismo recurso.
 
+{{< include _explicaciones/array.md >}}
+
+
 ## Mini reto
 
 Devuelve la misma tarea en dos formas según *quién pregunta*: el owner ve
@@ -416,6 +427,18 @@ serializador, éste tendría que conocer auth — capas invertidas.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/booleano.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/diccionario.md >}}
 
 {{< include _explicaciones/framework.md >}}
 

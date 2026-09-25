@@ -759,6 +759,110 @@ Google Docs fusionan sin lock — poderoso y bastante complejo.
 tareas automáticamente. Conveniente y peligroso — un borrado en la
 tabla equivocada se lleva medio mundo. RESTRICT es más seguro.
 """),
+# --- Basic programming terms (reader starts from zero) ---
+"variable": ("variable", """
+Una **variable** es una caja con nombre donde guardas un valor:
+`let total = 42` guarda el 42 bajo el nombre `total`. Puedes leerla y
+cambiarla después (`total = 50`). `const` = caja que no se puede
+reemplazar.
+"""),
+"funcion": ("función", """
+Una **función** es una receta reutilizable: recibe ingredientes
+(parámetros), hace pasos y devuelve un plato (`return`). La escribes
+una vez y la llamas mil veces: `add(2, 3)` → `5`.
+"""),
+"parametro": ("parámetro / argumento", """
+El **parámetro** es el hueco declarado en la función (`def f(x)` — `x`
+es parámetro); el **argumento** es el valor concreto que le pasas
+(`f(42)` — `42` es argumento). Mismo dato, dos momentos: declaración
+vs uso.
+"""),
+"array": ("array / lista / slice", """
+Un **array** es una colección ordenada de elementos accedidos por
+posición: `["a","b","c"][0]` es `"a"` (se cuenta desde 0). Python las
+llama *listas*, Go *slices* — misma idea, distinto acento.
+"""),
+"objeto": ("objeto / dict / struct", """
+Un **objeto** es una colección de datos con nombre: `{name: "Ana",
+age: 30}` — cada dato es una *propiedad* (clave → valor). Python los
+llama `dict`, Go los arma con `struct`, TS con objetos/`interface`.
+"""),
+"bucle": ("bucle (loop)", """
+Un **bucle** repite una acción por cada elemento o hasta cumplir una
+condición: `for task in tasks` hace algo con cada tarea. `map` y
+`filter` son bucles disfrazados de funciones — transforman/filtran
+colecciones sin `for` explícito.
+"""),
+"condicional": ("condicional (if/else)", """
+Un **condicional** es la bifurcación del código: `if condición` hace
+una cosa, `else` hace otra. Es donde el programa "decide" — la lógica
+de negocio vive casi toda en condicionales.
+"""),
+"clase": ("clase / struct", """
+Una **clase** es el molde de un objeto: define qué datos y qué métodos
+tiene. `class Task` es el molde; `new Task()` es una instancia concreta.
+Go no tiene clases — usa `struct` + métodos sueltos.
+"""),
+"string": ("string", """
+Un **string** es texto entre comillas: `"hola"`. El nombre viene de
+"cadena de caracteres" — una secuencia de letras. Todo lo que llega de
+un formulario o una URL llega como string, aunque parezca número.
+"""),
+"booleano": ("booleano", """
+Un **booleano** es un valor de dos estados: `true` o `false`. Es el
+resultado de toda comparación (`age > 18`) y lo que los `if` evalúan.
+Nombrado por George Boole, el matemático de la lógica.
+"""),
+"null": ("null / None / nil", """
+**null** (TS), `None` (Py), `nil` (Go) = "aquí no hay valor". Es la
+respuesta a "¿qué devuelvo cuando no hay nada?" — y la fuente del bug
+más famoso de la historia (su inventor lo llamó "el error del billón
+de dólares"). Por eso el código revisa `if x is not None`.
+"""),
+"return": ("return", """
+**return** hace dos cosas a la vez: devuelve el resultado Y termina la
+función — lo que esté debajo nunca corre. `return task` = "aquí está el
+plato, salgo de la cocina".
+"""),
+"asincrono": ("asíncrono", """
+**Asíncrono** = empezar algo sin esperar sentado a que termine: pides
+la pizza (async) y sigues trabajando; cuando llega, te avisan. Lo
+opuesto a síncrono (esperar parado). Vital cuando la espera es larga:
+red, disco, bases de datos.
+"""),
+"callback": ("callback", """
+Un **callback** es una función que entregas para que otra la llame
+después: `button.onClick(mostrarAlerta)` = "cuando haya click, llama
+a esto". Es el patrón base de los eventos; async/await es su forma
+moderna más legible.
+"""),
+"goroutine": ("goroutine", """
+Una **goroutine** es el hilo ultraligero de Go: `go f()` lanza una
+función en paralelo gastando casi nada — se pueden tener millones. Es
+la superpotencia de Go: concurrencia como palabra del lenguaje.
+"""),
+"metodo": ("método", """
+Un **método** es una función que vive dentro de un objeto/clase:
+`task.save()` — `save` es un método de `task`. La diferencia con una
+función suelta: el método conoce al objeto que lo contiene (`this`/
+`self`).
+"""),
+"diccionario": ("diccionario / map", """
+Un **diccionario** (`dict` en Python, `map` en Go, objeto en JS) guarda
+parejas clave→valor: `{"ana": 30}`. Es la estructura que más aparece
+en JSON — un objeto JS *es* un diccionario.
+"""),
+"tupla": ("tupla", """
+Una **tupla** es una colección ordenada que no se puede cambiar:
+`(200, "OK")` — el número de elementos y su orden son fijos. Go devuelve
+`(valor, error)` en todo lado; es una tupla de facto.
+"""),
+"compilado": ("lenguaje compilado vs interpretado", """
+**Compilado** (Go): el código se traduce a binario una vez y ese binario
+corre solo — rápido, deploy simple. **Interpretado** (Python, JS): un
+runtime lee el código en cada ejecución — flexible, pero necesita el
+runtime instalado.
+"""),
 }
 
 os.makedirs(OUT, exist_ok=True)

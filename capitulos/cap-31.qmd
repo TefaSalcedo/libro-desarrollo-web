@@ -28,6 +28,9 @@ sus datos y qué espera a qué. El onboarding es `git clone` +
 `docker compose up`. Y como el archivo vive en el repo, *el entorno
 también tiene code review*.
 
+{{< include _explicaciones/volumen.md >}}
+
+
 {{< include _explicaciones/entorno.md >}}
 
 {{< include _explicaciones/repositorio.md >}}
@@ -60,6 +63,9 @@ DNS** — la app conecta a `postgres://db:5432` sin saber IPs. El volumen
 `pgdata` guarda los datos *fuera* del contenedor: `docker compose down`
 mata contenedores, no datos.
 
+{{< include _explicaciones/contenedor.md >}}
+
+
 {{< include _explicaciones/puerto.md >}}
 
 {{< include _explicaciones/dns.md >}}
@@ -69,6 +75,9 @@ mata contenedores, no datos.
 
 El `docker-compose.yml` completo — agnóstico de lenguaje (cambia la
 imagen del servicio `app`):
+
+{{< include _explicaciones/imagen.md >}}
+
 
 ```yaml
 services:
@@ -134,6 +143,9 @@ estos volúmenes") y Docker calcula cómo llegar. El script describe
 pasos; el YAML describe la realidad — y se puede leer, revisar y
 versionar.
 
+{{< include _explicaciones/docker.md >}}
+
+
 ::: {.callout-note collapse="true" title="Otras cimentaciones: orquestar el entorno de dev"}
 
 | Alternativa | Qué es | Qué te cuesta | Cuándo |
@@ -176,6 +188,9 @@ versionar.
 3. La app conecta a `postgres://db:5432` — ¿quién resuelve `db` a una
    IP y por qué no puedes usar `localhost`?
 
+{{< include _explicaciones/ip.md >}}
+
+
 {{< include _explicaciones/localhost.md >}}
 
 
@@ -209,6 +224,16 @@ ese paso pertenece al YAML.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/dominio.md >}}
 
 {{< include _explicaciones/build.md >}}
 

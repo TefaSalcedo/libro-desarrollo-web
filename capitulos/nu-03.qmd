@@ -20,6 +20,11 @@ idénticos en los tres proveedores. El trabajo no es aprender AWS — es
 aprender las categorías (compute, storage, base de datos, DNS,
 identidad, colas...) y luego traducir nombres.
 
+{{< include _explicaciones/nube.md >}}
+
+{{< include _explicaciones/job.md >}}
+
+
 {{< include _explicaciones/terminal.md >}}
 
 {{< include _explicaciones/base-de-datos.md >}}
@@ -43,6 +48,9 @@ El proveedor dominante es AWS (~30% del mercado), luego Azure (~20%,
 fuerte en empresas con Microsoft), luego GCP (~10%, fuerte en
 datos/ML). Los PaaS modernos (Render, Vercel, Fly.io) viven *encima* de
 estos tres.
+
+{{< include _explicaciones/iaas-paas-saas.md >}}
+
 
 ## Conceptos nuevos
 
@@ -120,6 +128,9 @@ gsutil iam ch allUsers:objectViewer gs://taskflow-web-you
 Tres comandos equivalentes: *crear contenedor de objetos → subir build →
 habilitar como sitio web*. La categoría (static hosting en object
 storage) es la misma; solo cambia el CLI.
+
+{{< include _explicaciones/objeto.md >}}
+
 
 {{< include _explicaciones/build.md >}}
 
@@ -199,6 +210,9 @@ que migrar sea *posible*, no diario.
    imágenes de usuarios, y DNS. Nombra los 4 servicios en AWS.
 3. ¿Por qué "multi-cloud desde el día 1" casi nunca es buena idea?
 
+{{< include _explicaciones/serverless.md >}}
+
+
 ::: {.callout-note collapse="true" title="Soluciones"}
 
 1. EC2 → Azure VM / Compute Engine · S3 → Blob Storage / Cloud Storage ·
@@ -243,6 +257,16 @@ aws s3api put-bucket-acl --bucket company-user-data --acl public-read
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/cdn.md >}}
+
+{{< include _explicaciones/cache.md >}}
+
+{{< include _explicaciones/contenedor.md >}}
 
 {{< include _explicaciones/autenticacion.md >}}
 

@@ -20,6 +20,9 @@ puedes perder. Necesitas **cambiar la forma sin destruir el contenido**:
 `ALTER TABLE` en vez de `DROP TABLE`. Y necesitas que ese cambio sea
 repetible — que la BD de Ana, la de CI y la de producción evolucionen
 
+{{< include _explicaciones/produccion.md >}}
+
+
 {{< include _explicaciones/base-de-datos.md >}}
 
 *exactamente igual*.
@@ -52,6 +55,9 @@ mismo esquema sin que nadie recuerde qué corrió a mano.
 **El flujo profesional:** generar migración → revisarla como código (PR)
 → CI la aplica a la BD de pruebas → deploy la aplica a producción. La
 migración viaja con el código que la necesita — mismo commit.
+
+{{< include _explicaciones/deploy.md >}}
+
 
 {{< include _explicaciones/commit.md >}}
 
@@ -133,6 +139,9 @@ técnica expand-contract, en varias migraciones.
 rompe. Versionar el esquema con el código significa que **commit X +
 migraciones hasta X = estado reproducible** en cualquier máquina. La BD
 deja de ser un artefacto misterioso y pasa a ser parte del proyecto.
+
+{{< include _explicaciones/estado.md >}}
+
 
 ::: {.callout-note collapse="true" title="Otras cimentaciones: herramientas de migración"}
 
@@ -226,6 +235,20 @@ reales.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/registry.md >}}
+
+{{< include _explicaciones/staging.md >}}
+
+{{< include _explicaciones/lock.md >}}
+
+{{< include _explicaciones/diff.md >}}
+
+{{< include _explicaciones/constraint.md >}}
+
+{{< include _explicaciones/tracing.md >}}
 
 {{< include _explicaciones/entorno.md >}}
 

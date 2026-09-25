@@ -209,6 +209,11 @@ de tu API deben ver el mismo avatar.
    su `Content-Type`, o sus primeros bytes? ¿Y por qué los otros dos
    no sirven?
 
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/imagen.md >}}
+
+
 {{< include _explicaciones/memoria.md >}}
 
 
@@ -242,6 +247,22 @@ Idempotencia = mismo efecto sin importar cuántas veces llegue.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
 
 {{< include _explicaciones/proceso.md >}}
 

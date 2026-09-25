@@ -21,6 +21,13 @@ queda atrás; solo viaja lo que el runtime necesita.
 viva, y asume que la BD ya tiene el esquema — el primer deploy en un
 entorno limpio crashea contra tablas inexistentes.
 
+{{< include _explicaciones/deploy.md >}}
+
+{{< include _explicaciones/cache.md >}}
+
+{{< include _explicaciones/imagen.md >}}
+
+
 {{< include _explicaciones/entorno.md >}}
 
 {{< include _explicaciones/proceso.md >}}
@@ -38,6 +45,11 @@ imagen mínima para *correr*. Encima: usuario no-root, healthcheck
 declarado, entrypoint que corre migraciones antes de servir, y la
 misma imagen en staging y prod — lo que cambia son las env vars
 (cap. 24: el artefacto no sabe dónde está).
+
+{{< include _explicaciones/migracion.md >}}
+
+{{< include _explicaciones/variable-de-entorno.md >}}
+
 
 {{< include _explicaciones/runtime.md >}}
 
@@ -213,6 +225,9 @@ instantáneo corta requests a la mitad.
 3. Enumera qué hace tu app *idealmente* al recibir `SIGTERM` antes de
    salir.
 
+{{< include _explicaciones/compilado.md >}}
+
+
 ## Mini reto
 
 Auditar la imagen contra un checklist de producción.
@@ -244,6 +259,14 @@ trabajo — la imagen de prod es un checklist, no una sensación.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/pool.md >}}
+
+{{< include _explicaciones/servidor.md >}}
 
 {{< include _explicaciones/dependencia.md >}}
 

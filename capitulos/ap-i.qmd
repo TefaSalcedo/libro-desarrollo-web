@@ -210,6 +210,26 @@ contrato: si rompe la API pública, el test falla antes que el cliente."
 
 ## Vocabulario técnico del capítulo
 
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
+
+{{< include _explicaciones/sesion.md >}}
+
 {{< include _explicaciones/runtime.md >}}
 
 {{< include _explicaciones/entorno.md >}}

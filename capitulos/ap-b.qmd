@@ -113,6 +113,9 @@ SELECT snapshot->>'title' FROM revisions WHERE snapshot @> '{"done":true}';
 
 - **Parametrizado siempre** — `$1`/`%s`/`?` nunca se concatena; la
   inyección SQL se muere en esta línea (cap. 9).
+
+{{< include _explicaciones/inyeccion-sql.md >}}
+
 - **`WHERE` con ownership** — `AND user_id = $2` convierte "borra la
   tarea 5" en "borra la tarea 5 *si es tuya*" (cap. 17).
 - **`LIMIT` con `ORDER BY`** — límite sin orden es un límite a la
@@ -126,6 +129,9 @@ SELECT snapshot->>'title' FROM revisions WHERE snapshot @> '{"done":true}';
   acceso medido, no a una corazonada.
 - **`FOR UPDATE` dentro de la tx** — fuera de transacción no bloquea
   nada: el lock vive y muere con el BEGIN/COMMIT (cap. 13).
+
+{{< include _explicaciones/lock.md >}}
+
 
 ## Mini reto
 
@@ -146,6 +152,14 @@ ownership en el WHERE — eso *es* el nivel que una entrevista pide.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/snapshot.md >}}
+
+{{< include _explicaciones/json.md >}}
 
 {{< include _explicaciones/base-de-datos.md >}}
 

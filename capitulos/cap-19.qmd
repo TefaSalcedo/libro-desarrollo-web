@@ -24,6 +24,9 @@ la tarea sí se creó. Slack está caído un día → tu registro de tareas
 "está caído" un día. **Una dependencia sin reglas convierte sus
 problemas en tus problemas.**
 
+{{< include _explicaciones/return.md >}}
+
+
 {{< include _explicaciones/dependencia.md >}}
 
 {{< include _explicaciones/registry.md >}}
@@ -242,6 +245,24 @@ entera, tú sí.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/diccionario.md >}}
+
+{{< include _explicaciones/concurrencia.md >}}
 
 {{< include _explicaciones/entorno.md >}}
 

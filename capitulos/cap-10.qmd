@@ -21,6 +21,9 @@ enviarla por la red, y convertir las filas que vuelven en objetos de tu
 lenguaje. Ese "alguien" es el driver — y tiene trampas que no se ven en
 el tutorial de 5 líneas.
 
+{{< include _explicaciones/objeto.md >}}
+
+
 {{< include _explicaciones/query.md >}}
 
 
@@ -33,6 +36,9 @@ la mitad de tu latencia sería *conectar*. El pool mantiene N conexiones
 abiertas y las presta: `pool.query()` toma una libre, la usa, la devuelve.
 Con 10 conexiones atiendes cientos de requests — porque un request usa
 la conexión unos milisegundos.
+
+{{< include _explicaciones/return.md >}}
+
 
 {{< include _explicaciones/proceso.md >}}
 
@@ -166,6 +172,9 @@ archivo que llama al pool. **El handler no se enteró** (cap. 7 pagando
 dividendos): `listTasks(userId)` devuelve `Task[]` igual que antes; solo
 cambia *dónde* viven los datos.
 
+{{< include _explicaciones/array.md >}}
+
+
 ::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
 ```text
@@ -289,6 +298,20 @@ una foto de la fila, no la fila** — editar la foto no edita el archivo.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/parametro.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
 
 {{< include _explicaciones/entorno.md >}}
 

@@ -21,6 +21,11 @@ feature que se agrega: es una *propiedad* que se audita — cada endpoint,
 cada input, cada error. OWASP no es teoría de conferencia: es la lista
 de las formas reales en que APIs como la tuya se rompen cada semana.
 
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio hace la auditoría *sobre los endpoints que existen*, no
@@ -144,6 +149,9 @@ de *tu dominio* (quién toca qué) la escribes tú o no existe.
 - **Principio de privilegio mínimo** en todo: el usuario de BD de la
   app no es `postgres`; el token no vive 30 días; el endpoint no
   devuelve campos "por si acaso".
+
+{{< include _explicaciones/token.md >}}
+
 - **Asumir que el cliente es hostil**: toda entrada se valida (cap. 4)
   — el 422 *es* seguridad, no solo UX.
 
@@ -190,6 +198,20 @@ eres* pero no *qué puedes hacer aquí*.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/parametro.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/cookie.md >}}
+
+{{< include _explicaciones/jwt.md >}}
+
+{{< include _explicaciones/hash.md >}}
+
+{{< include _explicaciones/firma.md >}}
 
 {{< include _explicaciones/framework.md >}}
 

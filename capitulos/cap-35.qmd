@@ -23,6 +23,9 @@ migración de la v1.5 renombró `name` → `full_name`, la v1.4 que sigue
 viva escribe `name` en una columna que ya no existe: errores por todas
 partes, en el mejor momento posible.
 
+{{< include _explicaciones/produccion.md >}}
+
+
 {{< include _explicaciones/base-de-datos.md >}}
 
 {{< include _explicaciones/migracion.md >}}
@@ -46,6 +49,9 @@ ser segura para *las dos*. La técnica se llama **expand/contract**:
 Y el seguro: el rollback de *código* es cambiar el tag de imagen; el
 rollback de *datos* no existe gratis — los datos que la v1.5 escribió
 en `full_name` no se des-escriben al volver a v1.4.
+
+{{< include _explicaciones/rollback.md >}}
+
 
 {{< include _explicaciones/imagen.md >}}
 
@@ -169,6 +175,9 @@ toda la disciplina es *mantener la BD compatible con dos versiones*.
 3. La v1.5 lleva 20 minutos en prod escribiendo en `first_name` cuando
    hay que hacer rollback a v1.4. ¿Qué se pierde y qué no?
 
+{{< include _explicaciones/array.md >}}
+
+
 ## Mini reto
 
 Planear "dividir name en first_name/last_name" sin downtime.
@@ -201,6 +210,20 @@ frase que se responde en la entrevista.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/latencia.md >}}
+
+{{< include _explicaciones/escalado.md >}}
+
+{{< include _explicaciones/staging.md >}}
+
+{{< include _explicaciones/load-balancer.md >}}
+
+{{< include _explicaciones/kubernetes.md >}}
+
+{{< include _explicaciones/backup.md >}}
 
 {{< include _explicaciones/entorno.md >}}
 

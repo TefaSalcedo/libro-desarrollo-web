@@ -85,6 +85,9 @@ RETURNING id, public_id;           -- give me back the generated ids
 `RETURNING` es el truco de Postgres: te devuelve lo que acabas de crear
 sin una segunda query.
 
+{{< include _explicaciones/return.md >}}
+
+
 **2. Leer con filtro — `SELECT ... WHERE`:**
 
 ```sql
@@ -152,6 +155,9 @@ cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
 Con parámetros, el dato del usuario viaja *apartado* de la query — la BD
 lo trata como texto, jamás como código. Toda la sección de seguridad del
 libro cuelga de esta regla.
+
+{{< include _explicaciones/parametro.md >}}
+
 
 ::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
@@ -271,6 +277,22 @@ puede confundirlo con SQL.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/paginacion.md >}}
+
+{{< include _explicaciones/constraint.md >}}
+
+{{< include _explicaciones/inyeccion-sql.md >}}
+
+{{< include _explicaciones/tracing.md >}}
+
+{{< include _explicaciones/tipado.md >}}
 
 {{< include _explicaciones/puerto.md >}}
 

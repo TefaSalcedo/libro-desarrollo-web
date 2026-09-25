@@ -106,6 +106,19 @@ Tipos: `string`, `number`, `boolean`, `null`, array `[]`, objeto `{}`.
 No hay funciones, ni `undefined`, ni fechas — una fecha viaja como string
 ISO `"2026-10-01"` y cada lado la interpreta.
 
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/booleano.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+
 En backend, *serializar* es convertir tu objeto interno a JSON para la
 respuesta; *parsear* es convertir el JSON del request a tu objeto. Harás
 ambas cosas cientos de veces en este libro.
@@ -147,6 +160,9 @@ negocio) del Cap. 7: mismo nombre, distinto rol.
 
 Si usaste clases en JS/TS, esto es repaso con traducción. Si no, la idea es
 simple: una **clase** es un molde que agrupa *datos* (atributos) y
+
+{{< include _explicaciones/clase.md >}}
+
 *comportamiento* (métodos); un **objeto** es una instancia creada desde ese
 molde.
 
@@ -240,6 +256,9 @@ Las diferencias que importan de verdad:
   escribe `this` (y a veces desaparece mágicamente); en Python se declara
   `self` como primer parámetro de cada método; en Go es el *receiver*
   `(s *TaskService)` — el método es una función que recibe el struct.
+
+{{< include _explicaciones/parametro.md >}}
+
 - **Go no tiene clases ni herencia**: struct = datos, método = función con
   receiver. Suena limitado y a propósito lo es — la composición explícita
   reemplaza la herencia (lo verás en servicios).
@@ -334,6 +353,9 @@ titles = [t.title for t in tasks]          # el .map() equivalente
 Las **comprehensions** de Python (`[x for x in y if cond]`) merecen un
 momento: son `.filter()` y `.map()` fusionados en sintaxis — las verás en
 servicios y queries por todos lados.
+
+{{< include _explicaciones/bucle.md >}}
+
 
 {{< include _explicaciones/query.md >}}
 
@@ -476,6 +498,8 @@ request, devolver una response), no un estado que mantener.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
 
 {{< include _explicaciones/runtime.md >}}
 

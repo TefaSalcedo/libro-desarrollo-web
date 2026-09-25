@@ -366,6 +366,9 @@ como estructura, y deja el runtime como material intercambiable.
 - **`/health` desde el primer commit.** Es el endpoint más aburrido del libro
   y el más importante: Docker, CI y cualquier balanceador lo usarán para
   saber si tu proceso está vivo.
+
+{{< include _explicaciones/proceso.md >}}
+
 - **Puerto configurable**, no hardcodeado — en producción el puerto lo decide
   el entorno, no tu código (volveremos a esto en configuración).
 
@@ -391,6 +394,9 @@ servidor, qué devuelve (cookie, token), qué pasa con ese token en el siguiente
 request. Si hay etapas que no puedes dibujar, acabas de encontrar qué
 capítulos necesitas más.
 
+{{< include _explicaciones/return.md >}}
+
+
 ::: {.callout-note collapse="true" title="Soluciones"}
 
 **Ejercicio.** `GET /health` responde `{"status":"ok"}`; `GET /version`
@@ -409,6 +415,22 @@ etapas 3–6, es exactamente la Parte 3 del libro.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/diccionario.md >}}
 
 {{< include _explicaciones/runtime.md >}}
 

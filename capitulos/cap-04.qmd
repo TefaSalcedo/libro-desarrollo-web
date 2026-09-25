@@ -32,6 +32,9 @@ nadie garantiza que ese objeto tenga la forma que tu lógica espera**. En
 frontend, un dato malo rompe la UI del usuario que lo mandó. En backend, un
 dato malo entra a la base de datos y corrompe el sistema para todos.
 
+{{< include _explicaciones/objeto.md >}}
+
+
 {{< include _explicaciones/base-de-datos.md >}}
 
 
@@ -96,6 +99,9 @@ Request → Router → [VALIDACIÓN] → Handler → …
 - <span class="tag tag-py">Py</span> **Pydantic + type hints**: `class
   TaskCreate(BaseModel)` — el type hint *es* la validación; FastAPI la
   aplica antes del handler y devuelve `422` solo.
+
+{{< include _explicaciones/return.md >}}
+
 - <span class="tag tag-go">Go</span> **Validación manual o struct tags**:
   Go no tiene runtime reflexivo mágico cómodo — se valida explícito o con
   `go-playground/validator` sobre struct tags.
@@ -451,6 +457,22 @@ de verificación (Cap. 14).
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
 
 {{< include _explicaciones/dependencia.md >}}
 

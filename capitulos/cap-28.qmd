@@ -231,6 +231,9 @@ arquitectura del test no.
 
 Demostrar con un test que el doble-submit devuelve 409 tras éxito.
 
+{{< include _explicaciones/return.md >}}
+
+
 ::: {.callout-note collapse="true" title="Soluciones"}
 
 **Ejercicio.**
@@ -259,6 +262,24 @@ las dos, pero *decidida y testeada*, no accidental.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/diccionario.md >}}
+
+{{< include _explicaciones/sesion.md >}}
 
 {{< include _explicaciones/puerto.md >}}
 

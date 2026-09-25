@@ -214,6 +214,11 @@ el tiempo de vida del proceso — nunca del hype.
 3. ¿Qué dos diferencias hay entre `res.json(tasks)` (Express) y el
    `return {statusCode, body}` de Lambda?
 
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+
 ::: {.callout-note collapse="true" title="Soluciones"}
 
 1. Conviene: (a) eventos irregulares — pagas ~nada entre webhooks;
@@ -258,6 +263,22 @@ Moraleja: serverless es una *herramienta con un nicho*, no un upgrade.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/middleware.md >}}
+
+{{< include _explicaciones/deploy.md >}}
 
 {{< include _explicaciones/runtime.md >}}
 

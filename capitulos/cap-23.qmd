@@ -37,6 +37,9 @@ request_id), qué (endpoint, acción, resultado), cuánto (duración,
 tamaño). Y una regla que no se negocia: **passwords, tokens y datos
 personales jamás tocan un log.**
 
+{{< include _explicaciones/objeto.md >}}
+
+
 {{< include _explicaciones/token.md >}}
 
 
@@ -184,6 +187,9 @@ durante mucho tiempo.
 
 - **JSON a stdout**: la app escribe líneas JSON; el *colector* (Docker,
   systemd, el agente de la nube) las recoge — la app no abre archivos.
+
+{{< include _explicaciones/nube.md >}}
+
 - **Request_id en la respuesta** (`X-Request-Id` header): cuando el
   usuario reporta "me falló", te da el hilo exacto.
 - **Loguea decisiones, no solo errores**: "task created", "payment
@@ -233,6 +239,22 @@ es observabilidad.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/job.md >}}
 
 {{< include _explicaciones/terminal.md >}}
 

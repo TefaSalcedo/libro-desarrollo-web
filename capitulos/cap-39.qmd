@@ -21,6 +21,13 @@ levanta en una máquina limpia; hay un endpoint que olvidó `requireRole`;
 `GET /documents` devuelve el `content` entero de 2MB por documento;
 un EXPLAIN muestra que la lista escanea la tabla completa; y el log
 de errores está vacío porque "nunca falla". La distancia entre
+
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/log.md >}}
+
 *funciona* y *publicable* se mide en findings — y se cierra con una
 auditoría sistemática, no con suerte.
 
@@ -212,6 +219,20 @@ que es lo que "auditoría" significa de verdad.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/middleware.md >}}
+
+{{< include _explicaciones/variable-de-entorno.md >}}
+
+{{< include _explicaciones/secreto.md >}}
+
+{{< include _explicaciones/ip.md >}}
+
+{{< include _explicaciones/volumen.md >}}
 
 {{< include _explicaciones/repositorio.md >}}
 

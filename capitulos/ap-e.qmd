@@ -139,6 +139,26 @@ el día 1.
 
 ## Vocabulario técnico del capítulo
 
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/cookie.md >}}
+
+{{< include _explicaciones/middleware.md >}}
+
+{{< include _explicaciones/variable-de-entorno.md >}}
+
+{{< include _explicaciones/servidor.md >}}
+
+{{< include _explicaciones/dominio.md >}}
+
+{{< include _explicaciones/compose.md >}}
+
+{{< include _explicaciones/rollback.md >}}
+
+{{< include _explicaciones/healthcheck.md >}}
+
 {{< include _explicaciones/runtime.md >}}
 
 {{< include _explicaciones/framework.md >}}

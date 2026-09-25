@@ -51,6 +51,11 @@ que frontend y backend se construyan en paralelo.**
 
 La app completa en React — estado, loading, error, lista y formulario:
 
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/estado.md >}}
+
+
 ```tsx
 import { useState, useEffect } from "react";
 
@@ -134,6 +139,9 @@ Tres formas de desarrollar la UI sin que la API exista:
 
 - **fetch en el body del componente** (sin useEffect): se dispara en cada
   render — bucle infinito.
+
+{{< include _explicaciones/bucle.md >}}
+
 - **`setTasks([...tasks, created])` vs `tasks.push()`**: mutar no repinta
   en React — siempre crear array nuevo.
 - **Olvidar `e.preventDefault()`** en el form: la página recarga entera.
@@ -144,6 +152,9 @@ Tres formas de desarrollar la UI sin que la API exista:
    sin API.
 2. Cuando tengas la API (Sección II), cambia solo la base URL y verifica
    que todo sigue igual — eso es "contrato cumplido".
+
+{{< include _explicaciones/funcion.md >}}
+
 
 ## Mini reto
 
@@ -164,6 +175,18 @@ patrón: mutación al servidor + actualización optimista del estado.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/diccionario.md >}}
+
+{{< include _explicaciones/modulo.md >}}
 
 {{< include _explicaciones/entorno.md >}}
 

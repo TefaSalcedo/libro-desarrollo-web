@@ -22,6 +22,9 @@ no es código: es pensar.
 diseño* — es el escritorio donde trabajas, no el archivero donde guardas.
 Necesitamos algo que sobreviva: a reinicios, a crashes, a deploys.
 
+{{< include _explicaciones/variable.md >}}
+
+
 {{< include _explicaciones/proceso.md >}}
 
 {{< include _explicaciones/memoria.md >}}
@@ -100,6 +103,9 @@ tareas*. `TASKS }o--o{ TAGS` = *muchos a muchos* — y como una tabla no
 puede tener "listas" dentro, esa relación vive en `task_tags`, la tabla
 puente. **Toda decisión del dibujo se convierte en una línea de SQL.**
 
+{{< include _explicaciones/array.md >}}
+
+
 ## Implementación
 
 El diagrama traducido a `CREATE TABLE` — SQL puro, idéntico para los
@@ -155,6 +161,9 @@ Tres decisiones que merecen una pausa:
    no default*. La alternativa `SET NULL` dejaría tareas huérfanas.
 3. **`task_tags` con PK compuesta:** el par `(task_id, tag_id)` *es* la
    clave — no puede repetirse, y no necesita id propio.
+
+{{< include _explicaciones/join.md >}}
+
 
 ::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
@@ -269,6 +278,9 @@ backups — esos son problemas de operación, no de desarrollo).
   snake_case en columnas (`due_date`), PK llamada `id`, FK llamada
   `tabla_id` (`user_id`). La convención evita mil decisiones pequeñas.
 
+{{< include _explicaciones/foreign-key.md >}}
+
+
 ## Ejercicio
 
 1. Dibuja (en papel o texto) el ER si Taskflow agrega **comentarios** en
@@ -334,6 +346,18 @@ la defensiva: dato personal huérfano es peor que dato borrado.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/booleano.md >}}
+
+{{< include _explicaciones/pool.md >}}
+
+{{< include _explicaciones/orm.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
+
+{{< include _explicaciones/sesion.md >}}
 
 {{< include _explicaciones/entorno.md >}}
 

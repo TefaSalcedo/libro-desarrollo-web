@@ -139,6 +139,26 @@ defiende solo en la entrevista."
 
 ## Vocabulario técnico del capítulo
 
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/sesion.md >}}
+
+{{< include _explicaciones/secreto.md >}}
+
+{{< include _explicaciones/deploy.md >}}
+
+{{< include _explicaciones/dominio.md >}}
+
+{{< include _explicaciones/websocket.md >}}
+
+{{< include _explicaciones/latencia.md >}}
+
+{{< include _explicaciones/escalado.md >}}
+
+{{< include _explicaciones/produccion.md >}}
+
 {{< include _explicaciones/compilador.md >}}
 
 {{< include _explicaciones/terminal.md >}}

@@ -16,6 +16,9 @@ valores.
 
 `GET /tasks/99` cuando solo existen 5 tareas. ¿Qué devuelves?
 
+{{< include _explicaciones/return.md >}}
+
+
 - ¿`null`? — el frontend hace `task.title` y explota.
 - ¿`200 {"error": "not found"}`? — el `res.ok` de `fetch` dice *true* y tu
   React pinta una tarea fantasma.
@@ -70,6 +73,9 @@ Un equipo maduro decide tres cosas sobre los errores:
 - <span class="tag tag-go">Go</span> **Error como valor**: no hay excepciones
   — las funciones devuelven `(result, error)` y tú decides. El modelo más
   explícito, y el que mejor enseña el concepto.
+
+{{< include _explicaciones/funcion.md >}}
+
 - <span class="tag tag-u">U</span> **Jerarquía de errores**: `DomainError →
   NotFoundError → TaskNotFoundError` — clasificar para responder.
 
@@ -392,6 +398,20 @@ INTERNAL req_8f3a" y tú buscas ese id en los logs — Cap. 23 lo implementa.
 
 ## Vocabulario técnico del capítulo
 
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/estado.md >}}
+
 {{< include _explicaciones/compilador.md >}}
 
 {{< include _explicaciones/indice.md >}}
@@ -406,4 +426,7 @@ INTERNAL req_8f3a" y tú buscas ese id en los logs — Cap. 23 lo implementa.
 - [ ] Implementar un mapper de errores→HTTP en un solo lugar
 - [ ] Explicar la diferencia filosófica entre excepciones y errores como
       valor — y dar un argumento a favor de cada modelo
+
+{{< include _explicaciones/parametro.md >}}
+
 - [ ] Garantizar que un 500 nunca filtra el stack trace al cliente

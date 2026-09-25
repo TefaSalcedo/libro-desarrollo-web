@@ -69,6 +69,9 @@ El snapshot es el *estado completo* en ese rev: restaurar es leer una
 fila. Los diffs existen como *optimización de transporte* (qué mandar
 por WebSocket), nunca como fuente de verdad.
 
+{{< include _explicaciones/websocket.md >}}
+
+
 ## Implementación
 
 El guardado atómico — el corazón de Nexus en los tres stacks:
@@ -293,6 +296,24 @@ barato del sistema.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/diccionario.md >}}
+
+{{< include _explicaciones/concurrencia.md >}}
 
 {{< include _explicaciones/git.md >}}
 

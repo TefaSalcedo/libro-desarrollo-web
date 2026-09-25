@@ -252,6 +252,26 @@ todos los errores que ya no puedes volver a cometer.
 
 ## Vocabulario técnico del capítulo
 
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/constraint.md >}}
+
+{{< include _explicaciones/tracing.md >}}
+
 {{< include _explicaciones/framework.md >}}
 
 {{< include _explicaciones/memoria.md >}}

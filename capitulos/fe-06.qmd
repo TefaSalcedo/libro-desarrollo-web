@@ -20,6 +20,11 @@ sorprende: **tu React no corre en el servidor**. Se *construye* a archivos
 estáticos y cualquier servidor (nginx, un CDN, tu propio backend) los
 sirve tal cual. El navegador del usuario hace todo el trabajo.
 
+{{< include _explicaciones/cdn.md >}}
+
+{{< include _explicaciones/produccion.md >}}
+
+
 {{< include _explicaciones/localhost.md >}}
 
 
@@ -82,6 +87,9 @@ dist/
 El hash en el nombre (`a1b2c3`) es caché-busting: cambia cuando el código
 cambia, así el navegador sabe cuándo re-descargar.
 
+{{< include _explicaciones/cache.md >}}
+
+
 ::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
 ```text
@@ -133,6 +141,9 @@ cómo llega ahí tiene variantes reales.
 - **Mismo dominio si puedes**: servir frontend y `/api` desde el mismo
   origen evita CORS (Sección II lo explica).
 
+{{< include _explicaciones/cors.md >}}
+
+
 ## Ejercicio
 
 1. Corre `npm run build` en tu app Vite y mira `dist/` — encuentra el JS
@@ -148,6 +159,11 @@ cómo llega ahí tiene variantes reales.
 Si el frontend son solo archivos estáticos, ¿cómo "sabe" a qué backend
 llamar? Diseña la respuesta — pista: variable de entorno en build o
 mismo-origen con proxy.
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/proxy.md >}}
+
 
 {{< include _explicaciones/variable-de-entorno.md >}}
 
@@ -169,6 +185,14 @@ evita CORS por completo.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/dominio.md >}}
+
+{{< include _explicaciones/bucket.md >}}
+
+{{< include _explicaciones/tracing.md >}}
 
 {{< include _explicaciones/framework.md >}}
 

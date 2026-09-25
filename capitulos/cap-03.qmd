@@ -28,6 +28,9 @@ qué ruta atiende, qué verbo significa qué, qué código de estado devuelve.
 Diseñar eso **es** diseñar la API — y es una conversación de equipo antes
 que de código.
 
+{{< include _explicaciones/return.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Antes de escribir handlers, un equipo se sienta sobre una tabla así:
@@ -90,6 +93,9 @@ responde 404 él mismo si nadie reclamó la ruta.
 
 CRUD completo en memoria. El "modelo" es intencionalmente una lista — la
 base de datos llega en la Parte 2; hoy nos importa el *contrato HTTP*.
+
+{{< include _explicaciones/array.md >}}
+
 
 {{< include _explicaciones/memoria.md >}}
 
@@ -522,6 +528,22 @@ solo puede dar like una vez, la operación es idempotente y `PUT` lo expresa.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/booleano.md >}}
+
+{{< include _explicaciones/null.md >}}
 
 {{< include _explicaciones/localhost.md >}}
 

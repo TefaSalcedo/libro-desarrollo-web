@@ -21,6 +21,9 @@ tercero se cae, que gastan rate limit, y que envían correos de mentira
 a usuarios de verdad. Pero el extremo opuesto es igual de inútil:
 mockear tan adentro que el test solo verifica que el mock funciona.
 
+{{< include _explicaciones/mock.md >}}
+
+
 {{< include _explicaciones/registry.md >}}
 
 
@@ -187,6 +190,9 @@ un mapa de lo *no* cubierto, no una nota del examen.
 3. En Go no hay `vi.mock` — ¿por qué se dice que "la DI es el mock de
    Go" y qué implica para cómo escribes los servicios?
 
+{{< include _explicaciones/funcion.md >}}
+
+
 ## Mini reto
 
 El test de "servicio externo caído → la API responde bien igual".
@@ -221,6 +227,22 @@ cap. 19 — sin él, "degrada bien" es una esperanza.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/metodo.md >}}
+
+{{< include _explicaciones/cobertura.md >}}
 
 {{< include _explicaciones/runtime.md >}}
 

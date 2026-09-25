@@ -19,6 +19,9 @@ pantalla. Con HTML puro ya sabes escribir `<ul><li>…</li></ul>` — pero la
 lista *cambia*: el usuario agrega tareas, las marca hechas, las borra.
 ¿Cómo haces que la pantalla refleje el array actual?
 
+{{< include _explicaciones/array.md >}}
+
+
 {{< include _explicaciones/memoria.md >}}
 
 
@@ -187,6 +190,12 @@ manual del DOM: declaras cómo se ve la UI para cada estado
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/clase.md >}}
 
 {{< include _explicaciones/servidor.md >}}
 

@@ -4,7 +4,27 @@
 import json, re, glob, os
 
 # Same patterns used for scanning (term -> regex)
+# Basic programming terms first — highest insertion priority
 TERMS = {
+ 'variable': r'\bvariables?\b',
+ 'funcion': r'\bfunciones?\b|\bfunción\b',
+ 'parametro': r'\bparámetros?\b|\bargumentos?\b',
+ 'array': r'\barrays?\b|\blistas?\b|\bslices?\b',
+ 'objeto': r'\bobjetos?\b|\bobject\b|\bstruct\b|\binterface\b',
+ 'bucle': r'\bbucles?\b|\bloops?\b|\bfor\b|\bwhile\b',
+ 'condicional': r'\bcondicionales?\b|\bif/else\b|\bif else\b',
+ 'clase': r'\bclases?\b|\bclass\b',
+ 'string': r'\bstrings?\b|cadena de texto|cadenas de caracteres',
+ 'booleano': r'\bbooleanos?\b|\bboolean\b',
+ 'null': r'\bnull\b|\bNone\b|\bnil\b',
+ 'return': r'\breturn\b|devuelve',
+ 'asincrono': r'\bas[íi]ncron\w+\b|asincronía',
+ 'callback': r'\bcallbacks?\b',
+ 'goroutine': r'\bgoroutines?\b',
+ 'metodo': r'\bmétodos?\b',
+ 'diccionario': r'\bdiccionarios?\b|\bdicts?\b|\bmap\b',
+ 'tupla': r'\btuplas?\b|\btuples?\b',
+ 'compilado': r'\bcompilado\b|interpretado|lenguaje compilado',
  'runtime': r'\bruntime\b|tiempo de ejecución',
  'entorno': r'\bentornos?\b',
  'dom': r'\bDOM\b',
@@ -266,18 +286,25 @@ for path in sorted(glob.glob('capitulos/*.qmd')):
         lines[pos:pos] = block
 
     if fallback:
-        # append before "## Lo que deberías saber hacer ahora" if present, else at EOF
-        block = ['', '## Vocabulario técnico del capítulo', '']
+        # if the chapter already has a vocab section, append there
+        inc_lines = []
         for s in fallback:
-            block.append(f'{{{{< include _explicaciones/{s}.md >}}}}')
-            block.append('')
+            inc_lines.append(f'{{{{< include _explicaciones/{s}.md >}}}}')
+            inc_lines.append('')
         txt = '\n'.join(lines)
-        marker = '## Lo que deberías saber hacer ahora'
-        if marker in txt:
-            txt = txt.replace(marker, '\n'.join(block) + '\n' + marker, 1)
+        vocab = '## Vocabulario técnico del capítulo\n'
+        if vocab in txt:
+            # insert new includes right after the existing heading
+            txt = txt.replace(vocab, vocab + '\n' + '\n'.join(inc_lines).strip() + '\n', 1)
             lines = txt.split('\n')
         else:
-            lines += block
+            block = ['', '## Vocabulario técnico del capítulo', ''] + inc_lines
+            marker = '## Lo que deberías saber hacer ahora'
+            if marker in txt:
+                txt = txt.replace(marker, '\n'.join(block) + '\n' + marker, 1)
+                lines = txt.split('\n')
+            else:
+                lines += block
         fallback_used[path] = fallback
 
     out = '\n'.join(lines)

@@ -22,6 +22,9 @@ computadora, encendida 24/7, con una IP pública**. Toda la industria del
 hosting se reduce a: ¿de quién es esa máquina, dónde está, y quién la
 mantiene?
 
+{{< include _explicaciones/ip.md >}}
+
+
 {{< include _explicaciones/puerto.md >}}
 
 {{< include _explicaciones/proceso.md >}}
@@ -38,6 +41,9 @@ Nadie empieza comprando un rack. El camino típico de un producto:
    alrededor.
 4. **Escala o regulación:** datacenter propio o *bare metal* (máquina
    física completa alquilada). Raro en productos pequeños.
+
+{{< include _explicaciones/nube.md >}}
+
 
 {{< include _explicaciones/localhost.md >}}
 
@@ -81,6 +87,11 @@ La regla de oro: **a más control, más responsabilidad.** No hay opción
 El camino clásico que todo backend debería hacer **una vez**: alquilar un
 VPS, entrar por SSH y dejar la app corriendo. Aunque luego uses PaaS o
 serverless, entenderás qué abstraen.
+
+{{< include _explicaciones/iaas-paas-saas.md >}}
+
+{{< include _explicaciones/serverless.md >}}
+
 
 **Paso 1 — provisionar.** En DigitalOcean/Hetzner creas un "Droplet"/VPS:
 Ubuntu, el plan más barato, y subes tu **llave SSH pública** (la
@@ -127,6 +138,9 @@ espera HTTP en 80. Además, exponer el puerto de la app directo es mala
 idea — por eso va nginx delante (reverse proxy, cap. 33). El firewall
 mínimo:
 
+{{< include _explicaciones/proxy.md >}}
+
+
 ```bash
 sudo ufw allow OpenSSH   # port 22 — NEVER lock yourself out
 sudo ufw allow 'Nginx Full'
@@ -157,6 +171,9 @@ explícame por qué cada capa de seguridad existe.
 variable — *quién sufre cuando algo físico se rompe*. On-premise: tú, a
 las 3am, manejando al datacenter. VPS: ellos, tú solo el SO. Todo lo
 demás (precio, control, compliance) se deriva de esa única pregunta.
+
+{{< include _explicaciones/variable.md >}}
+
 
 ::: {.callout-note collapse="true" title="Detalle: cuándo cada cimentación"}
 
@@ -246,6 +263,14 @@ node dist/index.js &
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/latencia.md >}}
+
+{{< include _explicaciones/escalado.md >}}
+
+{{< include _explicaciones/produccion.md >}}
 
 {{< include _explicaciones/dependencia.md >}}
 

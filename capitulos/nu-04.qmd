@@ -30,6 +30,9 @@ máquina**. Un servicio administrado te da el software funcionando y el
 proveedor absorbe: parches, backups, failover, réplicas, escalado de
 disco. Tú recibes una **connection string** y un panel.
 
+{{< include _explicaciones/string.md >}}
+
+
 El intercambio es el patrón de toda esta sección: *menos control, menos
 trabajo, más factura por unidad*. Para casi todo equipo, el trato sale
 ganando — las horas de DBA cuestan más que la diferencia de precio.
@@ -80,6 +83,11 @@ aws rds create-db-instance \
 
 **Paso 2 — la app solo ve una URL.** Esto es lo elegante: tu código de
 los caps. 8–13 no cambia *nada* — cambia una variable de entorno:
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/variable-de-entorno.md >}}
+
 
 {{< include _explicaciones/entorno.md >}}
 
@@ -212,6 +220,20 @@ una deuda con vencimiento desconocido.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/log.md >}}
+
+{{< include _explicaciones/secreto.md >}}
+
+{{< include _explicaciones/dns.md >}}
+
+{{< include _explicaciones/cdn.md >}}
+
+{{< include _explicaciones/cache.md >}}
 
 {{< include _explicaciones/terminal.md >}}
 

@@ -42,6 +42,9 @@ Un equipo no elige "el mejor" — elige por contexto:
   actualiza sola. Cada framework la implementa distinto.
 - <span class="tag tag-u">U</span> **Vite + dev server**: la herramienta
   que sirve tu app en desarrollo (`npm run dev`).
+
+{{< include _explicaciones/paquete.md >}}
+
 - <span class="tag tag-u">U</span> **JSX / templates / SFC**: cómo cada
   framework escribe "HTML con lógica dentro".
 
@@ -234,6 +237,20 @@ distinto mecanismo de "aviso".
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/tracing.md >}}
+
+{{< include _explicaciones/modulo.md >}}
+
+{{< include _explicaciones/api.md >}}
 
 {{< include _explicaciones/dom.md >}}
 

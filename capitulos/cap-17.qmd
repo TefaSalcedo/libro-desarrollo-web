@@ -31,6 +31,9 @@ verificó *quién eres* pero nunca *de quién es eso*. En Taskflow: Ana
 abre DevTools, cambia el id, borra las tareas de Bruno. La autenticación
 funcionó perfecto — eso es lo que la hace peligrosa.
 
+{{< include _explicaciones/api.md >}}
+
+
 {{< include _explicaciones/autenticacion.md >}}
 
 
@@ -49,6 +52,9 @@ Dos niveles, en orden de lo que Taskflow necesita:
    `project_members(user_id, project_id, role)` con `viewer/editor/admin`.
    El rol no vive en el usuario (sería global: "eres admin de TODO"),
    vive en la membresía: eres editor *de este* proyecto.
+
+{{< include _explicaciones/return.md >}}
+
 
 {{< include _explicaciones/query.md >}}
 
@@ -224,6 +230,9 @@ parametrizas *qué* rol sin duplicar *cómo* se comprueba. Es el factory
 pattern aplicado al middleware, y la primera vez que funciones-que-
 devuelven-funciones dejan de ser un truco y se vuelven herramienta.
 
+{{< include _explicaciones/funcion.md >}}
+
+
 ::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
 ```text
@@ -282,6 +291,9 @@ crece) RBAC/ABAC. No construyas el último escalón primero.
   diferencia; es de las pocas decisiones de API que también es seguridad.
 - **Roles pequeños y legibles** (`viewer < editor < admin` con ranking)
   antes que strings sueltos comparados a mano.
+
+{{< include _explicaciones/string.md >}}
+
 - **Audita endpoints al crecer:** cada ruta nueva pasa por el checklist
   "¿quién puede hacer esto?" — el mini reto formaliza el hábito.
 
@@ -335,6 +347,18 @@ mismo body. Si puedes distinguirlas, un atacante también.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/diccionario.md >}}
+
+{{< include _explicaciones/tracing.md >}}
 
 {{< include _explicaciones/memoria.md >}}
 

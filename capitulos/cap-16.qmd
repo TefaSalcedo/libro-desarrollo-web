@@ -22,6 +22,9 @@ pegarlo queda público, y el día que cambie la verificación hay que tocar
 20 archivos. La verificación de auth es un *cross-cutting concern*: una
 capa que atraviesa todo, no parte de ningún handler.
 
+{{< include _explicaciones/firma.md >}}
+
+
 {{< include _explicaciones/autenticacion.md >}}
 
 {{< include _explicaciones/cookie.md >}}
@@ -185,6 +188,9 @@ El patrón en una línea: **la verificación vive en un solo lugar, y
 proteger un endpoint nuevo cuesta una palabra** (`Depends`, `app.use`,
 `auth(...)`). Cap. 17 le da argumentos — middlewares con parámetros.
 
+{{< include _explicaciones/parametro.md >}}
+
+
 ::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
 ```text
@@ -208,6 +214,9 @@ su lenguaje hace natural: Express encadena funciones, FastAPI declara
 dependencias, Go compone handlers. Si entiendes el patrón, cada dialecto
 se aprende en una tarde; si solo memorizas el dialecto, cada framework
 parece magia nueva.
+
+{{< include _explicaciones/funcion.md >}}
+
 
 {{< include _explicaciones/dependencia.md >}}
 
@@ -264,6 +273,9 @@ orden de los `Depends`/middlewares; en Go es cómo anidas los wrappers:
 2. Escribe la línea exacta que protege `GET /projects` en tu stack.
 3. ¿Por qué `currentUser` en variable global es un bug de concurrencia?
 
+{{< include _explicaciones/variable.md >}}
+
+
 ::: {.callout-note collapse="true" title="Soluciones"}
 
 1. `POST /tasks` → logging → rate-limit → **auth** (aquí muere con 401
@@ -305,6 +317,18 @@ la ruta y el handler. Una palabra, toda la protección.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
 
 {{< include _explicaciones/base-de-datos.md >}}
 

@@ -23,6 +23,11 @@ la API muere de éxito. Mientras tanto, en otra parte del código hay un
 loop que ejecuta una query *por cada tarea* (el famoso N+1) y nadie lo
 ve porque en dev son 5.
 
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/n-mas-1.md >}}
+
+
 {{< include _explicaciones/query.md >}}
 
 {{< include _explicaciones/indice.md >}}
@@ -31,6 +36,9 @@ ve porque en dev son 5.
 ## Cómo lo resuelve un equipo
 
 El método profesional es medir, no adivinar:
+
+{{< include _explicaciones/metodo.md >}}
+
 
 1. **`EXPLAIN` la query lenta** — Postgres te dice su plan: "voy a hacer
    Seq Scan" (malo, lee todo) o "voy a hacer Index Scan" (bueno).
@@ -43,6 +51,9 @@ las páginas buscando "índice", vas a la lista ordenada del final que
 apunta directo. Postgres mantiene esa estructura (un árbol B-tree)
 actualizada en cada INSERT/UPDATE — **por eso los índices no son
 gratis**: aceleran lecturas y encarecen escrituras.
+
+{{< include _explicaciones/array.md >}}
+
 
 ## Conceptos nuevos
 
@@ -120,6 +131,9 @@ WHERE t.user_id = $1 AND t.done = FALSE;
 `LIMIT 20 OFFSET 0` — bien hasta que `OFFSET 10000` obliga a la BD a
 contar y descartar 10.000 filas. La alternativa que escala es el
 
+{{< include _explicaciones/paginacion.md >}}
+
+
 {{< include _explicaciones/base-de-datos.md >}}
 
 {{< include _explicaciones/escalado.md >}}
@@ -141,6 +155,9 @@ ORDER BY created_at DESC, id DESC LIMIT 20;
 La API devuelve `next_cursor` (el `created_at,id` de la última fila) y el
 cliente lo devuelve en la siguiente llamada. Así paginan las APIs reales
 (Twitter, Stripe) — nunca `?page=`.
+
+{{< include _explicaciones/return.md >}}
+
 
 ::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
@@ -271,6 +288,14 @@ el primer día.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/tracing.md >}}
 
 {{< include _explicaciones/esquema.md >}}
 

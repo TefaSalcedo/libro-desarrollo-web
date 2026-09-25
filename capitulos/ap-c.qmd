@@ -53,6 +53,9 @@ usar Depends ni Express a usar middleware — pero la industria sí te
 obliga a validar, a autenticar una vez y a no dejar stack traces. El
 framework propone el *mecanismo*; tú mantienes el *control*.
 
+{{< include _explicaciones/middleware.md >}}
+
+
 {{< include _explicaciones/framework.md >}}
 
 
@@ -60,6 +63,9 @@ framework propone el *mecanismo*; tú mantienes el *control*.
 son la misma idea con tres acentos — como `throw`/`raise`/`return err`.
 Por eso el libro muestra los tres: para que veas que la idea sobrevive
 a la sintaxis.
+
+{{< include _explicaciones/return.md >}}
+
 
 ## Mini reto
 
@@ -79,6 +85,22 @@ producto no es del lenguaje — la *decisión de cachear* tampoco.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/goroutine.md >}}
+
+{{< include _explicaciones/hash.md >}}
+
+{{< include _explicaciones/firma.md >}}
+
+{{< include _explicaciones/log.md >}}
+
+{{< include _explicaciones/variable-de-entorno.md >}}
+
+{{< include _explicaciones/secreto.md >}}
 
 {{< include _explicaciones/runtime.md >}}
 

@@ -33,6 +33,9 @@ reintenta.
 Existe porque el abuso y los bugs de loop se parecen mucho. Devuelve
 `429` + `Retry-After`, no un 500 misterioso.
 
+{{< include _explicaciones/bucle.md >}}
+
+
 **CORS** — Política del *navegador*: "¿desde qué orígenes puede JS leer
 esta respuesta?" No es seguridad contra servidores — `curl` ni lo ve.
 Trampa: `*` con credenciales, que los navegadores rechazan (bien).
@@ -46,6 +49,9 @@ fuente de verdad cuando existe antes que el código.
 **ORM** — El traductor objetos↔tablas. Ahorra el SQL repetitivo y cobra
 con N+1 y queries opacas. Regla: ORM para el CRUD, SQL crudo para lo
 difícil — y siempre poder leer lo que genera.
+
+{{< include _explicaciones/orm.md >}}
+
 
 {{< include _explicaciones/query.md >}}
 
@@ -69,6 +75,9 @@ juntas (ACID). Existe porque el mundo falla a la mitad. `FOR UPDATE` =
 
 **N+1** — La enfermedad de los loops: 1 query para la lista + N para
 los hijos. Se cura con JOIN/agregación — una query, no N.
+
+{{< include _explicaciones/join.md >}}
+
 
 **Pool** — Las conexiones a la BD reutilizadas entre requests, porque
 abrir una por request es caro. Tamaño real: 10–20, no 1000.
@@ -97,6 +106,9 @@ quema el anterior — reuso detectado = familia entera revocada.
 **httpOnly cookie** — Cookie que JavaScript no puede leer: el XSS que
 roba tokens no la alcanza. vs `localStorage`: cómodo pero legible por
 cualquier script que se cuele.
+
+{{< include _explicaciones/token.md >}}
+
 
 **BOLA / IDOR** — "¿Puedo pedir `/tasks/99` que es de otra persona?"
 El #1 de OWASP API. Fix: ownership *en la query* y 404 (no 403) para
@@ -179,6 +191,18 @@ salió "se puede repetir", vuelve al cap. 22 — la definición sin el
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/objeto.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/cookie.md >}}
+
+{{< include _explicaciones/jwt.md >}}
+
+{{< include _explicaciones/hash.md >}}
 
 {{< include _explicaciones/proceso.md >}}
 

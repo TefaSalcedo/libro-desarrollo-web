@@ -22,6 +22,9 @@ servidor, y "cerrar todas las sesiones" (tu laptop robada) no existe como
 operación. Además el login es el endpoint más atacado del mundo: sin límite
 de intentos, la fuerza bruta prueba contraseñas a máquina.
 
+{{< include _explicaciones/firma.md >}}
+
+
 {{< include _explicaciones/autenticacion.md >}}
 
 {{< include _explicaciones/sesion.md >}}
@@ -102,6 +105,11 @@ son secretos** — si la tabla `sessions` se filtra, los refresh en claro
 son sesiones regaladas. Se guarda el hash; lo que viaja al cliente es el
 token opaco.
 
+{{< include _explicaciones/hash.md >}}
+
+{{< include _explicaciones/secreto.md >}}
+
+
 El refresh con rotación + detección de reuso (patrón, válido en los tres
 stacks):
 
@@ -124,6 +132,9 @@ def refresh_session(refresh_token: str):
 
 Y el rate limit del login — en los tres stacks es un middleware delante
 del handler (mismo patrón del cap. 16):
+
+{{< include _explicaciones/middleware.md >}}
+
 
 ```text
 POST /auth/login → rate_limit(5 req/min per IP) → handler
@@ -208,6 +219,9 @@ la consulta **una vez cada 15 minutos** — el precio justo por el botón
   propiedades que hacen sesión seria.
 - **Reuse detection = alarma gratis:** un refresh usado que reaparece es
   un robo; revoca la familia y marca el evento en logs.
+
+{{< include _explicaciones/log.md >}}
+
 - **Rate limit por IP *y* por cuenta** — el botnet tiene mil IPs pero la
   cuenta objetivo es una.
 - **`Retry-After` en el 429** — el cliente bien portado espera lo que le
@@ -271,6 +285,16 @@ dinero) o **revela algo** (¿existe este email? ¿es válido este código?).
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/return.md >}}
 
 {{< include _explicaciones/localhost.md >}}
 

@@ -192,6 +192,26 @@ fuertes. NoSQL habría sido pereza disfrazada de flexibilidad."
 
 ## Vocabulario técnico del capítulo
 
+{{< include _explicaciones/array.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
+{{< include _explicaciones/transaccion.md >}}
+
+{{< include _explicaciones/pool.md >}}
+
+{{< include _explicaciones/join.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
+
+{{< include _explicaciones/hash.md >}}
+
+{{< include _explicaciones/firma.md >}}
+
 {{< include _explicaciones/runtime.md >}}
 
 {{< include _explicaciones/framework.md >}}

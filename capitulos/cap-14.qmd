@@ -59,6 +59,9 @@ login es imperceptible; para quien prueba mil millones de combinaciones
 es una eternidad. MD5 y SHA256 son hashes rápidos — rápidos para ti *y
 para el atacante*. Por eso no sirven para contraseñas.
 
+{{< include _explicaciones/diccionario.md >}}
+
+
 {{< include _explicaciones/autenticacion.md >}}
 
 
@@ -192,6 +195,11 @@ Tres detalles que valen oro:
 3. **Costo 10 hoy.** El factor es configurable: súbelo cuando el hardware
    lo tolere (cada +1 duplica el trabajo). Se cronometra en el mini reto.
 
+{{< include _explicaciones/null.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+
 ::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
 ```text
@@ -316,6 +324,20 @@ próximo login exitoso del usuario.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/string.md >}}
+
+{{< include _explicaciones/asincrono.md >}}
+
+{{< include _explicaciones/imagen.md >}}
 
 {{< include _explicaciones/memoria.md >}}
 

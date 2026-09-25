@@ -20,6 +20,11 @@ modelo de nube es una respuesta distinta a *"¿qué parte de la pila quiero
 olvidar?"*. No son opciones buenas/malas — son fronteras distintas entre
 tu trabajo y el del proveedor.
 
+{{< include _explicaciones/nube.md >}}
+
+{{< include _explicaciones/firewall.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 La analogía clásica es la pizza:
@@ -113,6 +118,9 @@ En IaaS ejecutaste ~10 comandos operativos; en PaaS, **uno**. El PaaS
 interiorizó todo lo del capítulo N1 (systemd, nginx, firewall, parches)
 detrás de `git push`. *Eso* es lo que pagas.
 
+{{< include _explicaciones/iaas-paas-saas.md >}}
+
+
 ::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
 ```text
@@ -179,6 +187,9 @@ minimiza la factura del proveedor.
    frontera, no con el precio.
 3. ¿Qué capa comparten IaaS y PaaS como responsabilidad del proveedor?
 
+{{< include _explicaciones/serverless.md >}}
+
+
 ::: {.callout-note collapse="true" title="Soluciones"}
 
 1. SaaS: Gmail, Notion · IaaS: EC2, Droplet · PaaS: Heroku · FaaS:
@@ -212,6 +223,18 @@ riesgo) mejora, no cuando solo una línea baja.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/tls.md >}}
+
+{{< include _explicaciones/docker.md >}}
+
+{{< include _explicaciones/webhook.md >}}
+
+{{< include _explicaciones/escalado.md >}}
 
 {{< include _explicaciones/build.md >}}
 

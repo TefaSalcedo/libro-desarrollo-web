@@ -35,10 +35,16 @@ nace el ecosistema de clientes.
 - <span class="tag tag-u">U</span> **Cliente HTTP con extras**: axios
   (interceptors, JSON auto), React Query (caché + estados).
 
+{{< include _explicaciones/estado.md >}}
+
+
 {{< include _explicaciones/cache.md >}}
 
 - <span class="tag tag-u">U</span> **Observable** (Angular): stream
   reactivo en vez de Promise — el modelo de RxJS.
+
+{{< include _explicaciones/asincrono.md >}}
+
 
 ## Implementación: de menos a más
 
@@ -202,6 +208,9 @@ de cuánto ciclo de vida necesitas.
    libro.
 2. Haz el POST de crear tarea con fetch y verifica que aparece en la lista.
 
+{{< include _explicaciones/array.md >}}
+
+
 {{< include _explicaciones/localhost.md >}}
 
 
@@ -242,6 +251,20 @@ otra razón por la que las apps serias no hacen fetch en useEffect a mano.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/variable.md >}}
+
+{{< include _explicaciones/funcion.md >}}
+
+{{< include _explicaciones/bucle.md >}}
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/diccionario.md >}}
+
+{{< include _explicaciones/evento.md >}}
 
 {{< include _explicaciones/dependencia.md >}}
 

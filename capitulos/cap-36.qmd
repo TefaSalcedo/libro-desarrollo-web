@@ -156,6 +156,9 @@ problema resuelto *cuando costaba una oración* — en código cuesta un
 refactor, en prod una migración. El diseño no es burocracia: es el
 lugar barato de equivocarse.
 
+{{< include _explicaciones/produccion.md >}}
+
+
 {{< include _explicaciones/migracion.md >}}
 
 
@@ -209,6 +212,11 @@ lugar barato de equivocarse.
    si el caller no es admin, si es el último admin.
 3. ¿Por qué `REVISIONS` no tiene `public_id` en la tabla de arriba?
 
+{{< include _explicaciones/return.md >}}
+
+{{< include _explicaciones/metodo.md >}}
+
+
 ## Mini reto
 
 Presentar el diseño como si fuera un RFC de equipo — y defender cada
@@ -244,6 +252,20 @@ real necesita, y lo que el Ap. K entrena.
 
 
 ## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/clase.md >}}
+
+{{< include _explicaciones/cache.md >}}
+
+{{< include _explicaciones/imagen.md >}}
+
+{{< include _explicaciones/concurrencia.md >}}
+
+{{< include _explicaciones/escalado.md >}}
+
+{{< include _explicaciones/monolito.md >}}
+
+{{< include _explicaciones/microservicio.md >}}
 
 {{< include _explicaciones/proceso.md >}}
 
