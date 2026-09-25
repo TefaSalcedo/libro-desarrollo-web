@@ -201,6 +201,20 @@ tus casos son datos + expectativa, una tabla > diez funciones copiadas.
 - **Rápido o no se corre**: la suite unitaria corre en segundos — si
   tarda minutos, los devs la saltan y es decoración.
 
+::: {.callout-note collapse="true" title="EXTRA · Los tres niveles que nombran los roadmaps"}
+
+<span class="tag tag-extra">EXTRA</span> Cuando un roadmap o una
+entrevista dice "tipos de pruebas", se refiere a —
+
+- **Pruebas unitarias** — una función aislada, sin BD ni red (cap-27)
+- **Pruebas de integración** — la API contra la BD real (cap-28)
+- **Pruebas funcionales / e2e** — el sistema completo como un usuario
+  (cap-27, la punta cara de la pirámide)
+
+La pirámide del libro ordena exactamente esto: muchas unitarias, las
+suficientes de integración, pocas funcionales.
+:::
+
 ## Ejercicio
 
 1. Ordena por dónde testear: "el email único se enforza", "el JSON

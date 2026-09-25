@@ -213,6 +213,20 @@ demás (precio, control, compliance) se deriva de esa única pregunta.
 - **Documenta la máquina:** IP, región, qué corre ahí. Un servidor
   olvidado es una factura olvidada y un agujero de seguridad.
 
+::: {.callout-note collapse="true" title="EXTRA · Fundamentos de internet (el checklist del roadmap)"}
+
+<span class="tag tag-extra">EXTRA</span> Antes de servidores, los
+roadmaps piden entender internet misma — cada ítem mapea a un capítulo:
+
+- ¿Cómo funciona internet? — paquetes que viajan entre IPs
+- ¿Qué es HTTP y HTTPS? — *cap-01, cap-33*
+- ¿Qué es una dirección IP? — *este capítulo*
+- ¿Qué es un nombre de dominio? ¿DNS? — *cap-33, nu-04*
+- ¿Qué es hosting? — *nu-02*
+- ¿Qué es SMTP? — el protocolo de correo; por eso mandar email es un job
+  externo (*cap-21*)
+:::
+
 ## Ejercicio
 
 1. Ordena estas opciones de menor a mayor responsabilidad tuya:

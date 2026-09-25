@@ -280,6 +280,21 @@ backups — esos son problemas de operación, no de desarrollo).
 
 {{< include _explicaciones/foreign-key.md >}}
 
+::: {.callout-note collapse="true" title="EXTRA · El paisaje completo de bases de datos"}
+
+<span class="tag tag-extra">EXTRA</span> Lo que los roadmaps listan como
+bases que debes reconocer —
+
+**Relacionales:** MySQL (la más popular históricamente), PostgreSQL,
+MariaDB, MS SQL Server, Oracle.
+
+**NoSQL:** MongoDB, CouchDB, DynamoDB (RethinkDB quedó en el camino).
+Muchas startups optan por NoSQL — pero la decisión es por *forma del
+dato*, no por moda (ver la sección anterior de este capítulo).
+
+El libro elige PostgreSQL: relacional completo, JSONB cuando el dato
+varía, y el mismo motor en local y producción.
+:::
 
 ## Ejercicio
 

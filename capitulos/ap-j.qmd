@@ -178,3 +178,26 @@ defiende solo en la entrevista."
 {{< include _explicaciones/autenticacion.md >}}
 
 {{< include _explicaciones/autorizacion.md >}}
+
+
+::: {.callout-note collapse="true" title="EXTRA · Lo que los roadmaps dicen sobre carrera"}
+
+<span class="tag tag-extra">EXTRA</span> Más allá del código, las guías
+externas coinciden en lo no-técnico —
+
+- **Resolver problemas y comunicación**: el trabajo no termina en código
+  correcto; hay que explicar soluciones al equipo y a otros departamentos
+- **Portafolio**: perfil de GitHub activo + proyectos de código abierto
+- **Networking**: LinkedIn, meetups, conferencias — "la conexión correcta
+  puede ser la diferencia entre quedarte y conseguir el trabajo soñado"
+- **Voluntariado/open source**: experiencia real visible para
+  empleadores mientras no tienes empleo
+- **Recursos de aprendizaje**: freeCodeCamp (introducción gratuita), Khan
+  Academy (fundamentos), MDN Web Docs (tutoriales por nivel), libros como
+  *JavaScript Professional* (Zakas) y cursos prácticos de Node.js
+  (Andrew Mead)
+
+El hilo que los une: *aprendizaje basado en proyectos* — construir cosas
+reales retiene más que la teoría sola. Es literalmente el diseño de este
+libro.
+:::

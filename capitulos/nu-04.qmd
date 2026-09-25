@@ -174,6 +174,21 @@ son la opción más sensata: administrado *y* barato.
 - **Un secreto, un lugar:** mezclar `.env`, Secrets Manager y variables
   del CI dispersa la responsabilidad — elige uno por entorno.
 
+::: {.callout-note collapse="true" title="EXTRA · Las tres capas de caché del roadmap"}
+
+<span class="tag tag-extra">EXTRA</span> Cuando un roadmap dice
+"aprende caching", son tres capas distintas —
+
+- **CDN** — la copia en el borde, cerca del usuario (*este capítulo*)
+- **Caché del lado del servidor** — Redis o Memcached: resultados de
+  queries caras, sesiones, rate limits
+- **Caché del lado del cliente** — el navegador guarda estáticos con
+  headers de expiración
+
+El libro lo deja como decisión (Ap. K #14): el caché se agrega cuando un
+problema *medido* lo pide — antes es complejidad sin beneficio.
+:::
+
 ## Ejercicio
 
 1. Nombra **cuatro** cosas que RDS hace por ti y que tendrías que

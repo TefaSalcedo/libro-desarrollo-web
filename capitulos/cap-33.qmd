@@ -202,6 +202,21 @@ middleware correspondiente en los demás).
 - **El proxy también cachea/comprime**: gzip y estáticos en nginx —
   tu app no paga esos ciclos.
 
+::: {.callout-note collapse="true" title="EXTRA · Servidores web del mundo real"}
+
+<span class="tag tag-extra">EXTRA</span> Los roadmaps piden conocer
+servidores web — el trio real:
+
+- **Nginx** — el reverse proxy estándar: sirve estáticos rapidísimo y
+  reparte a tu app
+- **Apache** — el veterano; `.htaccess` y hosting clásico
+- **Reverse proxy** — el *rol*, no un producto: terminar TLS, servir
+  estáticos, balancear; Nginx/Caddy/Traefik lo juegan
+
+Tu app (Node/Python/Go) nunca mira internet directamente — el proxy es
+su fachada.
+:::
+
 ## Ejercicio
 
 1. Tienes un VPS de 8 núcleos con FastAPI. ¿Cuántos procesos corren tu

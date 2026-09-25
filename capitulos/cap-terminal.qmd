@@ -292,6 +292,22 @@ peligroso. No lo ejecutes — solo explícalo.
 - **Scripts para lo que repites:** si lo escribiste tres veces, es un
   archivo `.sh`/`.ps1` commiteado.
 
+::: {.callout-note collapse="true" title="EXTRA · Control de versiones y dónde viven los repos"}
+
+<span class="tag tag-extra">EXTRA</span> Los roadmaps piden dos cosas:
+*comandos básicos de Git* (clone, add, commit, push, pull, branch,
+merge) y *servicios de alojamiento de repositorios*:
+
+- **GitHub** — la comunidad más grande; donde vive el open source y tu
+  portafolio
+- **GitLab** — ciclo completo en una plataforma (repos + CI/CD + issues)
+- **Bitbucket** — el clásico del ecosistema Atlassian
+- **AWS CodeCommit** — repos Git privados administrados por Amazon
+
+El cometario que vale: tu perfil de GitHub *es* tu portafolio — los
+equipos que contratan lo miran antes que el CV.
+:::
+
 ## Ejercicio
 
 Sin salir de la terminal: (1) navega a un directorio temporal, (2) crea

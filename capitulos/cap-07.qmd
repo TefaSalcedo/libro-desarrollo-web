@@ -405,6 +405,23 @@ una mala cimentación: pilotes para una casa de un piso.
 
 {{< include _explicaciones/repositorio.md >}}
 
+::: {.callout-note collapse="true" title="EXTRA · Patrones arquitectónicos del roadmap"}
+
+<span class="tag tag-extra">EXTRA</span> Las taxonomías de arquitectura
+que listan los roadmaps backend —
+
+- **Monolítico** — todo en un proceso; el default correcto al empezar
+- **Microservicios** — procesos separados por dominio; paga cuando el
+  equipo ya no cabe en un monolito
+- **Serverless** — funciones por evento, sin servidor visible
+- **Escalado vertical** (máquina más grande) vs **horizontal** (más
+  máquinas — exige app sin estado local)
+- **Balanceadores de carga** — reparten el tráfico entre réplicas
+
+Todos aparecen como capítulos o decisiones en este libro; la lista sirve
+de mapa de vocabulario para reconocerlos en una entrevista. *→ cap-30..35,
+nu-05, Ap. K.*
+:::
 
 ## Ejercicio
 

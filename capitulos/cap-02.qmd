@@ -274,6 +274,26 @@ en el manifiesto del ecosistema". La sintaxis cambia; la obligación
 - **El proyecto arranca limpio en una máquina virgen** como definición de
   "setup terminado": clona → instala → corre.
 
+::: {.callout-note collapse="true" title="EXTRA · El panorama de lenguajes backend"}
+
+<span class="tag tag-extra">EXTRA</span> Curado de roadmaps externos
+(roadmap.sh, guías de bootcamp): los lenguajes que verás en el mercado,
+con su reputación honesta —
+
+- **Go** — moderno y simple; rendimiento general excelente
+- **Python** — elegante, ideal para apps backend sencillas
+- **JavaScript / Node.js** — serial para aplicaciones web; desarrolladores de sobra
+- **Java** — código más complejo, pero increíblemente rápido
+- **C#** — excelente si trabajas en el ecosistema Microsoft
+- **Ruby** — bueno si quieres Rails y te gusta ese estilo
+- **PHP** — excelente para sitios web simples; menos para APIs
+
+El libro elige TypeScript + Python + Go porque entre los tres cubren
+casi todos los modelos (event loop, async/GIL, goroutines). No hay
+elección "correcta" — hay el que tu equipo y tu mercado local usan.
+*→ cap-40 compara a fondo.*
+:::
+
 ## Ejercicio
 
 1. Inicializa Taskflow en tu lenguaje elegido con la estructura de arriba.

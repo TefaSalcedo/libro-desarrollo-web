@@ -483,6 +483,25 @@ espera ver.
 - **Query params para filtros** (`/tasks?done=false`), path params para
   identidad (`/tasks/42`). Mezclarlos confunde el contrato.
 
+::: {.callout-note collapse="true" title="EXTRA · Frameworks que te encontrarás fuera"}
+
+<span class="tag tag-extra">EXTRA</span> El libro usa Express, FastAPI y
+Go estándar, pero el ecosistema real es más amplio. Roadmaps externos
+recomiendan conocer —
+
+- **Ruby on Rails** — "convención sobre configuración", testing
+  integrado, localización; open source escrito en Ruby
+- **Django** (Python) — "baterías incluidas": auth, admin, ORM; hoy
+  también async
+- **Flask** (Python) — microframework minimalista, servidor de
+  desarrollo integrado, rápido para prototipar
+- **Express** (Node) — ligero y adaptable; depuración y desarrollo de
+  servidores rápidos
+
+Mismo patrón en todos: rutas → handlers → middleware. Si entiendes el
+de este libro, lees cualquiera de estos en una tarde.
+:::
+
 ## Ejercicio
 
 1. Implementa el CRUD en tu stack y pruébalo con `curl` o Thunder Client:

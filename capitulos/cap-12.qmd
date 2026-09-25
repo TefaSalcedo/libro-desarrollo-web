@@ -215,6 +215,26 @@ scan es honestamente más barato.
 - **`CREATE INDEX CONCURRENTLY`** en tablas grandes de prod — no bloquea
   escrituras mientras se construye.
 
+::: {.callout-note collapse="true" title="EXTRA · Las estructuras de datos detrás de tu BD"}
+
+<span class="tag tag-extra">EXTRA</span> Los roadmaps piden "estructuras
+de datos y algoritmos" — aquí está por qué les importa a un backend,
+conectado con lo que acabas de ver:
+
+- **Tabla hash** → así funciona un índice `HASH`
+- **Árbol de búsqueda (BST)** → el B-tree de los índices normales es su
+  primo balanceado; por eso la búsqueda es O(log n)
+- **Búsqueda binaria** → la misma idea: descartar la mitad en cada paso
+- **Arreglos / listas enlazadas / pilas / colas / grafos** → el lenguaje
+  de la entrevista; las colas son literalmente los jobs del cap-21
+- **Recursión y ordenamientos** (burbuja, selección, inserción) →
+  ejercicio clásico; en la vida real ordena la BD con `ORDER BY` + índice
+
+No necesitas implementar un árbol rojo-negro; necesitas *reconocer* qué
+estructura usa cada herramienta — eso es lo que hace predecible el
+rendimiento.
+:::
+
 ## Ejercicio
 
 1. Escribe el `EXPLAIN` para `WHERE user_id = 7 AND done = FALSE ORDER

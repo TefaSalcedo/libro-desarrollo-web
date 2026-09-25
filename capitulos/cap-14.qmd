@@ -262,6 +262,22 @@ con salt" vs cualquier otra cosa.
 - **Límite de longitud razonable** (ej. 72 bytes es el máximo real de
   bcrypt): valida `password.length <= 72` o trunca conscientemente.
 
+::: {.callout-note collapse="true" title="EXTRA · El mapa de hashing y seguridad web"}
+
+<span class="tag tag-extra">EXTRA</span> Los roadmaps piden "entender la
+seguridad web" — el mapa completo, ubicado:
+
+- **MD5** — roto; nunca para contraseñas (solo checksums)
+- **Familia SHA** — integridad y firmas; demasiado rápida para passwords
+- **scrypt** — alternativa seria a bcrypt, también lenta a propósito
+- **bcrypt** — la de este capítulo: lenta + salt incorporado
+- **HTTPS / SSL / TLS** — el canal cifrado (cap-33 lo sirve)
+- **CORS** — política de orígenes del navegador (cap-18)
+
+Regla que no caduca: contraseñas → bcrypt/scrypt/argon2; integridad →
+SHA/HMAC; MD5 → solo para verificar que un archivo no se corrompió.
+:::
+
 ## Ejercicio
 
 1. Explica en una frase por qué cifrar contraseñas es *peor* que

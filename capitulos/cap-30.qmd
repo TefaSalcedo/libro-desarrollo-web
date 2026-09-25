@@ -214,6 +214,15 @@ cabe en ~15MB.
 - **Tags con sentido**: `taskflow-api:1.4.2` / `:commit-sha` — `latest`
   es el tag que "nadie sabe qué versión es".
 
+::: {.callout-note collapse="true" title="EXTRA · Containerización / virtualización"}
+
+<span class="tag tag-extra">EXTRA</span> El roadmap externo lista —
+**Docker** (el estándar de contenedores, este capítulo), **Kubernetes**
+(orquestador de manadas de contenedores — nu-05 lo ubica), **rkt**
+(histórico, ya descontinuado — buen recordatorio de que las listas
+envejecen y los conceptos quedan).
+:::
+
 ## Ejercicio
 
 1. ¿Por qué `COPY package*.json` + `RUN npm ci` van *antes* de
