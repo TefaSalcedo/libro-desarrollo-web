@@ -41,6 +41,9 @@ esa cadena de necesidades *es* la arquitectura, no una lista de temas.
 Lo que confunde al junior es atribuir al lenguaje lo que es del
 framework, o al framework lo que es de la industria:
 
+{{< include _explicaciones/framework.md >}}
+
+
 | Decisión | Del lenguaje | Del framework | De la industria (igual en todos) |
 |---|---|---|---|
 | Concurrencia | event loop / asyncio / goroutines | — | I/O-bound se paraleliza |
@@ -63,9 +66,15 @@ que no practicas y reconocerle la forma.
   natural del fullstack pequeño; el ecosistema npm más grande; contrata
   más gente por oferta. Su precio: la concurrencia es cooperativa (un
   hilo) y el ecosistema se mueve rápido (dependencias que mueren).
+
+{{< include _explicaciones/dependencia.md >}}
+
 - **Python/FastAPI**: el framework más didáctico y el ecosistema de
   datos/AI — si el producto toca ML, pandas o LLMs, estás en casa. Su
   precio: el GIL (workers por núcleo) y el ecosistema de empaquetado.
+
+{{< include _explicaciones/cpu.md >}}
+
 - **Go**: rendimiento por núcleo, concurrencia real, un binario de
   deploy hermoso — para infra, workers, alto throughput. Su precio:
   más verboso, menos mágico (no hay framework que decida por ti).
@@ -74,6 +83,9 @@ El criterio, en orden: **qué sabe el equipo → qué pide el dominio →
 mercado de empleos local → gustos.** Y la verdad incómoda del capítulo:
 para un CRUD bien hecho, los tres son equivalentes — el cuello de
 botella será la BD, no el lenguaje.
+
+{{< include _explicaciones/base-de-datos.md >}}
+
 
 ## Lo que el libro dejó fuera — a propósito
 
@@ -108,6 +120,9 @@ todavía y por qué. Cada uno tiene su capítulo de decisión en el Ap. K.
 - **Usa la AI como lead, no como autor**: los "Prompt listo" del libro
   son tu formato — contexto + requisitos + criterios de aceptación; y
   el diff se revisa como PR de un junior (cap-terminal).
+
+{{< include _explicaciones/terminal.md >}}
+
 - **El ADR es un hábito, no un documento**: cada "¿por qué así?"
   merece un párrafo — tu yo del futuro es el equipo.
 
@@ -157,6 +172,19 @@ es la constante; la sintaxis es el acento.**
 :::
 
 > **Repaso de entrevista:** las preguntas de este tema viven en el Apéndice J (AI y conductual).
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/repositorio.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/esquema.md >}}
+
+{{< include _explicaciones/indice.md >}}
 
 ## Lo que deberías saber hacer ahora
 

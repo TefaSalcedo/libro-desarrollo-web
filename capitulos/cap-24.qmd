@@ -22,6 +22,15 @@ hay que *editar para desplegar* (cada deploy una rama distinta — el
 caos garantizado). Y el modo silencioso de morir: sin validación, la app
 arranca feliz y explota en el *primer* request que toca la BD.
 
+{{< include _explicaciones/repositorio.md >}}
+
+{{< include _explicaciones/puerto.md >}}
+
+{{< include _explicaciones/localhost.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio aplica dos ideas de 12-factor:
@@ -35,6 +44,9 @@ Un equipo serio aplica dos ideas de 12-factor:
    su config: si falta `DATABASE_URL` o `JWT_SECRET`, revienta
    inmediatamente con un error claro. Un deploy que no arranca es un
    deploy que no hace daño; uno que arranca roto es una 3am.
+
+{{< include _explicaciones/entorno.md >}}
+
 
 ## Conceptos nuevos
 
@@ -182,6 +194,9 @@ quieras; nada secreto → jamás al repo.**
 - **El objeto config se inyecta**, no se importa globalmente donde se
   pueda evitar — facilita tests (otra config) y deja explícitas las
   dependencias.
+
+{{< include _explicaciones/dependencia.md >}}
+
 - **Nombres estables entre entornos**: `DATABASE_URL` es `DATABASE_URL`
   en dev y en prod — lo que cambia es el *valor*.
 - **Loguea la config *no* secreta al arranque** (puerto, entorno,
@@ -197,6 +212,9 @@ quieras; nada secreto → jamás al repo.**
    capítulo lo hubiera evitado y en qué momento?
 3. Escribe el `.env.example` completo de Taskflow (todas las llaves
    que el proyecto usa hasta ahora).
+
+{{< include _explicaciones/autenticacion.md >}}
+
 
 ## Mini reto
 
@@ -233,6 +251,15 @@ con mensajes claros nombrando cada variable faltante — esa es la prueba
 real de que nada quedó hardcodeado.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/commit.md >}}
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/token.md >}}
 
 ## Lo que deberías saber hacer ahora
 

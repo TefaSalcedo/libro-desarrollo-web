@@ -23,6 +23,9 @@ vacío se rechaza, que la prioridad 99 no entra? "Lo probé a mano" es la
 respuesta que dura hasta el próximo commit de otro. El miedo a tocar
 código viejo no es prudencia: es la deuda de no tener tests.
 
+{{< include _explicaciones/commit.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio testea **donde viven las decisiones**: la capa de
@@ -32,6 +35,9 @@ rápidos, menos de integración, pocos end-to-end. Y el criterio que
 evita los tests de juguete: cada test debe *matar un bug posible* — si
 borras una línea del servicio y ningún test se queja, esa línea no está
 testeada.
+
+{{< include _explicaciones/base-de-datos.md >}}
+
 
 ## Conceptos nuevos
 
@@ -205,6 +211,11 @@ tus casos son datos + expectativa, una tabla > diez funciones copiadas.
 3. Escribe la tabla de casos para `complete_task`: todos los estados
    desde los que se puede llamar y qué debe pasar.
 
+{{< include _explicaciones/roles.md >}}
+
+{{< include _explicaciones/estado.md >}}
+
+
 ## Mini reto
 
 Escribir el test que hubiera detectado tu último bug.
@@ -237,6 +248,21 @@ permanente. Cada bug real merece su test: la suite es la memoria de
 todos los errores que ya no puedes volver a cometer.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/imagen.md >}}
+
+{{< include _explicaciones/tdd.md >}}
+
+{{< include _explicaciones/cobertura.md >}}
 
 ## Lo que deberías saber hacer ahora
 

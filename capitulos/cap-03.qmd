@@ -57,6 +57,9 @@ Dos decisiones de diseño ya están tomadas en esa tabla — fíjate:
 - <span class="tag tag-u">U</span> **Path params** (`/tasks/{id}`) vs
   **query params** (`/tasks?status=done`): el path identifica *qué recurso*;
   el query modifica *cómo* se devuelve (filtros, orden, paginación).
+
+{{< include _explicaciones/query.md >}}
+
 - <span class="tag tag-u">U</span> **Idempotencia** (primera aparición):
   `GET`, `PUT`, `DELETE` repetidos dan el mismo resultado; `POST` no — cada
   llamada crea otra tarea. Esto importa cuando el frontend reintenta.
@@ -64,6 +67,9 @@ Dos decisiones de diseño ya están tomadas en esa tabla — fíjate:
   <span class="tag tag-go">Go</span> Tres sintaxis de routing: cadena con
   `:id` (Express), decorator + firma (FastAPI), patrón `"GET /tasks/{id}"`
   en `ServeMux` (Go 1.22+).
+
+{{< include _explicaciones/firma.md >}}
+
 
 ## La explicación visual
 
@@ -84,6 +90,11 @@ responde 404 él mismo si nadie reclamó la ruta.
 
 CRUD completo en memoria. El "modelo" es intencionalmente una lista — la
 base de datos llega en la Parte 2; hoy nos importa el *contrato HTTP*.
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
 
 ::: {.panel-tabset}
 
@@ -400,6 +411,9 @@ explícame qué convención REST aplica cada ruta.
 *idénticos* en los tres — eso es HTTP, no el lenguaje. Lo que cambia es
 cuánto trabajo te quita el framework encima. El detalle:
 
+{{< include _explicaciones/framework.md >}}
+
+
 ::: {.callout-note collapse="true" title="Detalle: tres filosofías de routing"}
 
 - **Express** es "Imperativo minimalista": tú parseas el body
@@ -444,6 +458,9 @@ espera ver.
   a parsear el body para saber si falló. El status code existe para eso.
 - **Verbos en la URL** (`/getTask/42`, `/deleteTask/42`): duplica lo que el
   método ya dice y rompe las convenciones que caches y herramientas asumen.
+
+{{< include _explicaciones/cache.md >}}
+
 - **Olvidar `express.json()`** (o equivalente): `req.body` llega `undefined`
   y pasas 20 minutos creyendo que el cliente manda mal.
 - **Asumir que `{id}` es número**: en Express y Go llega string —
@@ -502,6 +519,17 @@ La decisión clave: `PUT` en vez de `POST` para dar like — como un usuario
 solo puede dar like una vez, la operación es idempotente y `PUT` lo expresa.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/localhost.md >}}
+
+{{< include _explicaciones/esquema.md >}}
+
+{{< include _explicaciones/middleware.md >}}
+
+{{< include _explicaciones/servidor.md >}}
 
 ## Lo que deberías saber hacer ahora
 

@@ -23,6 +23,11 @@ núcleo** de los 8 del servidor — estás pagando 8 y usando 1. Encima:
 sabe el balanceador que el contenedor nuevo ya acepta tráfico? Servir
 a usuarios reales es una topología, no un comando.
 
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/cpu.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio pone tres piezas delante de tu código:
@@ -35,6 +40,9 @@ Un equipo serio pone tres piezas delante de tu código:
    app — que solo habla HTTP interno.
 3. **Health checks**: el orquestador pregunta `/health` cada X
    segundos — si no respondes, te saca del tráfico y te reinicia.
+
+{{< include _explicaciones/puerto.md >}}
+
 
 ## Conceptos nuevos
 
@@ -200,6 +208,9 @@ middleware correspondiente en los demás).
 3. Tras el proxy, Express ve `req.secure === false` aunque el usuario
    entró por HTTPS. ¿Qué falta y dónde?
 
+{{< include _explicaciones/base-de-datos.md >}}
+
+
 ## Mini reto
 
 Explicar el camino completo de un request desde el navegador hasta tu
@@ -230,6 +241,21 @@ auth, rate limit) → handler → servicio → pool → Postgres. Nueve saltos,
 y cada uno es un capítulo del libro — por eso la cadena es repasable.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/localhost.md >}}
+
+{{< include _explicaciones/pool.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/cookie.md >}}
+
+{{< include _explicaciones/middleware.md >}}
 
 ## Lo que deberías saber hacer ahora
 

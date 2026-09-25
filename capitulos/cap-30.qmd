@@ -24,6 +24,9 @@ CI tiene otra cosa. Cada entorno es una lotería de versiones. La
 pregunta que Docker responde: **¿cómo hago que "mi máquina" viaje con
 el código?**
 
+{{< include _explicaciones/entorno.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio empaqueta *el entorno como código*: un `Dockerfile` es
@@ -32,6 +35,9 @@ el código, corre `node dist/index.js`" — que cualquier máquina con
 Docker ejecuta idéntico. El onboarding pasa de dos días de wiki a
 `docker compose up`. Y el mismo artefacto que el dev corre es el que
 prod corre — la paridad dev/prod del cap. 24 llevada al extremo.
+
+{{< include _explicaciones/dependencia.md >}}
+
 
 ## Conceptos nuevos
 
@@ -54,6 +60,9 @@ flowchart LR
 inmutable (runtime + deps + código); cada `docker run` crea un
 contenedor vivo de esa imagen. Cambiar código = construir *nueva
 imagen* — los contenedores son descartables por diseño.
+
+{{< include _explicaciones/runtime.md >}}
+
 
 ## Implementación
 
@@ -150,6 +159,9 @@ el runtime: TS/Python llevan su intérprete dentro de la imagen; Go
 compila un binario que no necesita nada más — por eso su imagen final
 cabe en ~15MB.
 
+{{< include _explicaciones/compilador.md >}}
+
+
 ::: {.callout-note collapse="true" title="Detalle: capas, caché y tamaños"}
 
 - **Capas y caché**: cada instrucción es una capa cacheada. Por eso
@@ -224,6 +236,21 @@ y en Go el salto a `distroless`/scratch. Cada decisión responde "¿esto
 lo necesita el *runtime* o solo el *build*?" — lo del build no viaja.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/build.md >}}
+
+{{< include _explicaciones/commit.md >}}
+
+{{< include _explicaciones/puerto.md >}}
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/secreto.md >}}
+
+{{< include _explicaciones/deploy.md >}}
 
 ## Lo que deberías saber hacer ahora
 

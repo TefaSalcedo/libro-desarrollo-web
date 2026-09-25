@@ -22,6 +22,9 @@ un texto ("not found" → "no encontrado"), un `if (err.message ===
 "not found")` de alguien explota en producción. Los mensajes son para
 humanos; **las máquinas necesitan códigos estables**.
 
+{{< include _explicaciones/produccion.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio separa dos mundos con una frontera clara:
@@ -32,6 +35,9 @@ Un equipo serio separa dos mundos con una frontera clara:
 - **Transporte**: un handler global (middleware de error / exception
   handler / mapper central) traduce cada error de dominio a su status +
   código estable. Es el *único* lugar donde vive esa tabla.
+
+{{< include _explicaciones/dominio.md >}}
+
 
 El contrato hacia afuera: `{"error": {"code": "TASK_NOT_FOUND",
 "message": "..."}}` — el `code` es API (estable, testeable), el
@@ -58,6 +64,9 @@ flowchart LR
 
 El servicio lanza *significado*; el handler traduce; el cliente ve
 contrato; el detalle feo queda en logs.
+
+{{< include _explicaciones/log.md >}}
+
 
 ## Implementación
 
@@ -218,6 +227,9 @@ vocabulario IETF. Lo que importa no es el formato elegido sino que sea
    ¿qué `code` debería producir `POST /auth/register` con email ya
    tomado y por qué no 422?
 
+{{< include _explicaciones/autenticacion.md >}}
+
+
 ## Mini reto
 
 Garantizar que ningún endpoint filtra un stack trace — con tests.
@@ -247,6 +259,21 @@ Garantizar que ningún endpoint filtra un stack trace — con tests.
 alguien rompe el handler global, este test lo grita antes que prod.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/firma.md >}}
+
+{{< include _explicaciones/middleware.md >}}
+
+{{< include _explicaciones/escalado.md >}}
+
+{{< include _explicaciones/recurso.md >}}
 
 ## Lo que deberías saber hacer ahora
 

@@ -19,6 +19,9 @@ pantalla. Con HTML puro ya sabes escribir `<ul><li>…</li></ul>` — pero la
 lista *cambia*: el usuario agrega tareas, las marca hechas, las borra.
 ¿Cómo haces que la pantalla refleje el array actual?
 
+{{< include _explicaciones/memoria.md >}}
+
+
 La respuesta ingenua: "cuando cambie el array, reescribo el HTML". Intenta
 hacerlo a mano y sentirás el dolor que React vino a curar.
 
@@ -38,10 +41,18 @@ imposibles de razonar. La idea que cambió todo:
   modificar (`document.getElementById`, `createElement`, `append`).
 - <span class="tag tag-u">U</span> **Eventos**: clicks, inputs — el usuario
   "emite" eventos y tú registras listeners.
+
+{{< include _explicaciones/evento.md >}}
+
 - <span class="tag tag-u">U</span> **Estado**: los datos que cambian en el
   tiempo (el array de tareas) — la fuente de verdad.
 - <span class="tag tag-u">U</span> **Re-render**: volver a pintar cuando
   el estado cambia — a mano es tedioso; los frameworks lo automatizan.
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/estado.md >}}
+
 
 ## La explicación visual
 
@@ -59,6 +70,9 @@ flowchart LR
 
 En el modelo manual *tú* escribes cada actualización del DOM; en el de
 framework tú cambias el estado y la UI se recalcula sola.
+
+{{< include _explicaciones/dom.md >}}
+
 
 ## Implementación: el dolor a mano (y por qué importa)
 
@@ -148,6 +162,9 @@ estructural; cómo hacerlo varía mucho.
 2. Agrega un `<span>` que muestre `tasks.length` — actualízalo en
    `render()`.
 
+{{< include _explicaciones/tracing.md >}}
+
+
 ## Mini reto
 
 En una frase: ¿qué es exactamente lo que React te ahorra escribir? Si tu
@@ -167,6 +184,13 @@ manual del DOM: declaras cómo se ve la UI para cada estado
 (JSX, hooks, componentes) son detalles de esa idea central.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/servidor.md >}}
+
+{{< include _explicaciones/escalado.md >}}
 
 ## Lo que deberías saber hacer ahora
 

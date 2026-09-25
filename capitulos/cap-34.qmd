@@ -21,6 +21,9 @@ viernes y nadie sabe desde qué commit. Y el deploy: `ssh` + `git pull`
 desde la laptop de una persona — si esa laptop se pierde, nadie despliega.
 Todo lo que depende de *acordarse* acaba fallando.
 
+{{< include _explicaciones/commit.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio convierte las verificaciones en **eventos automáticos**:
@@ -29,6 +32,9 @@ Postgres efímero, corre la suite completa, buildea — y GitHub marca el
 PR en verde o rojo. El gate de merge ("CI verde obligatorio") convierte
 la regla de equipo en regla de máquina. Y CD continúa: merge → build de
 imagen → registry → deploy — ningún `ssh` desde laptops.
+
+{{< include _explicaciones/build.md >}}
+
 
 ## Conceptos nuevos
 
@@ -127,6 +133,9 @@ corrió la suite: el PR lo dice, y main solo acepta código verificado.
 La laptop que despliega es un riesgo; el pipeline que despliega es un
 proceso.
 
+{{< include _explicaciones/proceso.md >}}
+
+
 ::: {.callout-note collapse="true" title="Otras cimentaciones: dónde corre el pipeline"}
 
 | Alternativa | Qué es | Cuándo |
@@ -171,6 +180,9 @@ proceso.
 3. Tu compañero propone correr la suite contra staging "porque ya
    tiene datos reales". ¿Dos problemas con eso?
 
+{{< include _explicaciones/base-de-datos.md >}}
+
+
 ## Mini reto
 
 Hacer fallar el build a propósito con un test roto y ver el gate
@@ -200,6 +212,21 @@ convierte "el gate existe" en algo que viste funcionar — y demuestra
 por qué ningún "era un cambio chiquito" pasa sin tests.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/dependencia.md >}}
+
+{{< include _explicaciones/compilador.md >}}
+
+{{< include _explicaciones/repositorio.md >}}
+
+{{< include _explicaciones/puerto.md >}}
+
+{{< include _explicaciones/localhost.md >}}
+
+{{< include _explicaciones/memoria.md >}}
 
 ## Lo que deberías saber hacer ahora
 

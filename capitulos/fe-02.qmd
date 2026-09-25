@@ -19,9 +19,15 @@ devuelve usa `.map()`, `...spread`, `async/await` o `import`, ¿entiendes
 qué hace cada pieza? Sin esa base, eres copiloto sin saber volar: la AI
 escribe y tú no puedes revisarla.
 
+{{< include _explicaciones/modulo.md >}}
+
+
 Este capítulo no es un curso de JavaScript — es **el inventario exacto de
 piezas que el libro usa**, cada una con un ejemplo que puedes correr en la
 consola del navegador *ahora mismo* (F12 → Console).
+
+{{< include _explicaciones/terminal.md >}}
+
 
 ## Cómo lo resuelve un equipo
 
@@ -87,6 +93,9 @@ tasks.find((t) => t.id === 2);      // la tarea o undefined
 **Por qué importa:** `GET /tasks` devuelve un array; tu backend hará
 `.find()`/`filter()` constantemente antes de que exista la base de datos.
 
+{{< include _explicaciones/base-de-datos.md >}}
+
+
 ### Funciones
 
 ```js
@@ -137,6 +146,11 @@ function createTask(title: string): Task {
 editor chequea antes de correr. Las etiquetas desaparecen al ejecutar —
 son andamiaje, no runtime (el Cap. 4 vuelve a esto).
 
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/roles.md >}}
+
+
 ## La explicación visual
 
 ```{mermaid}
@@ -170,6 +184,9 @@ completo — solo estas piezas.
 - **Creer que los tipos TS existen en runtime**: `interface` se evapora
   al compilar — no valida nada que llegue por red (ese es el trabajo del
   Cap. 4).
+
+{{< include _explicaciones/compilador.md >}}
+
 - **`const` no es inmutable**: `const task = {}` no se reasigna, pero
   `task.done = true` sí muta el contenido.
 
@@ -191,6 +208,9 @@ En la consola del navegador (F12):
    hechas; `.map()` para sacar solo los títulos.
 2. Escribe `JSON.stringify(tuArray)` y luego `JSON.parse()` del resultado —
    verifica que obtienes el mismo array.
+
+{{< include _explicaciones/serializar.md >}}
+
 
 ## Mini reto
 
@@ -227,6 +247,15 @@ extrae su `id`. Encadenar `filter().map()` es el patrón más común del
 mundo para transformar colecciones — lo verás cientos de veces.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/deploy.md >}}
+
+{{< include _explicaciones/tracing.md >}}
 
 ## Lo que deberías saber hacer ahora
 

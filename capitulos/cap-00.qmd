@@ -29,6 +29,9 @@ entero sin frenarte.
 En backend, la terminal es donde vive tu aplicación — no hay DevTools que
 te salve. Cinco cosas que usarás todos los días:
 
+{{< include _explicaciones/terminal.md >}}
+
+
 ```bash
 cd mi-proyecto          # entrar a una carpeta
 ls                      # ver qué hay (en Windows: dir)
@@ -79,6 +82,9 @@ Content-Type: application/json       ← headers
 cliente (mal body, sin permiso, no existe), `5xx` culpa del servidor (tu
 bug). Un backend profesional elige el código *a propósito* — es parte del
 contrato, no un detalle.
+
+{{< include _explicaciones/autorizacion.md >}}
+
 
 ## 0.3 JSON: el idioma común
 
@@ -329,6 +335,9 @@ Las **comprehensions** de Python (`[x for x in y if cond]`) merecen un
 momento: son `.filter()` y `.map()` fusionados en sintaxis — las verás en
 servicios y queries por todos lados.
 
+{{< include _explicaciones/query.md >}}
+
+
 ## 0.8 Errores en una frase (el Cap. 6 los abre de verdad)
 
 - **TS/Python**: `throw`/`raise` una excepción; alguien arriba hace
@@ -396,12 +405,18 @@ Leído en voz alta, los tres dicen lo mismo: *"cuando llegue un GET a
 3. Traduce a tu lenguaje: `[u.name for u in users if u.is_active]` (la
    comprehension de arriba) a JS: ¿qué combinación de métodos es?
 
+{{< include _explicaciones/localhost.md >}}
+
+
 ## Mini reto
 
 Sin código: escribe con tus palabras la diferencia entre *la clase* `Task`
 y *un objeto* `task`, y da un ejemplo de cuándo en backend usas cada una.
 Si puedes explicar por qué un schema de validación (Cap. 4) se define como
 clase pero un endpoint es una función, entendiste la sección 0.5.
+
+{{< include _explicaciones/esquema.md >}}
+
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
@@ -458,6 +473,19 @@ entra; un endpoint es función porque describe una *acción* (recibir un
 request, devolver una response), no un estado que mantener.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/compilador.md >}}
+
+{{< include _explicaciones/cli.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
 
 ## Lo que deberías saber hacer ahora
 

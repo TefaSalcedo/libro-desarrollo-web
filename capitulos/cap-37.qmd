@@ -41,6 +41,9 @@ Un equipo serio copia el modelo que ya ganó — **git interno**:
   mover el puntero, O(1), sin tocar la historia. Editar tras undo =
   truncar el "futuro" — exactamente `git commit` tras un reset.
 
+{{< include _explicaciones/commit.md >}}
+
+
 ## Conceptos nuevos
 
 - <span class="tag tag-d">D</span> Snapshot + diff + puntero: `documents`, `revisions`, `current_revision`
@@ -201,6 +204,11 @@ undo trunca el futuro, restore mueve el puntero sin tocar la historia.
 tres stacks. Cambia el mecanismo (`pool.tx`/`conn.transaction`/`tx`),
 jamás el diseño.
 
+{{< include _explicaciones/transaccion.md >}}
+
+{{< include _explicaciones/pool.md >}}
+
+
 ::: {.callout-note collapse="true" title="Detalle: por qué snapshot y no solo diffs"}
 
 | Modelo | Restore | Espacio | Corrupción posible |
@@ -282,6 +290,23 @@ barato del sistema.
 :::
 
 > **Repaso de entrevista:** las preguntas de este tema viven en el Apéndice H (bases de datos).
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/git.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/join.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
+
+{{< include _explicaciones/cache.md >}}
 
 ## Lo que deberías saber hacer ahora
 

@@ -63,6 +63,9 @@ Comparado con lo que ya conoces:
 
 El mismo endpoint — `GET /tasks` — como función serverless. Fíjate qué
 desaparece: el `listen()`, el puerto, el servidor. La función recibe un
+
+{{< include _explicaciones/puerto.md >}}
+
 **evento** (el request envuelto por el proveedor) y devuelve un objeto:
 
 ::: {.panel-tabset}
@@ -126,6 +129,9 @@ ahora la invoca la plataforma en vez de un socket.
 redirects, personalización ligera — código que debe responder en <50ms
 desde cualquier país.
 
+{{< include _explicaciones/autenticacion.md >}}
+
+
 ::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
 ```text
@@ -149,6 +155,11 @@ tráfico es *constante y alto* (una función cobra más por millón de
 requests que un servidor fijo) o cuando el trabajo es *largo* (límites
 de ~15 min) o *con estado* (websockets, sesiones en memoria). El cálculo
 es honesto, no ideológico.
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/sesion.md >}}
+
 
 ::: {.callout-note collapse="true" title="Otras cimentaciones: el mapa final de deployment"}
 
@@ -181,6 +192,9 @@ el tiempo de vida del proceso — nunca del hype.
 - **Diseña sin estado de todas formas** — es buena práctica para todo
   backend (el proceso siempre vivo también puede morir), y te deja la
   puerta serverless abierta.
+
+{{< include _explicaciones/proceso.md >}}
+
 - **Serverless para eventos primero:** webhooks, procesamiento de
   archivos, crons — ahí el modelo es perfecto antes de mover tu API
   entera.
@@ -241,6 +255,19 @@ salió mal? (Pista: tres cosas.)
 Moraleja: serverless es una *herramienta con un nicho*, no un upgrade.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/dependencia.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/token.md >}}
+
+{{< include _explicaciones/jwt.md >}}
 
 ## Lo que deberías saber hacer ahora
 

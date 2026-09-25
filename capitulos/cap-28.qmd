@@ -22,6 +22,13 @@ solo lo caza un test que pase **por el endpoint de verdad**: auth real,
 query real, BD real. Y ahí aparecen las preguntas de siempre: ¿los
 tests corren contra mi BD de dev? ¿qué pasa con los datos que crean?
 
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio monta la infra de test una vez y la reutiliza siempre:
@@ -34,6 +41,11 @@ Un equipo serio monta la infra de test una vez y la reutiliza siempre:
    verifica, y la BD queda como si nada. Aislamiento gratis, sin
    scripts de limpieza, y rápido.
 3. **La API sin socket**: supertest/TestClient/httptest llaman al
+
+{{< include _explicaciones/migracion.md >}}
+
+{{< include _explicaciones/transaccion.md >}}
+
    *router* directo en memoria — HTTP real, sin puerto, sin `npm start`
    paralelo.
 
@@ -161,6 +173,9 @@ aparece en ninguna respuesta.
 rollback por test + router en memoria*. Las herramientas cambian, la
 arquitectura del test no.
 
+{{< include _explicaciones/memoria.md >}}
+
+
 ::: {.callout-note collapse="true" title="Detalle: las dos decisiones de infra"}
 
 - **Rollback por test vs truncate por test**: el rollback es más rápido
@@ -209,6 +224,9 @@ arquitectura del test no.
 3. ¿Por qué testear `res.body.error.code === "VALIDATION"` y no
    `res.body.error.message === "title is required"`?
 
+{{< include _explicaciones/pool.md >}}
+
+
 ## Mini reto
 
 Demostrar con un test que el doble-submit devuelve 409 tras éxito.
@@ -238,6 +256,15 @@ diseñaste idempotente). El test documenta la decisión — cualquiera de
 las dos, pero *decidida y testeada*, no accidental.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/puerto.md >}}
+
+{{< include _explicaciones/localhost.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
 
 ## Lo que deberías saber hacer ahora
 

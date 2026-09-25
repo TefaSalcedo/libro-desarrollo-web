@@ -23,6 +23,9 @@ Sin logs esa frase es el fin de la investigación. Con logs malos —
 líneas que no responden *quién, qué endpoint, cuánto tardó, qué falló*.
 El problema no es que falle; es que no puedas *ver* por qué.
 
+{{< include _explicaciones/log.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio trata los logs como **la fuente de datos de la verdad
@@ -33,6 +36,9 @@ máquina puede filtrar (`request_id="r_9x"`, `level="error"`,
 request_id), qué (endpoint, acción, resultado), cuánto (duración,
 tamaño). Y una regla que no se negocia: **passwords, tokens y datos
 personales jamás tocan un log.**
+
+{{< include _explicaciones/token.md >}}
+
 
 ## Conceptos nuevos
 
@@ -195,6 +201,9 @@ durante mucho tiempo.
    request_id, ¿cuál es tu primera query de búsqueda?
 3. ¿Por qué `console.log(err)` no basta aunque "imprime el error"?
 
+{{< include _explicaciones/query.md >}}
+
+
 ## Mini reto
 
 Dado un log "500 a las 3:14", reconstruir qué pasó usando el request ID.
@@ -221,6 +230,23 @@ historia se reconstruye sin tocar el código ni reproducir el bug — eso
 es observabilidad.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/terminal.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/jwt.md >}}
+
+{{< include _explicaciones/middleware.md >}}
+
+{{< include _explicaciones/docker.md >}}
+
+{{< include _explicaciones/imagen.md >}}
 
 ## Lo que deberías saber hacer ahora
 

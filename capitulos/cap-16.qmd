@@ -22,6 +22,11 @@ pegarlo queda público, y el día que cambie la verificación hay que tocar
 20 archivos. La verificación de auth es un *cross-cutting concern*: una
 capa que atraviesa todo, no parte de ningún handler.
 
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/cookie.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 El patrón universal: la lógica compartida se **envuelve alrededor** del
@@ -31,6 +36,9 @@ handler, no dentro. Cada stack tiene su dialecto:
   la cadena continúa.
 - **FastAPI:** `Depends(get_current_user)` — declaras la dependencia en
   la firma; el framework la resuelve y *inyecta* el resultado.
+
+{{< include _explicaciones/framework.md >}}
+
 - **Go:** `auth(handler)` — una función que devuelve un handler envuelto:
   composición explícita, sin magia.
 
@@ -38,6 +46,9 @@ Y la pregunta gemela: una vez verificado, **¿dónde vive el usuario** para
 que el handler lo use sin otra query? Cada stack tiene su canal:
 `res.locals` (Express), el retorno del `Depends` (FastAPI), el
 `context.Context` del request (Go).
+
+{{< include _explicaciones/query.md >}}
+
 
 ## Conceptos nuevos
 
@@ -67,6 +78,9 @@ llegó aquí ya mostró su identificación".
 
 El mismo patrón en tres dialectos — verifica el token, carga el usuario,
 lo entrega al handler:
+
+{{< include _explicaciones/token.md >}}
+
 
 ::: {.panel-tabset}
 
@@ -195,6 +209,9 @@ dependencias, Go compone handlers. Si entiendes el patrón, cada dialecto
 se aprende en una tarde; si solo memorizas el dialecto, cada framework
 parece magia nueva.
 
+{{< include _explicaciones/dependencia.md >}}
+
+
 ::: {.callout-note collapse="true" title="Detalle: el orden del pipeline importa"}
 
 ```text
@@ -229,6 +246,9 @@ orden de los `Depends`/middlewares; en Go es cómo anidas los wrappers:
 - **El middleware resuelve identidad, el handler decide permisos** —
   separa autenticación (quién eres, cap. 16) de autorización (qué puedes,
   cap. 17).
+
+{{< include _explicaciones/autorizacion.md >}}
+
 - **El usuario propagado es el *mínimo* necesario:** id + lo que el
   handler consulta siempre — no la fila entera si no hace falta.
 - **401 temprano:** falla rápido, antes de tocar la BD si la firma ya es
@@ -282,6 +302,15 @@ pero es composición real de funciones — `auth(deleteTask)` *es* un
 la ruta y el handler. Una palabra, toda la protección.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/jwt.md >}}
+
+{{< include _explicaciones/hash.md >}}
 
 ## Lo que deberías saber hacer ahora
 

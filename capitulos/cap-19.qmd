@@ -24,6 +24,11 @@ la tarea sí se creó. Slack está caído un día → tu registro de tareas
 "está caído" un día. **Una dependencia sin reglas convierte sus
 problemas en tus problemas.**
 
+{{< include _explicaciones/dependencia.md >}}
+
+{{< include _explicaciones/registry.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio trata la API externa como lo que es: **algo que falla,
@@ -193,6 +198,9 @@ sepas escribir.
   notificación nunca llegue; el trabajo pendiente se reintenta (cap. 21).
 - **Mide la dependencia**: duración y tasa de fallo de cada llamada
   externa van a logs (cap. 23) — un proveedor lento es tu endpoint lento.
+
+{{< include _explicaciones/log.md >}}
+
 - **Un adapter, no `fetch` disperso**: `notifyExternal()` es la *única*
   puerta a Slack — si cambia la API de ellos, cambias un archivo (y es
   lo que mockeas en cap. 29).
@@ -231,6 +239,23 @@ reintentos), no del usuario — degradación elegante = el usuario nunca se
 entera, tú sí.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/variable-de-entorno.md >}}
+
+{{< include _explicaciones/secreto.md >}}
+
+{{< include _explicaciones/dominio.md >}}
+
+{{< include _explicaciones/imagen.md >}}
+
+{{< include _explicaciones/webhook.md >}}
 
 ## Lo que deberías saber hacer ahora
 

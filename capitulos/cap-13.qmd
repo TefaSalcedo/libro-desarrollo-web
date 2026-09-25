@@ -20,6 +20,11 @@ Cada `INSERT`/`UPDATE` que envías al pool se confirma *al instante* —
 es el modo "autocommit". Perfecto para una query; peligroso para tres.
 Imagina "crear la tarea y descontar un crédito del usuario":
 
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/pool.md >}}
+
+
 ```python
 insert_task(...)              # ✅ committed — the task EXISTS now
 charge_credit(user_id)        # 💥 crashes — but the task is already saved
@@ -30,10 +35,16 @@ No hay código que resuelva esto *después* — la tarea fantasma ya está
 confirmada. La única solución es que la BD entienda "estas operaciones
 son UNA".
 
+{{< include _explicaciones/base-de-datos.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 ACID en una frase por letra, con dinero (la metáfora original — mover
 \$100 entre cuentas):
+
+{{< include _explicaciones/transaccion.md >}}
+
 
 - **Atomicidad:** todo o nada — la transacción es indivisible.
 - **Consistencia:** la BD nunca queda violando sus reglas (constraints).
@@ -49,6 +60,9 @@ hace interesante: ¿en qué capa vive la frontera de la transacción?
 Respuesta: en el **servicio** (cap. 7). El handler no sabe de
 transacciones; el repositorio no decide cuándo empieza una — el
 servicio agrupa las operaciones que son *un hecho de negocio*.
+
+{{< include _explicaciones/repositorio.md >}}
+
 
 ## Conceptos nuevos
 
@@ -83,6 +97,9 @@ sequenceDiagram
 "Crear tarea + registrar evento + descontar crédito" atómico en los tres
 stacks. Observa la constante: **conexión individual**, `BEGIN`…`COMMIT`,
 y el `ROLLBACK` garantizado por el mecanismo de limpieza del lenguaje.
+
+{{< include _explicaciones/evento.md >}}
+
 
 ::: {.panel-tabset}
 
@@ -255,6 +272,9 @@ una conexión, hacer todo ahí, devolverla".
 3. ¿Qué le pasa a la conexión si tu código lanza excepción a mitad de la
    transacción y no usas `finally`/`with`/`defer`?
 
+{{< include _explicaciones/lock.md >}}
+
+
 ::: {.callout-note collapse="true" title="Soluciones"}
 
 1. Python:
@@ -308,6 +328,15 @@ ventana de carrera) en un solo acto atómico — el patrón se llama
 sin bloqueos.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/concurrencia.md >}}
+
+{{< include _explicaciones/rollback.md >}}
+
+{{< include _explicaciones/estado.md >}}
 
 ## Lo que deberías saber hacer ahora
 

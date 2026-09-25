@@ -29,6 +29,9 @@ necesitas *paralelismo real* (varios núcleos trabajando a la vez), que
 no todos los runtimes ofrecen igual. La regla de bolsillo: **esperas
 juntas, cuentas separadas**.
 
+{{< include _explicaciones/cpu.md >}}
+
+
 Luego decide el límite: "en paralelo" no es "infinitas a la vez" — mil
 llamadas concurrentes a la API de alguien son un ataque, no una
 optimización.
@@ -187,6 +190,9 @@ scheduler lo reparte — por eso Go escala a CPU y los otros no.
 - **Mide el antes/después**: "optimizamos" sin medir es superstición —
   log de duración por llamada (cap. 23).
 
+{{< include _explicaciones/log.md >}}
+
+
 ## Ejercicio
 
 1. En el dashboard, ¿qué debería pasar si `fetchNotifications` falla
@@ -226,6 +232,25 @@ en dos llamadas: secuencial ≈ 600ms, concurrente ≈ 300ms. Si tu
 es bloqueante — los dos errores de arriba.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/dependencia.md >}}
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/hash.md >}}
 
 ## Lo que deberías saber hacer ahora
 

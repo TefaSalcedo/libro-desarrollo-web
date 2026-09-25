@@ -19,6 +19,9 @@ llega el día: "hay que desplegarlo". Y de repente todo es terminal: el
 servidor no tiene pantalla, Docker no tiene botones, los logs son un stream
 infinito, y la única forma de entrar a producción es `ssh`.
 
+{{< include _explicaciones/terminal.md >}}
+
+
 En frontend la terminal era un accesorio. En backend **es el escritorio
 donde trabajas**. Este capítulo corto te pone cómodo ahí — y te dice qué
 cosas jamás hacer, porque la terminal no tiene Ctrl+Z.
@@ -29,10 +32,16 @@ cosas jamás hacer, porque la terminal no tiene Ctrl+Z.
   archivos con los comandos exactos para desplegar, ver logs, reiniciar.
 - **Los READMEs arrancan con comandos**, no con prosa: "clona, corre esto,
   abre este puerto".
+
+{{< include _explicaciones/puerto.md >}}
+
 - **Desde hace poco, la terminal tiene nuevos habitantes:** los agentes de
   AI (Devin CLI, Claude Code, Copilot, Gemini CLI) viven ahí — porque la
   terminal es la interfaz universal donde se leen archivos y se ejecutan
   cosas.
+
+{{< include _explicaciones/cli.md >}}
+
 
 ## Conceptos nuevos
 
@@ -120,6 +129,9 @@ echo "more" >> file.txt             # añadir (append)
 `|` conecta la salida de un programa con la entrada del siguiente — es
 `.map().filter()` pero entre procesos completos.
 
+{{< include _explicaciones/proceso.md >}}
+
+
 ### Procesos, puertos y exit codes
 
 ```bash
@@ -140,6 +152,11 @@ env | grep PORT        # ver qué existe
 
 Las variables de entorno son cómo la config llega a tu app sin hardcodearla
 — el Cap. 24 vive de esto. Y tu repo ya lo usa: el `.env` con tu API key.
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/repositorio.md >}}
+
 
 ## Las cosas que NUNCA debes hacer
 
@@ -243,6 +260,9 @@ peligroso. No lo ejecutes — solo explícalo.
 - **`command not found`**: el programa no está en el PATH. Revisa si está
   instalado y si tu terminal es vieja (el PATH se carga al abrirla — ya
   nos pasó con `quarto`).
+
+{{< include _explicaciones/path.md >}}
+
 - **"Cerré la terminal y sigue corriendo"** (o al revés): procesos hijos,
   `nohup`, servicios — Ctrl+C mata el foreground, no la familia.
 - **Mezclar sintaxis de shells**: `export` no existe en PowerShell,
@@ -276,6 +296,15 @@ cd /tmp && curl -sL https://example.com/setup.sh | bash && rm -rf $OLD_BUILD
 ```
 
 Antes de tocar nada: enumera las **tres** reglas de oro que viola.
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/git.md >}}
+
+{{< include _explicaciones/localhost.md >}}
+
+{{< include _explicaciones/memoria.md >}}
 
 ## Lo que deberías saber hacer ahora
 

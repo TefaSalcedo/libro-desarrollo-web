@@ -18,6 +18,9 @@ Escribes `localhost:5173`, le das Enter, y aparece tu app. ¿Qué pasó en el
 medio? La mayoría de la gente que "sabe frontend" no puede responder esto
 completo — y es la base de todo lo que viene.
 
+{{< include _explicaciones/localhost.md >}}
+
+
 ```text
 Escribes URL → el navegador pide archivos → los interpreta → pinta
 ```
@@ -26,6 +29,9 @@ Ese flujo simple esconde cuatro actores: la red (HTTP), el parser
 (HTML→DOM), el motor JS (que ejecuta tu código) y el motor de renderizado
 (que pinta). Aquí los destapamos uno por uno — sin teoría vacía, cada uno
 con algo que puedes ver *ahora* en tu navegador.
+
+{{< include _explicaciones/dom.md >}}
+
 
 ## Cómo lo resuelve un equipo
 
@@ -45,6 +51,9 @@ navegador — y del debugging de frontend entero.
 - <span class="tag tag-u">U</span> **Runtime**: el programa que ejecuta tu
   código. El navegador es el runtime del frontend; Node es el mismo motor
   (V8) sin pantalla.
+
+{{< include _explicaciones/runtime.md >}}
+
 - <span class="tag tag-u">U</span> **DOM**: el árbol de objetos que el
   navegador construye al leer tu HTML — lo que JavaScript puede tocar.
 - <span class="tag tag-u">U</span> **Render blocking**: el navegador pausa
@@ -139,6 +148,9 @@ diferencia frontend/backend a nivel runtime.
   no un accesorio.
 - **`type="module"` y `defer`** para scripts modernos — respetan el orden
   y no bloquean el parse.
+
+{{< include _explicaciones/serializar.md >}}
+
 - **Pregunta "¿en qué etapa estoy?"** ante cualquier bug: ¿llegó el
   archivo? ¿está en el DOM? ¿corrió el JS? ¿se pintó?
 
@@ -149,6 +161,9 @@ diferencia frontend/backend a nivel runtime.
    = "otro"`). ¿Qué pasó — el archivo cambió o el DOM?
 2. En Network, recarga y encuentra el request de `index.html`: mira su
    status, su tamaño y su tiempo.
+
+{{< include _explicaciones/terminal.md >}}
+
 
 ## Mini reto
 
@@ -171,6 +186,19 @@ grande o una API — ordena por columna "Time" en Network. Errores rojos en
 Console = JS que falló en el paso 3.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/evento.md >}}
+
+{{< include _explicaciones/tracing.md >}}
+
+{{< include _explicaciones/api.md >}}
 
 ## Lo que deberías saber hacer ahora
 

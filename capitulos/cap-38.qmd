@@ -38,6 +38,11 @@ Un equipo serio separa las tres preguntas:
 4. **Conflictos**: last-writer-wins — documentado en el ADR-03 (cap.
    36); CRDT queda fuera a propósito.
 
+{{< include _explicaciones/cookie.md >}}
+
+{{< include _explicaciones/token.md >}}
+
+
 ## Conceptos nuevos
 
 - <span class="tag tag-d">D</span> Modelo de membresías: `teams`, `members` — roles en la relación
@@ -67,6 +72,9 @@ El servidor ahora tiene *estado de conexiones*: un mapa
 `documento → [sockets]` en memoria. Lo que el REST no tenía que
 recordar, el WS sí — por eso escalar WS a múltiples instancias es otra
 conversación (pub/sub entre ellas; para Nexus, una instancia basta).
+
+{{< include _explicaciones/memoria.md >}}
+
 
 ## Implementación
 
@@ -210,6 +218,9 @@ cap. 37 lo recupera todo, y la alternativa es un proyecto de meses.
 - **El estado efímero en memoria, el durable en BD**: presencia =
   memoria (muere con el proceso, se reconstruye al reconectar);
   ediciones finales = revisions del cap. 37.
+
+{{< include _explicaciones/proceso.md >}}
+
 - **Heartbeat/ping**: conexiones zombie (wifi que murió sin close) se
   purgan con ping periódico + timeout — el mapa no miente para siempre.
 
@@ -253,6 +264,21 @@ vivo" — el humano no distingue 50ms de 200ms en un movimiento.
 :::
 
 > **Repaso de entrevista:** las preguntas de este tema viven en el Apéndice I (frontend y tiempo real).
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
+
+{{< include _explicaciones/middleware.md >}}
 
 ## Lo que deberías saber hacer ahora
 

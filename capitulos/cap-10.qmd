@@ -21,6 +21,9 @@ enviarla por la red, y convertir las filas que vuelven en objetos de tu
 lenguaje. Ese "alguien" es el driver — y tiene trampas que no se ven en
 el tutorial de 5 líneas.
 
+{{< include _explicaciones/query.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 La pieza conceptual nueva es el **pool de conexiones**. Abrir una
@@ -30,6 +33,15 @@ la mitad de tu latencia sería *conectar*. El pool mantiene N conexiones
 abiertas y las presta: `pool.query()` toma una libre, la usa, la devuelve.
 Con 10 conexiones atiendes cientos de requests — porque un request usa
 la conexión unos milisegundos.
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/pool.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
 
 El flujo completo del capítulo:
 
@@ -206,6 +218,9 @@ ORM sobre entendimiento es atajo; sobre ignorancia, es deuda.
   nadie más crea conexiones.
 - **`max` del pool < `max_connections` de Postgres** (default 100) —
   deja margen para `psql`, migraciones y la réplica futura.
+
+{{< include _explicaciones/migracion.md >}}
+
 - **Toda query parametrizada, sin excepciones** — incluso "valores que
   yo controlo": el día que deje de controlarlos no habrá alerta.
 - **Cierra el pool al apagar** (`pool.end()` en el shutdown del
@@ -250,6 +265,11 @@ ORM sobre entendimiento es atajo; sobre ignorancia, es deuda.
 Detectar la diferencia entre "objeto modificado en memoria" y "fila
 actualizada en BD" — este código compila y *parece* funcionar:
 
+{{< include _explicaciones/compilador.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+
 ```python
 task = get_task(42)          # reads the row into an object
 task.done = True             # updates... what exactly?
@@ -266,6 +286,13 @@ con driver crudo *tú* eres la sincronización — falta el
 una foto de la fila, no la fila** — editar la foto no edita el archivo.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/orm.md >}}
 
 ## Lo que deberías saber hacer ahora
 

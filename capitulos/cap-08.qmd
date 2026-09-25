@@ -22,11 +22,19 @@ no es código: es pensar.
 diseño* — es el escritorio donde trabajas, no el archivero donde guardas.
 Necesitamos algo que sobreviva: a reinicios, a crashes, a deploys.
 
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+
 ¿Por qué no un archivo JSON en disco? Porque la siguiente pregunta llega
 inmediata: ¿cómo busco "las tareas pendientes del usuario 42" sin leer
 todo el archivo? ¿Qué pasa si dos requests escriben a la vez? Eso es
 exactamente lo que una **base de datos** resuelve desde 1970: guardar
 datos estructurados, consultarlos rápido, y sobrevivir a la concurrencia.
+
+{{< include _explicaciones/base-de-datos.md >}}
+
 
 ## Cómo lo resuelve un equipo
 
@@ -213,6 +221,11 @@ endpoint y aun así su base es relacional pura.
 El Postgres que levantas con `docker compose up` y el RDS de AWS (o
 Cloud SQL de GCP, o Azure SQL) hablan **exactamente el mismo SQL** — tus
 queries, migraciones y drivers no cambian ni una línea. Lo que cambia es
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
 *todo lo que rodea al motor*:
 
 | | Local (Docker) | Producción (administrada) |
@@ -318,6 +331,19 @@ valor histórico sin dueño (requeriría `user_id` nullable), o soft-delete
 la defensiva: dato personal huérfano es peor que dato borrado.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/puerto.md >}}
+
+{{< include _explicaciones/localhost.md >}}
+
+{{< include _explicaciones/esquema.md >}}
 
 ## Lo que deberías saber hacer ahora
 

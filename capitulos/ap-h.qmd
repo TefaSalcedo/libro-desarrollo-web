@@ -188,3 +188,26 @@ documento sin renunciar a lo relacional — es 'lo mejor de los dos' con
 fuertes. NoSQL habría sido pereza disfrazada de flexibilidad."
 → *cap-08, cap-37*
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/dependencia.md >}}
+
+{{< include _explicaciones/commit.md >}}
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/esquema.md >}}
+
+{{< include _explicaciones/indice.md >}}

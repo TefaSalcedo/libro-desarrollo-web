@@ -20,6 +20,11 @@ El servidor del capítulo anterior era un juguete: un archivo, una librería,
 un comando. Pero ahora imagina que **otra persona clona tu repositorio**.
 ¿Qué instala? ¿Qué versión del runtime? ¿Qué comando arranca el proyecto?
 
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/repositorio.md >}}
+
+
 En frontend esto lo resolviste mil veces sin pensar: `package.json`,
 `npm install`, `npm run dev`. Backend tiene exactamente el mismo problema —
 con una diferencia: ahora hay **tres** formas de resolverlo, y cada
@@ -35,6 +40,9 @@ Un equipo real exige tres cosas antes de escribir la primera línea de lógica:
 3. **Un solo comando para arrancar**: si el README dice "paso 1, paso 2…
    paso 9", ya perdiste.
 
+{{< include _explicaciones/dependencia.md >}}
+
+
 Ejemplo de lo que un equipo espera encontrar en el README:
 
 ```bash
@@ -47,11 +55,17 @@ uvicorn app.main:app --reload     # o: npm run dev / go run .
 Nuestro proyecto — **Taskflow** — nace aquí: la API de tareas que acompañará
 todo el libro. Empezamos por su esqueleto de entorno, no por sus endpoints.
 
+{{< include _explicaciones/entorno.md >}}
+
+
 ## Conceptos nuevos
 
 - <span class="tag tag-u">U</span> **Runtime**: el programa que ejecuta tu
   código (Node, el intérprete Python, el binario compilado de Go). En frontend
   era el navegador; aquí es un proceso del sistema operativo.
+
+{{< include _explicaciones/compilador.md >}}
+
 - <span class="tag tag-ts">TS</span> `package.json` + lockfile: manifiesto de
   dependencias + resolución exacta.
 - <span class="tag tag-py">Py</span> `venv` + `requirements.txt`/`pyproject.toml`:
@@ -281,6 +295,19 @@ mañana la 4.19.3 con el bug y "en mi máquina funcionaba" — con lockfile,
 `npm ci`/`pip install -r`/`go mod download` instalan bit a bit lo mismo.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/build.md >}}
+
+{{< include _explicaciones/terminal.md >}}
+
+{{< include _explicaciones/commit.md >}}
+
+{{< include _explicaciones/puerto.md >}}
+
+{{< include _explicaciones/localhost.md >}}
 
 ## Lo que deberías saber hacer ahora
 

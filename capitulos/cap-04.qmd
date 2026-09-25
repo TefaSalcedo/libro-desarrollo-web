@@ -32,6 +32,9 @@ nadie garantiza que ese objeto tenga la forma que tu lógica espera**. En
 frontend, un dato malo rompe la UI del usuario que lo mandó. En backend, un
 dato malo entra a la base de datos y corrompe el sistema para todos.
 
+{{< include _explicaciones/base-de-datos.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 La regla profesional es simple y brutal:
@@ -64,6 +67,9 @@ schema — y dejas que una capa anterior rechace lo que no cumple. El handler
 solo se ejecuta si el dato ya es válido. En el diagrama del Cap. 1, la
 validación es el muro que está *antes* de la lógica de negocio:
 
+{{< include _explicaciones/esquema.md >}}
+
+
 ```text
 Request → Router → [VALIDACIÓN] → Handler → …
                      ↑ si falla: 400/422 y el handler ni se entera
@@ -76,9 +82,17 @@ Request → Router → [VALIDACIÓN] → Handler → …
 - <span class="tag tag-u">U</span> **Parse, don't validate**: no "revisar y
   seguir", sino *transformar* el JSON crudo en un objeto de tu dominio — si
   no puede transformarse, se rechaza ahí.
+
+{{< include _explicaciones/dominio.md >}}
+
 - <span class="tag tag-ts">TS</span> **Zod**: el schema define y *genera* el
   tipo TypeScript — `z.infer` conecta validación de runtime con tipos de
   compilación.
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/compilador.md >}}
+
 - <span class="tag tag-py">Py</span> **Pydantic + type hints**: `class
   TaskCreate(BaseModel)` — el type hint *es* la validación; FastAPI la
   aplica antes del handler y devuelve `422` solo.
@@ -434,6 +448,19 @@ formato — muchos equipos validan formato básico y confirman con un email
 de verificación (Cap. 14).
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/dependencia.md >}}
+
+{{< include _explicaciones/openapi.md >}}
+
+{{< include _explicaciones/roles.md >}}
+
+{{< include _explicaciones/constraint.md >}}
+
+{{< include _explicaciones/backup.md >}}
 
 ## Lo que deberías saber hacer ahora
 

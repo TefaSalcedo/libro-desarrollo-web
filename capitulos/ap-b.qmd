@@ -117,6 +117,11 @@ SELECT snapshot->>'title' FROM revisions WHERE snapshot @> '{"done":true}';
   tarea 5" en "borra la tarea 5 *si es tuya*" (cap. 17).
 - **`LIMIT` con `ORDER BY`** — límite sin orden es un límite a la
   suerte: el orden sin índice es sort en memoria (cap. 12).
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/indice.md >}}
+
 - **`EXPLAIN` antes de indexar** — el índice responde a un patrón de
   acceso medido, no a una corazonada.
 - **`FOR UPDATE` dentro de la tx** — fuera de transacción no bloquea
@@ -125,6 +130,9 @@ SELECT snapshot->>'title' FROM revisions WHERE snapshot @> '{"done":true}';
 ## Mini reto
 
 Reescribir de memoria las 5 queries más usadas de Taskflow.
+
+{{< include _explicaciones/query.md >}}
+
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
@@ -135,6 +143,23 @@ membresía. Si salen de memoria con los `$1` en su sitio y el
 ownership en el WHERE — eso *es* el nivel que una entrevista pide.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/esquema.md >}}
+
+{{< include _explicaciones/transaccion.md >}}
+
+{{< include _explicaciones/join.md >}}
+
+{{< include _explicaciones/paginacion.md >}}
+
+{{< include _explicaciones/crud.md >}}
+
+{{< include _explicaciones/roles.md >}}
 
 ## Lo que deberías saber hacer ahora
 

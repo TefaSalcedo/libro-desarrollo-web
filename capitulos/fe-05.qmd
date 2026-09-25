@@ -34,6 +34,9 @@ nace el ecosistema de clientes.
   error / data — el ciclo completo de una petición real.
 - <span class="tag tag-u">U</span> **Cliente HTTP con extras**: axios
   (interceptors, JSON auto), React Query (caché + estados).
+
+{{< include _explicaciones/cache.md >}}
+
 - <span class="tag tag-u">U</span> **Observable** (Angular): stream
   reactivo en vez de Promise — el modelo de RxJS.
 
@@ -172,6 +175,9 @@ de cuánto ciclo de vida necesitas.
   race conditions si el componente se desmonta.
 - **Guardar el token en el interceptor… leído una vez**: el token cambia
   al hacer login; léelo *dentro* del interceptor cada request.
+
+{{< include _explicaciones/autenticacion.md >}}
+
 - **Manejar loading/error a mano cuando ya usas React Query**: reinventar
   la rueda dentro de la librería que la resuelve.
 
@@ -181,6 +187,9 @@ de cuánto ciclo de vida necesitas.
   archivo — cambiar base URL o auth se hace en un lugar.
 - **Loading y error son parte del contrato UI**: diseña los tres estados
   (cargando / error / datos) — no es opcional en producción.
+
+{{< include _explicaciones/produccion.md >}}
+
 - **Interceptors para auth**, no token pegado en cada llamada.
 - **Type the response**: `fetch<Task[]>()` o validación — el JSON que
   llega no está garantizado (eso lo resuelve el backend con el contrato,
@@ -192,6 +201,9 @@ de cuánto ciclo de vida necesitas.
    pruébalo contra `http://localhost:8000/tasks` cuando corras la API del
    libro.
 2. Haz el POST de crear tarea con fetch y verifica que aparece en la lista.
+
+{{< include _explicaciones/localhost.md >}}
+
 
 ## Mini reto
 
@@ -227,6 +239,21 @@ pone `true`. Fix real: React Query maneja dedupe/cancelación por ti —
 otra razón por la que las apps serias no hacen fetch en useEffect a mano.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/dependencia.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/cookie.md >}}
+
+{{< include _explicaciones/token.md >}}
+
+{{< include _explicaciones/middleware.md >}}
+
+{{< include _explicaciones/retry.md >}}
 
 ## Lo que deberías saber hacer ahora
 

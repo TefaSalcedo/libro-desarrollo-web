@@ -22,15 +22,30 @@ servidor, y "cerrar todas las sesiones" (tu laptop robada) no existe como
 operación. Además el login es el endpoint más atacado del mundo: sin límite
 de intentos, la fuerza bruta prueba contraseñas a máquina.
 
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/sesion.md >}}
+
+{{< include _explicaciones/token.md >}}
+
+{{< include _explicaciones/jwt.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 El diseño que la industria convergió — **híbrido**:
 
 - **Access token:** JWT stateless, vida corta (15 min). Escala gratis,
   no se consulta nada — y si se roba, vive poco.
+
+{{< include _explicaciones/query.md >}}
+
 - **Refresh token:** opaco (no JWT, un string aleatorio), vida larga (30
   días), **guardado en la BD**. Sirve solo para pedir access nuevos — y
   como vive en tabla, se puede `DELETE` = revocación real.
+
+{{< include _explicaciones/base-de-datos.md >}}
+
 - **Rotación:** cada vez que el refresh se usa, se emite uno nuevo y el
   viejo muere. Si un token *ya usado* reaparece → alguien lo robó → se
   invalida la sesión entera (detección, no solo expiración).
@@ -135,6 +150,9 @@ combinación **prohibida** por el estándar (el navegador la rechaza) —
 con cookies siempre se nombra el origen exacto. Y CORS no protege tu API
 de llamadas fuera del navegador (curl no pregunta) — protege al *usuario*
 de sitios malignos.
+
+{{< include _explicaciones/cookie.md >}}
+
 
 ::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
@@ -250,6 +268,15 @@ Patrón: limita donde **cada intento cuesta algo tuyo** (CPU, email,
 dinero) o **revela algo** (¿existe este email? ¿es válido este código?).
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/localhost.md >}}
+
+{{< include _explicaciones/cpu.md >}}
+
+{{< include _explicaciones/esquema.md >}}
 
 ## Lo que deberías saber hacer ahora
 

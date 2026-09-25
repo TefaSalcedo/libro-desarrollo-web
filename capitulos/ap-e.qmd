@@ -93,10 +93,16 @@ nexus-api/
 contrato. `services` = las reglas. `db`/`queries` = el SQL. La
 arquitectura del cap. 7 no es "de Express" — es de backend.
 
+{{< include _explicaciones/query.md >}}
+
+
 **El SQL tiene casa propia.** En los tres, las queries viven en un
 archivo/capa aparte (`queries.ts`, `queries.py`, `queries.go`) — no
 esparcidas por los servicios. Cuando el DBA pregunta "¿qué le pide tu
 app a la BD?", la respuesta es un archivo, no un grep.
+
+{{< include _explicaciones/base-de-datos.md >}}
+
 
 **`internal/` en Go es el único muro real.** El compilador prohíbe
 importarlo desde fuera — la privacidad que en los otros stacks es
@@ -129,6 +135,25 @@ error handler → un test de integración. Si en 30 minutos tienes
 el día 1.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/build.md >}}
+
+{{< include _explicaciones/compilador.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/esquema.md >}}
+
+{{< include _explicaciones/transaccion.md >}}
+
+{{< include _explicaciones/pool.md >}}
 
 ## Lo que deberías saber hacer ahora
 

@@ -16,6 +16,9 @@ compara. Si uno te cuesta, la referencia `→ cap. X` te dice qué releer.
 semana real de onboarding. Tu AI CLI es el lead: si una solución no te
 queda clara, pégale el ticket y pídele que te lo explique distinto.
 
+{{< include _explicaciones/cli.md >}}
+
+
 ---
 
 ## Nivel 1 · Primeros tickets
@@ -922,3 +925,24 @@ qué capítulo lo resuelve. Para seguir: convierte cualquiera de estos en
 un prompt para tu AI (el formato de los "Prompt listo" de cada capítulo)
 y compara su respuesta con la solución de aquí. Donde difieran, aprendes
 dos veces.
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/terminal.md >}}
+
+{{< include _explicaciones/localhost.md >}}
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/esquema.md >}}

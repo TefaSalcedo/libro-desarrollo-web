@@ -28,6 +28,11 @@ sus datos y qué espera a qué. El onboarding es `git clone` +
 `docker compose up`. Y como el archivo vive en el repo, *el entorno
 también tiene code review*.
 
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/repositorio.md >}}
+
+
 ## Conceptos nuevos
 
 - <span class="tag tag-ops">Ops</span> docker-compose: servicios, redes, volúmenes, `depends_on`
@@ -54,6 +59,11 @@ La magia silenciosa: dentro de la red de compose, **`db` es un nombre
 DNS** — la app conecta a `postgres://db:5432` sin saber IPs. El volumen
 `pgdata` guarda los datos *fuera* del contenedor: `docker compose down`
 mata contenedores, no datos.
+
+{{< include _explicaciones/puerto.md >}}
+
+{{< include _explicaciones/dns.md >}}
+
 
 ## Implementación
 
@@ -166,6 +176,9 @@ versionar.
 3. La app conecta a `postgres://db:5432` — ¿quién resuelve `db` a una
    IP y por qué no puedes usar `localhost`?
 
+{{< include _explicaciones/localhost.md >}}
+
+
 ## Mini reto
 
 Un compañero clona el repo y levanta todo con un solo comando.
@@ -193,6 +206,19 @@ con healthcheck, `depends_on` ordenado, migraciones en el `command`,
 ese paso pertenece al YAML.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/build.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
+{{< include _explicaciones/log.md >}}
+
+{{< include _explicaciones/variable-de-entorno.md >}}
 
 ## Lo que deberías saber hacer ahora
 

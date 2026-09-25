@@ -35,6 +35,11 @@ Un equipo serio trata estos endpoints con tres reglas:
 3. **Idempotencia** — el mismo evento puede llegar 5 veces; procesarlo
    debe tener el efecto de procesarlo 1 vez (dedupe por `event_id`).
 
+{{< include _explicaciones/firma.md >}}
+
+{{< include _explicaciones/secreto.md >}}
+
+
 ## Conceptos nuevos
 
 - <span class="tag tag-u">U</span> Webhooks entrantes: verificar firma, responder rápido, procesar después
@@ -153,6 +158,9 @@ sola, y proveedor-caído → reintento seguro.
 cambia es *cómo* obtienes el body crudo (Express lo re-serializa sin el
 middleware `raw`, por eso va explícito).
 
+{{< include _explicaciones/middleware.md >}}
+
+
 ::: {.callout-note collapse="true" title="Otras cimentaciones: dónde van los archivos"}
 
 | Destino | Qué es | Qué te cuesta | Cuándo |
@@ -188,6 +196,9 @@ de tu API deben ver el mismo avatar.
 - **Replay endpoint interno**: cuando un evento se procesó mal, querrás
   re-ejecutarlo desde la BD de eventos sin pedirle al proveedor nada.
 
+{{< include _explicaciones/base-de-datos.md >}}
+
+
 ## Ejercicio
 
 1. ¿Por qué la deduplicación va en la BD (`UNIQUE(event_id)`) y no en
@@ -197,6 +208,9 @@ de tu API deben ver el mismo avatar.
 3. ¿Qué valida *realmente* que `avatar.png` es una imagen: su nombre,
    su `Content-Type`, o sus primeros bytes? ¿Y por qué los otros dos
    no sirven?
+
+{{< include _explicaciones/memoria.md >}}
+
 
 ## Mini reto
 
@@ -225,6 +239,19 @@ segundo INSERT choca con la constraint y sabes que ya lo viste.
 Idempotencia = mismo efecto sin importar cuántas veces llegue.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/hash.md >}}
+
+{{< include _explicaciones/log.md >}}
+
+{{< include _explicaciones/cdn.md >}}
 
 ## Lo que deberías saber hacer ahora
 

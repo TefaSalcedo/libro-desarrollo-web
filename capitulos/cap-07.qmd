@@ -19,6 +19,11 @@ memoria… todo en un archivo que empieza a dar miedo. Cuando llegue la base
 de datos (Parte 2), la autenticación (Parte 3) y los tests (Parte 6), ese
 archivo será inmantenible.
 
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+
 Pero el problema real no es el tamaño — es la **mezcla**: en la misma
 función convive "leer el path param" (HTTP), "la tarea no existe" (negocio)
 y "meterla en la lista" (datos). Si mañana el storage cambia de lista a
@@ -82,6 +87,9 @@ no necesitan ni levantar HTTP.
   trampas; `APIRouter` para agrupar endpoints.
 - <span class="tag tag-go">Go</span> **Packages**: un directorio = un
   package; nombres cortos; `internal/` como frontera que el compilador
+
+{{< include _explicaciones/compilador.md >}}
+
   *hace cumplir*.
 - <span class="tag tag-u">U</span> **Lógica reusable pre-handler**:
   middleware (Express) vs `Depends` (FastAPI) vs `func(http.Handler)
@@ -108,6 +116,9 @@ Cuando llegue Postgres (Cap. 10), solo `storage/` cambia. Cuando llegue
 auth (Cap. 16), se cuelga una dependencia antes del handler. **Las features
 nuevas se agregan sin reescribir** — esa es la definición operativa de
 "buena arquitectura".
+
+{{< include _explicaciones/dependencia.md >}}
+
 
 ## Implementación
 
@@ -386,6 +397,9 @@ una mala cimentación: pilotes para una casa de un piso.
 - **Estructura que un extraño navega en 2 minutos**: si alguien clona el
   repo y no encuentra "dónde está la regla X", la estructura falló.
 
+{{< include _explicaciones/repositorio.md >}}
+
+
 ## Ejercicio
 
 1. Refactoriza Taskflow a la estructura por capas de tu stack — mueve
@@ -423,6 +437,19 @@ fuente de verdad del negocio. Lo que se volvió posible: tests de servicio
 rápidos y un handler que solo traduce.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/build.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/orm.md >}}
 
 ## Lo que deberías saber hacer ahora
 

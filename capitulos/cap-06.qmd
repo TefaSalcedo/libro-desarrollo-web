@@ -39,6 +39,9 @@ Un equipo maduro decide tres cosas sobre los errores:
 
    Y esto es lo que **nunca** debe ver el cliente — pero sí tu log:
 
+{{< include _explicaciones/log.md >}}
+
+
    ```text
    Cliente ve:    500 { "error": { "code": "INTERNAL", "message": "unexpected error" } }
    Log guarda:    Traceback … line 42, in get_task … sqlite3.OperationalError:
@@ -57,6 +60,9 @@ Un equipo maduro decide tres cosas sobre los errores:
 - <span class="tag tag-u">U</span> **Error de dominio vs error de sistema**:
   "tarea no existe" (esperado, 404) vs "se cayó la BD" (inesperado, 500).
   Se manejan distinto y se reportan distinto.
+
+{{< include _explicaciones/base-de-datos.md >}}
+
 - <span class="tag tag-ts">TS</span> **Excepciones**: `throw`/`catch`, más el
   *error middleware* de Express como frontera HTTP.
 - <span class="tag tag-py">Py</span> **Excepciones**: `raise`/`except`,
@@ -86,6 +92,11 @@ La línea divisoria es la regla de oro: **los errores nacen en el dominio
 como datos del dominio, y se traducen a HTTP en el borde**. Si tu servicio
 devuelve `HTTPException` o `res.status()`, acabas de acoplar la lógica al
 transporte — y mañana no podrás reusarla desde un WebSocket o un test.
+
+{{< include _explicaciones/dominio.md >}}
+
+{{< include _explicaciones/websocket.md >}}
+
 
 ## Implementación
 
@@ -314,6 +325,9 @@ estructural (el frontend programa contra él); cuál formato es intercambiable.
 - **`HTTPException` dentro del servicio** (Py) o `res.status()` en la
   lógica (TS): acoplas dominio a transporte — el mismo error no sirve para
   un CLI, un test o un WebSocket.
+
+{{< include _explicaciones/cli.md >}}
+
 - **`try/except` que traga todo**: `except Exception: pass` convierte un
   bug en un misterio. Captura lo que esperas; deja escapar lo demás.
 - **Devolver el stack trace al cliente**: el 500 se loguea entero en el
@@ -349,6 +363,9 @@ ve el stack trace y que el log del servidor sí lo tiene. Bonus: ¿cómo harías
 que el error devuelva un `request_id` que el usuario pueda reportar? (El
 Cap. 23 lo implementa de verdad.)
 
+{{< include _explicaciones/memoria.md >}}
+
+
 ::: {.callout-note collapse="true" title="Soluciones"}
 
 **Ejercicio 1.** `NotFoundError` con `code` y `message` + mapper: TS en el
@@ -371,6 +388,17 @@ request y se devuelve en el body del error. El usuario reporta "me dio
 INTERNAL req_8f3a" y tú buscas ese id en los logs — Cap. 23 lo implementa.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/compilador.md >}}
+
+{{< include _explicaciones/indice.md >}}
+
+{{< include _explicaciones/firma.md >}}
+
+{{< include _explicaciones/middleware.md >}}
 
 ## Lo que deberías saber hacer ahora
 

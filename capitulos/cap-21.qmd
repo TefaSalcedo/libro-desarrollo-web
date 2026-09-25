@@ -17,10 +17,16 @@ las colas de verdad.
 
 `POST /auth/register` hace tres cosas: guardar el usuario (80ms), enviar
 el email (3s), notificar a Slack (variable). El usuario solo necesita
+
+{{< include _explicaciones/autenticacion.md >}}
+
 *una* respuesta: "tu cuenta existe". Los otros 3 segundos son trabajo
 que nadie está esperando — y sin embargo los está pagando en latencia,
 en timeouts del proxy, y en riesgo de que el email falle y parezca que
 el registro falló.
+
+{{< include _explicaciones/proxy.md >}}
+
 
 ## Cómo lo resuelve un equipo
 
@@ -34,6 +40,11 @@ proceso = si el proceso muere, el trabajo muere. Para "email que sería
 feo perder" se llega a colas de verdad (broker + worker + reintentos);
 para "estadística que se recalcula sola", el background in-process
 alcanza y sobra.
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
 
 ## Conceptos nuevos
 
@@ -201,6 +212,21 @@ consulta. Bonus: con WebSockets (cap. 38) el servidor puede *empujar*
 "tu export está listo" en vez de que el cliente pregunte.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/commit.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/transaccion.md >}}
+
+{{< include _explicaciones/log.md >}}
+
+{{< include _explicaciones/cache.md >}}
 
 ## Lo que deberías saber hacer ahora
 

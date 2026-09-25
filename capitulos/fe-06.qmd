@@ -20,16 +20,25 @@ sorprende: **tu React no corre en el servidor**. Se *construye* a archivos
 estáticos y cualquier servidor (nginx, un CDN, tu propio backend) los
 sirve tal cual. El navegador del usuario hace todo el trabajo.
 
+{{< include _explicaciones/localhost.md >}}
+
+
 ## Conceptos nuevos
 
 - <span class="tag tag-u">U</span> **Dev server**: compila al vuelo, hot
   reload, solo para desarrollar — nunca para usuarios.
 - <span class="tag tag-u">U</span> **Build**: `npm run build` → `dist/` con
   archivos estáticos optimizados (minificados, con hash).
+
+{{< include _explicaciones/hash.md >}}
+
 - <span class="tag tag-u">U</span> **SPA vs SSR**: la app corre en el
   navegador (SPA) vs el servidor prerenderiza HTML (SSR).
 - <span class="tag tag-u">U</span> **API vs static hosting**: tu frontend
   son archivos; tu backend es un proceso — dos cosas distintas a desplegar.
+
+{{< include _explicaciones/proceso.md >}}
+
 
 ## La explicación visual
 
@@ -58,6 +67,9 @@ npm run preview  # sirve dist/ localmente para probar el build
 ```
 
 Mira lo que genera `build`:
+
+{{< include _explicaciones/build.md >}}
+
 
 ```text
 dist/
@@ -106,12 +118,18 @@ cómo llega ahí tiene variantes reales.
 - **API hardcodeada a localhost**: `fetch("http://localhost:8000")` en el
   build de producción — la base URL debe venir del entorno.
 
+{{< include _explicaciones/entorno.md >}}
+
+
 ## Buenas prácticas
 
 - **`dist/` a un estático** (nginx, CDN, S3) — el frontend no necesita un
   proceso vivo, solo archivos servidos.
 - **La API como variable de entorno**: `VITE_API_URL` — el build se
   adapta a cada entorno sin re-compilar lógica.
+
+{{< include _explicaciones/compilador.md >}}
+
 - **Mismo dominio si puedes**: servir frontend y `/api` desde el mismo
   origen evita CORS (Sección II lo explica).
 
@@ -122,11 +140,17 @@ cómo llega ahí tiene variantes reales.
 2. Sirve `dist/` con `npm run preview` y verifica que funciona sin el dev
    server.
 
+{{< include _explicaciones/servidor.md >}}
+
+
 ## Mini reto
 
 Si el frontend son solo archivos estáticos, ¿cómo "sabe" a qué backend
 llamar? Diseña la respuesta — pista: variable de entorno en build o
 mismo-origen con proxy.
+
+{{< include _explicaciones/variable-de-entorno.md >}}
+
 
 ::: {.callout-note collapse="true" title="Soluciones"}
 
@@ -142,6 +166,13 @@ mismo-origen — el servidor que sirve `dist/` también responde `/api/*`
 evita CORS por completo.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/dev-server.md >}}
 
 ## Lo que deberías saber hacer ahora
 

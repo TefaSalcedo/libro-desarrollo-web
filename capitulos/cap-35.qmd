@@ -23,11 +23,19 @@ migración de la v1.5 renombró `name` → `full_name`, la v1.4 que sigue
 viva escribe `name` en una columna que ya no existe: errores por todas
 partes, en el mejor momento posible.
 
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio asume la coexistencia: durante el deploy, **dos
 versiones del código comparten una BD** — por tanto la migración debe
 ser segura para *las dos*. La técnica se llama **expand/contract**:
+
+{{< include _explicaciones/deploy.md >}}
+
 
 1. **Expand**: agregar lo nuevo sin tocar lo viejo (columna nueva,
    tabla nueva — nunca renombrar ni borrar).
@@ -38,6 +46,9 @@ ser segura para *las dos*. La técnica se llama **expand/contract**:
 Y el seguro: el rollback de *código* es cambiar el tag de imagen; el
 rollback de *datos* no existe gratis — los datos que la v1.5 escribió
 en `full_name` no se des-escriben al volver a v1.4.
+
+{{< include _explicaciones/imagen.md >}}
+
 
 ## Conceptos nuevos
 
@@ -138,6 +149,9 @@ toda la disciplina es *mantener la BD compatible con dos versiones*.
 
 - **Toda migración pasa el test**: "¿la versión anterior del código
   sigue funcionando con este esquema?" — si no, va por pasos.
+
+{{< include _explicaciones/esquema.md >}}
+
 - **Backfill en batches** (`UPDATE ... WHERE id BETWEEN` o por lotes)
   — un UPDATE de millones de filas de golpe bloquea la tabla que
   atiende tráfico.
@@ -184,6 +198,19 @@ porque cada esquema intermedio sirve a ambas versiones — *esa* es la
 frase que se responde en la entrevista.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/log.md >}}
+
+{{< include _explicaciones/registry.md >}}
+
+{{< include _explicaciones/cicd.md >}}
 
 ## Lo que deberías saber hacer ahora
 

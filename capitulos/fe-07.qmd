@@ -19,6 +19,15 @@ frameworks, llamadas a APIs, build. Ahora las juntamos en algo real: una
 UI que consume `GET /tasks` y `POST /tasks` — los endpoints que el libro
 construye en la Parte de backend.
 
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/dom.md >}}
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/build.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Antes de escribir, el equipo define el *contrato* que la UI espera (el
@@ -32,6 +41,11 @@ POST /api/tasks  {title}  → 201 { id, title, done }
 Con el contrato claro, la UI se escribe sin backend todavía — contra un
 mock o contra la API cuando exista. Ese es el punto: **el contrato permite
 que frontend y backend se construyan en paralelo.**
+
+{{< include _explicaciones/concurrencia.md >}}
+
+{{< include _explicaciones/mock.md >}}
+
 
 ## Implementación
 
@@ -113,6 +127,9 @@ Tres formas de desarrollar la UI sin que la API exista:
 **MSW** (Mock Service Worker) es la favorita profesional: intercepta
 `fetch` y responde mocks — tu código de producción no cambia nada.
 
+{{< include _explicaciones/produccion.md >}}
+
+
 ## Errores comunes
 
 - **fetch en el body del componente** (sin useEffect): se dispara en cada
@@ -144,6 +161,15 @@ cambia `API`.
 patrón: mutación al servidor + actualización optimista del estado.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/variable-de-entorno.md >}}
+
+{{< include _explicaciones/servidor.md >}}
 
 ## Lo que deberías saber hacer ahora
 

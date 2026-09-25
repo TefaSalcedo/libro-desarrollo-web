@@ -47,14 +47,25 @@ fuente de verdad cuando existe antes que el código.
 con N+1 y queries opacas. Regla: ORM para el CRUD, SQL crudo para lo
 difícil — y siempre poder leer lo que genera.
 
+{{< include _explicaciones/query.md >}}
+
+
 **Migración** — Cambio de esquema versionado (`up`/`down`) aplicado en
 orden. Existe porque "la BD de cada quien" no escala a dos personas.
 Trampa: editar una migración ya aplicada — se crea una nueva, jamás se
 retoca el historial.
 
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
+
 **Transacción** — Grupo de operaciones que se confirman o se revierten
 juntas (ACID). Existe porque el mundo falla a la mitad. `FOR UPDATE` =
 "esta fila es mía hasta el COMMIT".
+
+{{< include _explicaciones/transaccion.md >}}
+
 
 **N+1** — La enfermedad de los loops: 1 query para la lista + N para
 los hijos. Se cura con JOIN/agregación — una query, no N.
@@ -65,6 +76,9 @@ abrir una por request es caro. Tamaño real: 10–20, no 1000.
 **Índice** — Estructura aparte (B-tree) que convierte búsquedas en
 saltos. Sigue el patrón de acceso: igualdad primero, orden después.
 Trampa: indexar todo — cada índice se paga en cada escritura.
+
+{{< include _explicaciones/indice.md >}}
+
 
 **JSONB** — Columna JSON indexable dentro del relacional. Decisión
 cuando el *contenido* varía por registro; pereza cuando es por no
@@ -104,9 +118,15 @@ las APIs. No es teoría: es la tabla de auditoría por endpoint del cap. 26.
 **Reverse proxy** — El portero (nginx/ALB) que recibe el 443, hace TLS
 y reparte a tu app en :3000. La app nunca ve internet directamente.
 
+{{< include _explicaciones/puerto.md >}}
+
+
 **12-factor** — Las reglas de deploy: config por env vars, procesos sin
 estado, logs a stdout, mismo artefacto en todos los entornos. La razón
 por la que tu Dockerfile funciona igual en dev y prod.
+
+{{< include _explicaciones/entorno.md >}}
+
 
 **Request ID** — El ID único por request que viaja en logs, headers y
 respuestas de error. Es la diferencia entre "algo falló" y "esta línea
@@ -119,6 +139,9 @@ diagnostican con el segundo.
 **Graceful shutdown** — Al apagar: dejar de aceptar, terminar lo que
 corre, cerrar el pool, salir. Lo que convierte un deploy en invisible
 en vez de una ráfaga de 502.
+
+{{< include _explicaciones/pool.md >}}
+
 
 **Migrate-gate** — Migrar en CI *antes* del deploy: el deploy de
 migración fallida nunca despierta — la imagen verde no sale si la
@@ -153,6 +176,13 @@ salió "se puede repetir", vuelve al cap. 22 — la definición sin el
 *para qué* es trivia, no conocimiento.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/esquema.md >}}
 
 ## Lo que deberías saber hacer ahora
 

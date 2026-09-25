@@ -35,6 +35,9 @@ La analogía clásica es la pizza:
 Traducido a la pila técnica (hardware → virtualización → SO → runtime →
 app → datos):
 
+{{< include _explicaciones/runtime.md >}}
+
+
 - **IaaS** (EC2, Azure VM, Droplet): ellos hardware + virtualización.
   Tú desde el SO: parches, runtime, nginx, app, datos. *"Te alquilo la
   cocina vacía."*
@@ -74,6 +77,9 @@ flowchart TB
 
 **La lectura:** cada paso a la derecha te quita trabajo operativo y te
 cuesta control + dinero + dependencia del proveedor (*lock-in*).
+
+{{< include _explicaciones/dependencia.md >}}
+
 
 ## Implementación
 
@@ -156,6 +162,11 @@ minimiza la factura del proveedor.
 - **La app no debe saber en qué modelo corre:** puerto desde env var,
   configuración por entorno, estado fuera del proceso — así puedes
   cambiar de frontera después.
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/proceso.md >}}
+
 - **Documenta qué frontera elegiste y por qué** — el próximo deploy
   parte de esa decisión, no de cero.
 - **PaaS no es "para novatos":** la mayoría de productos reales vive en
@@ -198,6 +209,21 @@ Regla: migra de frontera cuando el *costo total* (factura + tiempo +
 riesgo) mejora, no cuando solo una línea baja.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/build.md >}}
+
+{{< include _explicaciones/puerto.md >}}
+
+{{< include _explicaciones/log.md >}}
+
+{{< include _explicaciones/variable-de-entorno.md >}}
+
+{{< include _explicaciones/secreto.md >}}
+
+{{< include _explicaciones/deploy.md >}}
 
 ## Lo que deberías saber hacer ahora
 

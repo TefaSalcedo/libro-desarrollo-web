@@ -25,6 +25,11 @@ error de junior: empezar por `POST /login`. El error caro: descubrir en
 la semana 3 que "editar a la vez" necesitaba un modelo distinto desde
 el día 1.
 
+{{< include _explicaciones/esquema.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio responde al brief con tres artefactos antes de codificar:
@@ -151,6 +156,9 @@ problema resuelto *cuando costaba una oración* — en código cuesta un
 refactor, en prod una migración. El diseño no es burocracia: es el
 lugar barato de equivocarse.
 
+{{< include _explicaciones/migracion.md >}}
+
+
 ::: {.callout-note collapse="true" title="Detalle: las decisiones que parecen menores"}
 
 - **`public_id` por recurso**: `documents/7f3a…` en URLs — el id
@@ -183,6 +191,9 @@ lugar barato de equivocarse.
 - **Decidir lo reversible rápido y lo irreversible lento** (Ap. K,
   decisión framework): el modelo de versionado es puerta de una vía —
   merece la página de análisis; el nombre de la ruta no.
+
+{{< include _explicaciones/framework.md >}}
+
 - **El contrato incluye los errores**: una ruta sin sus 4xx definidos
   está a medio diseñar.
 - **El diseño se presenta**: un RFC de una página que el equipo puede
@@ -230,6 +241,21 @@ real necesita, y lo que el Ap. K entrena.
 :::
 
 > **Repaso de entrevista:** las preguntas de este tema viven en el Apéndice H (diseño y arquitectura).
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/foreign-key.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
+
+{{< include _explicaciones/token.md >}}
+
+{{< include _explicaciones/dominio.md >}}
 
 ## Lo que deberías saber hacer ahora
 

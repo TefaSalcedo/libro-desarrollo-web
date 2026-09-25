@@ -21,12 +21,22 @@ meter filas, leerlas, cruzarlas. Podríamos saltar directo al ORM
 magia: no sabrías qué se ejecuta, por qué va lento, ni qué revisar cuando
 algo falla. Primero se aprende el idioma; después el traductor.
 
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/orm.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 `psql` es la terminal de PostgreSQL — el equivalente a tu shell, pero el
 idioma es SQL. Todo backend dev tiene una abierta siempre: inspeccionar
 datos reales, probar una query antes de meterla en código, arreglar una
 fila a mano. Los comandos de orientación primero:
+
+{{< include _explicaciones/terminal.md >}}
+
 
 ```bash
 psql "postgresql://app:dev@localhost:5432/taskflow"
@@ -108,6 +118,9 @@ WHERE t.user_id = 1;
 trae todas las de la izquierda aunque no tengan pareja (`NULL` en las
 columnas de la derecha) — útil para "tareas *con o sin* etiquetas".
 
+{{< include _explicaciones/join.md >}}
+
+
 **5. Reportes — `GROUP BY`:**
 
 ```sql
@@ -121,6 +134,9 @@ ORDER BY open_tasks DESC;
 
 "Tareas abiertas por usuario" sin traer las tareas — la BD *cuenta*,
 tú recibes el resumen.
+
+{{< include _explicaciones/base-de-datos.md >}}
+
 
 **6. La lección de seguridad — inyección SQL:**
 
@@ -159,6 +175,9 @@ qué concatenar strings es inyección SQL.
 leerlo, cada ORM es una caja negra que no puedes depurar. Con SQL en la
 cabeza, el ORM es un atajo que entiendes; sin él, es una dependencia que
 temes.
+
+{{< include _explicaciones/dependencia.md >}}
+
 
 ::: {.callout-note collapse="true" title="Detalle: por qué los JOINs confunden"}
 
@@ -249,6 +268,15 @@ El parámetro `$1`/`%s` envía el dato por un canal separado — la BD no
 puede confundirlo con SQL.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/puerto.md >}}
+
+{{< include _explicaciones/localhost.md >}}
+
+{{< include _explicaciones/esquema.md >}}
 
 ## Lo que deberías saber hacer ahora
 

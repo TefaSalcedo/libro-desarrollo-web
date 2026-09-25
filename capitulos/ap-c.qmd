@@ -45,10 +45,16 @@ pone el `err` y cómo se llaman sus paquetes. Las *decisiones* ya las
 tiene: parametrizar, transaccionar, auditar, testear, desplegar con
 compuertas.
 
+{{< include _explicaciones/transaccion.md >}}
+
+
 **El framework decide menos de lo que crees.** FastAPI no te obliga a
 usar Depends ni Express a usar middleware — pero la industria sí te
 obliga a validar, a autenticar una vez y a no dejar stack traces. El
 framework propone el *mecanismo*; tú mantienes el *control*.
+
+{{< include _explicaciones/framework.md >}}
+
 
 **El lenguaje solo cambia la forma.** `Promise.all`/`gather`/`errgroup`
 son la misma idea con tres acentos — como `throw`/`raise`/`return err`.
@@ -70,6 +76,25 @@ fila pone "Redis" en la columna del lenguaje, vuelve al cap. 40: el
 producto no es del lenguaje — la *decisión de cachear* tampoco.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/cpu.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/pool.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/jwt.md >}}
 
 ## Lo que deberías saber hacer ahora
 

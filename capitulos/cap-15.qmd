@@ -21,6 +21,11 @@ anterior: HTTP es *stateless* por diseño (cada petición es
 independiente — es lo que hace que escale). Algo tiene que decir "soy
 yo, el del login de hace un segundo". Dos modelos clásicos:
 
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+
 - **Sesión con estado:** el servidor genera un id (`sess_abc123`), lo
   guarda en una tabla `sessions`, y el cliente lo presenta como una
   *pulsera de discoteca*. El servidor consulta la tabla cada vez.
@@ -32,6 +37,11 @@ El trade-off real: el JWT no necesita consulta (escala gratis) pero **no
 se puede revocar** — quien lo roba lo usa hasta que expire. La sesión en
 BD se revoca con `DELETE`, pero cuesta una query por request. El cap. 18
 combina ambos; aquí entendemos el JWT primero.
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/query.md >}}
+
 
 ## Cómo lo resuelve un equipo
 
@@ -76,6 +86,9 @@ identidad legible, no un sobre sellado.
 ## Implementación
 
 Login que emite el JWT en cookie `httpOnly` + `GET /me` que lo verifica:
+
+{{< include _explicaciones/cookie.md >}}
+
 
 ::: {.panel-tabset}
 
@@ -270,6 +283,9 @@ sola (riesgo CSRF, mitigado con `SameSite`). Ninguna opción es gratis —
 "Robar" tu propio token desde la consola del navegador y explicar por
 qué `httpOnly` lo impide (o no).
 
+{{< include _explicaciones/terminal.md >}}
+
+
 ::: {.callout-note collapse="true" title="Soluciones"}
 
 Abre DevTools → Console → `document.cookie`: la cookie `token` **no
@@ -283,6 +299,17 @@ el combo: httpOnly (anti-XSS) + SameSite (anti-CSRF) + Secure (anti-red)
 + exp corto (anti-robo).
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/repositorio.md >}}
+
+{{< include _explicaciones/foreign-key.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
 
 ## Lo que deberías saber hacer ahora
 

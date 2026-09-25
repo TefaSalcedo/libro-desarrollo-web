@@ -20,6 +20,13 @@ idénticos en los tres proveedores. El trabajo no es aprender AWS — es
 aprender las categorías (compute, storage, base de datos, DNS,
 identidad, colas...) y luego traducir nombres.
 
+{{< include _explicaciones/terminal.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/dns.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Nadie memoriza el catálogo. Un equipo real:
@@ -28,6 +35,9 @@ Nadie memoriza el catálogo. Un equipo real:
    está la empresa, créditos gratis, qué sabe el equipo.
 2. **Aprende sus 10 servicios núcleo** en ese proveedor.
 3. **Guarda la tabla de equivalencias** para cuando toque otro.
+
+{{< include _explicaciones/cpu.md >}}
+
 
 El proveedor dominante es AWS (~30% del mercado), luego Azure (~20%,
 fuerte en empresas con Microsoft), luego GCP (~10%, fuerte en
@@ -110,6 +120,11 @@ gsutil iam ch allUsers:objectViewer gs://taskflow-web-you
 Tres comandos equivalentes: *crear contenedor de objetos → subir build →
 habilitar como sitio web*. La categoría (static hosting en object
 storage) es la misma; solo cambia el CLI.
+
+{{< include _explicaciones/build.md >}}
+
+{{< include _explicaciones/cli.md >}}
+
 
 **El tour mental de cualquier consola:** todas se organizan igual —
 *región* arriba a la derecha (dónde vive el recurso), *buscador* de
@@ -203,6 +218,9 @@ que migrar sea *posible*, no diario.
 
 Encuentra los **tres** problemas en este "deploy a AWS":
 
+{{< include _explicaciones/deploy.md >}}
+
+
 ```bash
 aws configure    # entered ROOT account keys
 aws s3 mb s3://company-user-data
@@ -222,6 +240,15 @@ aws s3api put-bucket-acl --bucket company-user-data --acl public-read
    de nada. Regla de la nube: se cobra por existir.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
+
+{{< include _explicaciones/tls.md >}}
 
 ## Lo que deberías saber hacer ahora
 

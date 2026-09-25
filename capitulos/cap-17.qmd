@@ -18,6 +18,9 @@ responder 403 y cuándo responder 404 *a propósito*.
 Autenticación y autorización se confunden porque suenan parecido — son
 dos preguntas distintas:
 
+{{< include _explicaciones/autorizacion.md >}}
+
+
 - **Autenticación (cap. 15–16):** ¿quién eres? → 401 si no sabemos.
 - **Autorización (este cap.):** ya sé quién eres — ¿esto es tuyo? →
   403 si sabemos y no puedes; **404 si ni siquiera debes saber que existe**.
@@ -27,6 +30,9 @@ URL dice `/tasks/41`, cambias a `42`, y ves la tarea de otro. La API
 verificó *quién eres* pero nunca *de quién es eso*. En Taskflow: Ana
 abre DevTools, cambia el id, borra las tareas de Bruno. La autenticación
 funcionó perfecto — eso es lo que la hace peligrosa.
+
+{{< include _explicaciones/autenticacion.md >}}
+
 
 ## Cómo lo resuelve un equipo
 
@@ -43,6 +49,13 @@ Dos niveles, en orden de lo que Taskflow necesita:
    `project_members(user_id, project_id, role)` con `viewer/editor/admin`.
    El rol no vive en el usuario (sería global: "eres admin de TODO"),
    vive en la membresía: eres editor *de este* proyecto.
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/roles.md >}}
+
+{{< include _explicaciones/recurso.md >}}
+
 
 Y la regla de seguridad que cuesta entender: **recursos ajenos
 responden 404, no 403.** Si devuelves 403 confirmas "existe pero no es
@@ -80,6 +93,9 @@ Taskflow agrega proyectos compartidos: `project_members` define tu rol
 *en ese proyecto*. La protección es un **factory**: `requireRole("editor")`
 devuelve el middleware/dependency que comprueba ese rol — así la misma
 lógica sirve para viewer, editor y admin.
+
+{{< include _explicaciones/middleware.md >}}
+
 
 ::: {.panel-tabset}
 
@@ -316,6 +332,17 @@ tuyo" deben producir respuestas byte a byte idénticas** — mismo status,
 mismo body. Si puedes distinguirlas, un atacante también.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/pool.md >}}
+
+{{< include _explicaciones/token.md >}}
+
+{{< include _explicaciones/escalado.md >}}
 
 ## Lo que deberías saber hacer ahora
 

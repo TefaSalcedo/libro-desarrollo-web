@@ -206,3 +206,26 @@ frontera de errores y la autorización, no getters. El test como
 contrato: si rompe la API pública, el test falla antes que el cliente."
 → *cap-27..29*
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/dom.md >}}
+
+{{< include _explicaciones/dependencia.md >}}
+
+{{< include _explicaciones/repositorio.md >}}
+
+{{< include _explicaciones/cpu.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/esquema.md >}}
+
+{{< include _explicaciones/indice.md >}}

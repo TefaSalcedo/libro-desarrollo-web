@@ -135,3 +135,26 @@ defiende solo en la entrevista."
 - **Tu AI CLI es tu entrevistador de práctica:** pégale cualquier
   pregunta de arriba y pídele que te evalúe.
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/compilador.md >}}
+
+{{< include _explicaciones/terminal.md >}}
+
+{{< include _explicaciones/cli.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/esquema.md >}}
+
+{{< include _explicaciones/indice.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}

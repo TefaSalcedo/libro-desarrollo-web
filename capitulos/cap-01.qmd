@@ -100,6 +100,9 @@ El "hola mundo" honesto de un backend no es imprimir texto: es **responder un
 request**. Estos tres programas hacen exactamente lo mismo — exponen
 `GET /health` en el puerto 8000:
 
+{{< include _explicaciones/puerto.md >}}
+
+
 ::: {.panel-tabset}
 
 ### TypeScript
@@ -348,9 +351,15 @@ como estructura, y deja el runtime como material intercambiable.
   escondido en `app.listen`.
 - **`print`/`console.log` como respuesta.** Responder un request es devolver
   bytes HTTP por la conexión, no escribir en tu terminal.
+
+{{< include _explicaciones/terminal.md >}}
+
 - **Levantar el servidor y no probarlo.** Abre
   `http://localhost:8000/health` o haz `curl` — ver la respuesta JSON es el
   primer "funciona" real.
+
+{{< include _explicaciones/localhost.md >}}
+
 
 ## Buenas prácticas
 
@@ -359,6 +368,9 @@ como estructura, y deja el runtime como material intercambiable.
   saber si tu proceso está vivo.
 - **Puerto configurable**, no hardcodeado — en producción el puerto lo decide
   el entorno, no tu código (volveremos a esto en configuración).
+
+{{< include _explicaciones/entorno.md >}}
+
 - **Un endpoint, una responsabilidad.** El handler de `/health` no sabe de
   tareas ni de usuarios. Esa disciplina es la arquitectura por capas en
   miniatura.
@@ -394,6 +406,21 @@ middleware/dependency la valida antes del handler (Cap. 16). Si te faltaron
 etapas 3–6, es exactamente la Parte 3 del libro.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/dependencia.md >}}
+
+{{< include _explicaciones/compilador.md >}}
+
+{{< include _explicaciones/cli.md >}}
+
+{{< include _explicaciones/commit.md >}}
 
 ## Lo que deberías saber hacer ahora
 

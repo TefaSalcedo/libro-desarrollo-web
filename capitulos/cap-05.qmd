@@ -15,6 +15,9 @@ salida (`TaskPublic`) actúa como aduana — lo no declarado no sale, así tu
 
 La tarea en memoria ahora tiene más campos de los que el cliente debe ver:
 
+{{< include _explicaciones/memoria.md >}}
+
+
 ```text
 Task interno = {
   id, title, done,
@@ -31,6 +34,9 @@ en el contrato**. Si hoy sale `owner_id`, mañana alguien escribe frontend
 contra ese campo, y cuando quieras quitarlo rompes clientes. Peor: si el
 objeto interno contiene `password_hash` (Cap. 14), acabas de publicar tu
 base de datos.
+
+{{< include _explicaciones/base-de-datos.md >}}
+
 
 ## Cómo lo resuelve un equipo
 
@@ -81,6 +87,11 @@ vez que el contrato debe cambiar sin tocar la base de datos (o viceversa).
 - <span class="tag tag-py">Py</span> `response_model`: FastAPI filtra el
   objeto ORM/dominio contra el schema declarado — `password_hash` nunca
   sale aunque el servicio lo devuelva.
+
+{{< include _explicaciones/esquema.md >}}
+
+{{< include _explicaciones/orm.md >}}
+
 - <span class="tag tag-ts">TS</span> Mapeo explícito o schema de salida con
   Zod: la forma pública se construye a mano (`pick`, función `toPublic`).
 - <span class="tag tag-go">Go</span> Structs públicos con tags `json:` —
@@ -305,6 +316,9 @@ en los tres — FastAPI la pone en la firma (`response_model`), Express te
 deja construirla a mano (`toPublic`), Go la graba en el tipo (`json:"-"`).
 El detalle:
 
+{{< include _explicaciones/firma.md >}}
+
+
 ::: {.callout-note collapse="true" title="Detalle: tres formas de aduana"}
 
 - **FastAPI** hace la frontera *declarativa y automática*: `response_model`
@@ -378,6 +392,9 @@ Devuelve la misma tarea en dos formas según *quién pregunta*: el owner ve
 serializador o antes? Diseña la solución; la implementamos en el capítulo
 de autorización.
 
+{{< include _explicaciones/autorizacion.md >}}
+
+
 ::: {.callout-note collapse="true" title="Soluciones"}
 
 **Ejercicio 1.** `TaskPublic` con `id, title, done, created_at` filtra los
@@ -396,6 +413,17 @@ a cada quién es lógica de negocio**. Si la decisión viviera en el
 serializador, éste tendría que conocer auth — capas invertidas.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/compilador.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
 
 ## Lo que deberías saber hacer ahora
 

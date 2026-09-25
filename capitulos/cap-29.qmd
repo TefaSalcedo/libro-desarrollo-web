@@ -21,6 +21,9 @@ tercero se cae, que gastan rate limit, y que envían correos de mentira
 a usuarios de verdad. Pero el extremo opuesto es igual de inútil:
 mockear tan adentro que el test solo verifica que el mock funciona.
 
+{{< include _explicaciones/registry.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Un equipo serio mockea en **la frontera que él diseñó**: el adapter con
@@ -215,6 +218,27 @@ registrado. Es el test que *demuestra* la degradación elegante del
 cap. 19 — sin él, "degrada bien" es una esperanza.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/dependencia.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/token.md >}}
+
+{{< include _explicaciones/firma.md >}}
+
+{{< include _explicaciones/dominio.md >}}
+
+{{< include _explicaciones/produccion.md >}}
+
+{{< include _explicaciones/timeout.md >}}
 
 ## Lo que deberías saber hacer ahora
 

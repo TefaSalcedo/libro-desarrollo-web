@@ -170,6 +170,13 @@ código.
    sin auth / stack trace en 500 / README que no levanta / lista sin
    paginar.
 
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/indice.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+
 ## Mini reto
 
 Pasar la checklist del apéndice F a Nexus y documentar cada hallazgo.
@@ -202,6 +209,23 @@ que es lo que "auditoría" significa de verdad.
 :::
 
 > **Repaso de entrevista:** las preguntas de este tema viven en el Apéndice I (seguridad y operación).
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/repositorio.md >}}
+
+{{< include _explicaciones/puerto.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
+{{< include _explicaciones/join.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
 
 ## Lo que deberías saber hacer ahora
 

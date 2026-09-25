@@ -24,12 +24,21 @@ empleado descontento). Cuando pase — *cuando*, no *si* — todo usuario
 queda desnudo, y como la gente **reutiliza contraseñas**, tu filtración
 abre sus cuentas en otros sitios. Tu falla se convierte en la de todos.
 
+{{< include _explicaciones/base-de-datos.md >}}
+
+
 ¿Cifrarla entonces? Peor trampa: el cifrado es *reversible por diseño* —
 existe una clave que lo deshace, y esa clave vive en tu servidor. Quien
 robe la BD probablemente robe también la clave. Necesitas algo
+
+{{< include _explicaciones/cifrado.md >}}
+
 **irreversible**: una función que transforma `micontraseña123` en
 `$2b$10$N9qo8uLO...` de tal forma que no hay camino de regreso. Eso es
 un **hash**.
+
+{{< include _explicaciones/hash.md >}}
+
 
 ## Cómo lo resuelve un equipo
 
@@ -49,6 +58,9 @@ distintos) y es deliberadamente *lento* (~100ms por intento): para tu
 login es imperceptible; para quien prueba mil millones de combinaciones
 es una eternidad. MD5 y SHA256 son hashes rápidos — rápidos para ti *y
 para el atacante*. Por eso no sirven para contraseñas.
+
+{{< include _explicaciones/autenticacion.md >}}
+
 
 ## Conceptos nuevos
 
@@ -301,6 +313,21 @@ siguen verificando aunque subas el factor — y puedes rehashear en el
 próximo login exitoso del usuario.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/pool.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
+
+{{< include _explicaciones/log.md >}}
+
+{{< include _explicaciones/secreto.md >}}
 
 ## Lo que deberías saber hacer ahora
 

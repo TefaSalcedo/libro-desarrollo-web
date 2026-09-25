@@ -475,5 +475,29 @@ a tu AI CLI como si fuera tu lead ("estamos por elegir X o Y, contexto:
 ..."), y compara su criterio con el tuyo. Donde difieran, ahí está tu
 siguiente hora de estudio.
 
+{{< include _explicaciones/cli.md >}}
+
+
 *Las decisiones no se memorizan — se reconocen. Después de estas 23, la
 siguiente "¿X o Y?" dejará de sentirse como adivinanza.*
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/runtime.md >}}
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/dom.md >}}
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/dependencia.md >}}
+
+{{< include _explicaciones/build.md >}}
+
+{{< include _explicaciones/git.md >}}
+
+{{< include _explicaciones/commit.md >}}
+
+{{< include _explicaciones/proceso.md >}}

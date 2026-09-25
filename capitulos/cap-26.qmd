@@ -105,6 +105,9 @@ librería que se enchufa — son ~8 decisiones ya tomadas que deben estar
 *activas en cada endpoint*. El plugin pone headers; no pone
 `WHERE user_id` en tu query.
 
+{{< include _explicaciones/query.md >}}
+
+
 ::: {.callout-note collapse="true" title="Detalle: lo que el framework sí te da"}
 
 | Te lo da el framework/librería | Sigue siendo tuyo |
@@ -184,6 +187,27 @@ datos que no ve?), y cualquier ruta agregada "rápido" sin pasar por
 eres* pero no *qué puedes hacer aquí*.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/repositorio.md >}}
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
+{{< include _explicaciones/orm.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/autorizacion.md >}}
 
 ## Lo que deberías saber hacer ahora
 

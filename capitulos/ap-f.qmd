@@ -115,6 +115,29 @@ un endpoint, la lista ya corre en tu cabeza — para eso era.
 
 :::
 
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/base-de-datos.md >}}
+
+{{< include _explicaciones/query.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
+{{< include _explicaciones/transaccion.md >}}
+
+{{< include _explicaciones/pool.md >}}
+
+{{< include _explicaciones/autenticacion.md >}}
+
+{{< include _explicaciones/firma.md >}}
+
+{{< include _explicaciones/middleware.md >}}
+
+{{< include _explicaciones/variable-de-entorno.md >}}
+
 ## Lo que deberías saber hacer ahora
 
 - [ ] Auditar un endpoint nuevo contra la lista completa en minutos

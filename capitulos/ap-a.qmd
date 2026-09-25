@@ -52,6 +52,9 @@ El que viene de JS a Go siempre pregunta "¿dónde está el catch?" — no
 hay: el error viaja por `return`, visible en cada firma. Verbosidad que
 compra visibilidad.
 
+{{< include _explicaciones/firma.md >}}
+
+
 ## Lo que NO se traduce directo
 
 | Pieza | Solo existe en | Por qué |
@@ -88,6 +91,21 @@ TS el schema de entrada se valida con zod antes. Si tu traducción usa
 acento — la forma correcta es la del idioma, no la tuya.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/compilador.md >}}
+
+{{< include _explicaciones/esquema.md >}}
+
+{{< include _explicaciones/concurrencia.md >}}
+
+{{< include _explicaciones/modulo.md >}}
+
+{{< include _explicaciones/async-await.md >}}
+
+{{< include _explicaciones/tipado.md >}}
 
 ## Lo que deberías saber hacer ahora
 

@@ -22,6 +22,11 @@ computadora, encendida 24/7, con una IP pública**. Toda la industria del
 hosting se reduce a: ¿de quién es esa máquina, dónde está, y quién la
 mantiene?
 
+{{< include _explicaciones/puerto.md >}}
+
+{{< include _explicaciones/proceso.md >}}
+
+
 ## Cómo lo resuelve un equipo
 
 Nadie empieza comprando un rack. El camino típico de un producto:
@@ -33,6 +38,11 @@ Nadie empieza comprando un rack. El camino típico de un producto:
    alrededor.
 4. **Escala o regulación:** datacenter propio o *bare metal* (máquina
    física completa alquilada). Raro en productos pequeños.
+
+{{< include _explicaciones/localhost.md >}}
+
+{{< include _explicaciones/deploy.md >}}
+
 
 La lección no es "usa X" sino **entender qué responsabilidad heredas en
 cada opción**: hardware, red, electricidad, parches del SO, backups.
@@ -96,6 +106,9 @@ cd taskflow && npm ci
 dist/index.js` y cierras la terminal, el proceso muere con tu sesión.
 Necesitas un **gestor de procesos** — algo que la reinicie si crashea y
 la arranque si el servidor reinicia:
+
+{{< include _explicaciones/terminal.md >}}
+
 
 ```bash
 # systemd — the OS's own process manager (recommended)
@@ -176,6 +189,9 @@ demás (precio, control, compliance) se deriva de esa única pregunta.
   crearlo; la privada no sale de tu máquina.
 - **Un usuario por servicio**, no root. Si tu app se compromete, el
   atacante hereda los permisos de *ese* usuario — que sean pocos.
+
+{{< include _explicaciones/autorizacion.md >}}
+
 - **Firewall que niega por defecto** y abre solo 22/80/443.
 - **Documenta la máquina:** IP, región, qué corre ahí. Un servidor
   olvidado es una factura olvidada y un agujero de seguridad.
@@ -227,6 +243,17 @@ node dist/index.js &
    reiniciar el servidor. Falta systemd/PM2.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/dependencia.md >}}
+
+{{< include _explicaciones/cli.md >}}
+
+{{< include _explicaciones/log.md >}}
+
+{{< include _explicaciones/secreto.md >}}
 
 ## Lo que deberías saber hacer ahora
 

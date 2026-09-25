@@ -19,6 +19,9 @@ En producción eso es un despido: la tabla tiene datos *reales* que no
 puedes perder. Necesitas **cambiar la forma sin destruir el contenido**:
 `ALTER TABLE` en vez de `DROP TABLE`. Y necesitas que ese cambio sea
 repetible — que la BD de Ana, la de CI y la de producción evolucionen
+
+{{< include _explicaciones/base-de-datos.md >}}
+
 *exactamente igual*.
 
 ## Cómo lo resuelve un equipo
@@ -26,6 +29,11 @@ repetible — que la BD de Ana, la de CI y la de producción evolucionen
 El patrón universal: cada cambio de esquema es **un archivo con
 timestamp**, guardado en el repo junto al código, que se aplica una sola
 vez y en orden:
+
+{{< include _explicaciones/repositorio.md >}}
+
+{{< include _explicaciones/esquema.md >}}
+
 
 ```
 migrations/
@@ -44,6 +52,11 @@ mismo esquema sin que nadie recuerde qué corrió a mano.
 **El flujo profesional:** generar migración → revisarla como código (PR)
 → CI la aplica a la BD de pruebas → deploy la aplica a producción. La
 migración viaja con el código que la necesita — mismo commit.
+
+{{< include _explicaciones/commit.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
 
 ## Conceptos nuevos
 
@@ -210,6 +223,19 @@ versión y del tipo de default — por eso se prueba en staging con datos
 reales.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/entorno.md >}}
+
+{{< include _explicaciones/framework.md >}}
+
+{{< include _explicaciones/proceso.md >}}
+
+{{< include _explicaciones/memoria.md >}}
+
+{{< include _explicaciones/orm.md >}}
 
 ## Lo que deberías saber hacer ahora
 

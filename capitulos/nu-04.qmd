@@ -81,6 +81,9 @@ aws rds create-db-instance \
 **Paso 2 — la app solo ve una URL.** Esto es lo elegante: tu código de
 los caps. 8–13 no cambia *nada* — cambia una variable de entorno:
 
+{{< include _explicaciones/entorno.md >}}
+
+
 ```bash
 # .env — the ONLY difference between local and managed Postgres
 # Local:          DATABASE_URL=postgresql://app:dev@localhost:5432/taskflow
@@ -98,6 +101,9 @@ aws secretsmanager get-secret-value --secret-id taskflow/db
 **El contrato mental:** el proveedor te entrega un *endpoint + credencial
 auditable*; tú entregas la app configurada por entorno. La frontera de
 N2 aplicada a la base de datos.
+
+{{< include _explicaciones/base-de-datos.md >}}
+
 
 ::: {.callout-tip collapse="true" title="Prompt listo para tu AI"}
 
@@ -150,6 +156,9 @@ son la opción más sensata: administrado *y* barato.
 
 - **La app se configura por entorno, no por proveedor:** `DATABASE_URL`
   apunta a localhost en dev y a RDS en prod — mismo código.
+
+{{< include _explicaciones/localhost.md >}}
+
 - **Backups verificados:** programa una restauración de prueba. Un backup
   que nunca restauraste es una esperanza, no un plan.
 - **Menor privilegio también en la nube:** la BD de la app solo acepta
@@ -200,6 +209,23 @@ el primer usuario real. Desde ese día, "Postgres en la misma caja" es
 una deuda con vencimiento desconocido.
 
 :::
+
+
+## Vocabulario técnico del capítulo
+
+{{< include _explicaciones/terminal.md >}}
+
+{{< include _explicaciones/cli.md >}}
+
+{{< include _explicaciones/commit.md >}}
+
+{{< include _explicaciones/repositorio.md >}}
+
+{{< include _explicaciones/puerto.md >}}
+
+{{< include _explicaciones/migracion.md >}}
+
+{{< include _explicaciones/cifrado.md >}}
 
 ## Lo que deberías saber hacer ahora
 
