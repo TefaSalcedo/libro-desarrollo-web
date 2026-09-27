@@ -1,6 +1,11 @@
 project:
   type: book
   output-dir: _book
+  resources:
+    - CNAME
+
+website:
+  site-url: https://desarrollowebcompleto.tefasalcedo.com
 
 lang: es
 
@@ -12,7 +17,8 @@ book:
   cover-image: imagenes/cover.png
   search: true
   downloads: [pdf, epub]
-  repo-url: ""
+  repo-url: "https://github.com/TefaSalcedo/libro-desarrollo-web"
+  repo-actions: [edit, issue]
   chapters:
     - index.qmd
     - part: "Sección I · Aprende Frontend"
