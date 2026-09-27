@@ -4,10 +4,6 @@ project:
   resources:
     - CNAME
 
-website:
-  site-url: https://desarrollowebcompleto.tefasalcedo.com
-  favicon: imagenes/cover.jpg
-
 lang: es
 
 book:
@@ -20,6 +16,8 @@ book:
   downloads: [pdf, epub]
   repo-url: "https://github.com/TefaSalcedo/libro-desarrollo-web"
   repo-actions: [edit, issue]
+  site-url: https://desarrollowebcompleto.tefasalcedo.com
+  favicon: imagenes/cover.jpg
   chapters:
     - index.qmd
     - part: "Sección I · Aprende Frontend"
