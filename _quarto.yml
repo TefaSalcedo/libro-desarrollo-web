@@ -6,6 +6,7 @@ project:
 
 website:
   site-url: https://desarrollowebcompleto.tefasalcedo.com
+  favicon: imagenes/cover.jpg
 
 lang: es
 
@@ -14,7 +15,7 @@ book:
   subtitle: "Aprende frontend, backend y nube — un concepto, tres lenguajes, y ningún prerrequisito"
   author: "Stefa"
   date: today
-  cover-image: imagenes/cover.png
+  cover-image: imagenes/cover.jpg
   search: true
   downloads: [pdf, epub]
   repo-url: "https://github.com/TefaSalcedo/libro-desarrollo-web"
