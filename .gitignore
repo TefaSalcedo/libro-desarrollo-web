@@ -13,3 +13,6 @@ Thumbs.db
 
 # Quarto LaTeX intermediates
 *.tex
+
+# Playwright MCP snapshots
+.playwright-mcp/
