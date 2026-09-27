@@ -5,14 +5,29 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: true
+
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Cache TinyTeX packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.TinyTeX
+            ~/TinyTeX
+          key: ${{ runner.os }}-tinytex-v1
+          restore-keys: |
+            ${{ runner.os }}-tinytex-
 
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2

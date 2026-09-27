@@ -17,7 +17,7 @@ book:
   repo-url: "https://github.com/TefaSalcedo/libro-desarrollo-web"
   repo-actions: [edit, issue]
   site-url: https://desarrollowebcompleto.tefasalcedo.com
-  favicon: imagenes/cover.jpg
+  favicon: imagenes/cover.png
   chapters:
     - index.qmd
     - part: "Sección I · Aprende Frontend"
