@@ -1,0 +1,43 @@
+name: Publish Book (full, with PDF)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Cache TinyTeX packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.TinyTeX
+            ~/TinyTeX
+          key: ${{ runner.os }}-tinytex-v1
+          restore-keys: |
+            ${{ runner.os }}-tinytex-
+
+      - name: Set up Quarto with TinyTeX
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          tinytex: true
+
+      - name: Pin a reliable CTAN mirror
+        run: tlmgr option repository https://mirrors.rit.edu/CTAN/systems/texlive/tlnet
+
+      - name: Render all formats and publish
+        uses: quarto-dev/quarto-actions/publish@v2
+        with:
+          target: gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,4 +1,4 @@
-name: Publish Quarto Book
+name: Publish Book Site (fast)
 
 on:
   push:
@@ -12,31 +12,33 @@ concurrency:
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 25
     permissions:
       contents: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Cache TinyTeX packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.TinyTeX
-            ~/TinyTeX
-          key: ${{ runner.os }}-tinytex-v1
-          restore-keys: |
-            ${{ runner.os }}-tinytex-
-
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
-        with:
-          tinytex: true
 
-      - name: Render and publish to GitHub Pages
+      - name: Render HTML only (no LaTeX)
+        run: quarto render --to html
+
+      - name: Restore PDF/EPUB downloads from live site
+        run: |
+          mkdir -p _book
+          curl -fsSL -o _book/Desarrollo-web-completo.pdf \
+            "https://desarrollowebcompleto.tefasalcedo.com/Desarrollo-web-completo.pdf" \
+            || echo "No previous PDF found, downloads link will 404 until a full publish runs"
+          curl -fsSL -o _book/Desarrollo-web-completo.epub \
+            "https://desarrollowebcompleto.tefasalcedo.com/Desarrollo-web-completo.epub" \
+            || echo "No previous EPUB found"
+
+      - name: Publish to GitHub Pages (skip re-render)
         uses: quarto-dev/quarto-actions/publish@v2
         with:
           target: gh-pages
+          render: "false"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
